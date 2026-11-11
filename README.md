@@ -5,7 +5,8 @@ Dự án game Unity về một nhân vật vượt qua các màn chơi có quái
 ## Quy trình GitHub
 
 - `main` là nhánh tích hợp ổn định.
-- Mỗi thành viên làm việc trên nhánh tính năng được phân công và tạo Pull Request (PR) về `main`.
+- Mỗi thành viên chỉ làm việc và commit trên nhánh tính năng được phân công; không phát triển hoặc commit trực tiếp lên `main`. Điều này áp dụng cho cả người phụ trách giao diện.
+- Khi có thay đổi cần tích hợp, tạo Pull Request (PR) từ nhánh tính năng về `main`.
 - Nhóm trưởng xem xét và là người duy nhất merge PR vào `main`.
 - Có thể tạo PR khi một phần tính năng đã chạy được để tích hợp và nhận góp ý sớm.
 

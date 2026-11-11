@@ -2,6 +2,8 @@
 
 Mục tiêu của đợt này là tạo hai prototype độc lập, có thể kiểm tra trong Unity và ghép vào Scene chơi chính sau khi được review.
 
+> **Quy tắc nhánh:** Không phát triển hoặc commit trực tiếp lên `main`. Mỗi người chỉ làm trên nhánh tính năng được phân công (bao gồm người phụ trách giao diện); thay đổi được gửi bằng PR về `main`.
+
 ## Khải — Nhân vật và chiến đấu
 
 **Nhánh:** `feature/character-combat`
