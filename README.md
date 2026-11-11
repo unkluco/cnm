@@ -6,7 +6,7 @@ Dự án game Unity nơi người chơi điều khiển một nhân vật vượ
 
 | Thành viên | Nhánh | Phạm vi |
 |---|---|---|
-| Nhóm trưởng (bạn) | `feature/menu-ui` | Giao diện đầu game, điều hướng bắt đầu chơi và các màn hình menu cơ bản. |
+| Kiệt (nhóm trưởng) | `feature/menu-ui` | Giao diện đầu game, điều hướng bắt đầu chơi và các màn hình menu cơ bản. |
 | Khải | `feature/character-combat` | Nhân vật và quái vật; cơ chế chiến đấu, tính sát thương/máu và tiêu diệt quái; chọn vũ khí súng/kiếm ở mức cơ bản. Chưa cần túi đồ hoàn chỉnh. |
 | Đạt | `feature/map-generation` | Nghiên cứu cấu trúc/format bản đồ địa hình và xây dựng cơ chế sinh màn ngẫu nhiên. |
 
@@ -31,3 +31,4 @@ Dự án game Unity nơi người chơi điều khiển một nhân vật vượ
 Mở thư mục này bằng Unity Hub. Phiên bản dự án hiện tại được ghi trong `ProjectSettings/ProjectVersion.txt`.
 
 Các thư mục do Unity tạo lại như `Library`, `Temp` và `Logs` được bỏ qua trong Git; nội dung trong `Assets`, `Packages` và `ProjectSettings` được lưu trong repo.
+
