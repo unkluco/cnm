@@ -2,7 +2,7 @@
 
 Mục tiêu của đợt này là tạo hai prototype độc lập, có thể kiểm tra trong Unity và ghép vào Scene chơi chính sau khi được review.
 
-> **Quy tắc nhánh:** Không phát triển hoặc commit trực tiếp lên `main`. Mỗi người chỉ làm trên nhánh tính năng được phân công (bao gồm người phụ trách giao diện); thay đổi được gửi bằng PR về `main`.
+> **Quy tắc nhánh:** Không phát triển hoặc commit trực tiếp lên `main` hay `develop`. Mỗi người chỉ làm trên nhánh tính năng được phân công (bao gồm người phụ trách giao diện); thay đổi được gửi bằng PR về `develop`.
 
 ## Khải — Nhân vật và chiến đấu
 
@@ -31,7 +31,7 @@ Mục tiêu của đợt này là tạo hai prototype độc lập, có thể ki
 - Script liên quan đến máu, sát thương, tấn công, chết và chọn vũ khí.
 - Scene `CharacterCombatTest` để nhóm có thể tự chạy thử.
 - Hướng dẫn ngắn về phím điều khiển, cách thử và các giá trị cần chỉnh; ghi rõ phần nào còn tạm thời.
-- PR từ `feature/character-combat` về `main`, mô tả cách kiểm tra trong Unity.
+- PR từ `feature/character-combat` về `develop`, mô tả cách kiểm tra trong Unity.
 
 ## Đạt — Format room và sinh màn
 
@@ -64,4 +64,4 @@ Một màn chơi được ghép từ nhiều room nối với nhau. Ở giai đo
 - Script/bộ sinh bố cục room cùng dữ liệu room mẫu cần thiết.
 - Scene `MapGenTest` để nhóm chạy thử.
 - Mô tả cách lấy điểm bắt đầu, đích và dữ liệu kết nối giữa các room; ghi rõ giới hạn còn tồn tại.
-- PR từ `feature/map-generation` về `main`, mô tả cách chạy thử và cách kiểm tra các room đã nối đúng.
+- PR từ `feature/map-generation` về `develop`, mô tả cách chạy thử và cách kiểm tra các room đã nối đúng.
