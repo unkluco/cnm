@@ -31,30 +31,35 @@ Mục tiêu của đợt này là tạo hai prototype độc lập, có thể ki
 - Hướng dẫn ngắn về phím điều khiển, cách thử và các giá trị cần chỉnh; ghi rõ phần nào còn tạm thời.
 - PR từ `feature/character-combat` về `main`, mô tả cách kiểm tra trong Unity.
 
-## Đạt — Format địa hình và sinh màn
+## Đạt — Format room và sinh màn
 
 **Nhánh:** `feature/map-generation`
 
+### Phạm vi ưu tiên
+
+Một màn chơi được ghép từ nhiều room nối với nhau. Ở giai đoạn này, tập trung làm format room, sinh bố cục gồm nhiều room và bảo đảm các room nối được thành một màn hoàn chỉnh. Chưa cần làm phức tạp địa hình, vật thể hay chi tiết bên trong từng room; có thể dùng room mẫu đơn giản hoặc placeholder để kiểm tra luồng sinh và kết nối.
+
 ### Việc cần làm
 
-1. Nghiên cứu và chọn cách biểu diễn màn chơi phù hợp cho prototype, ví dụ lưới ô hoặc các đoạn/chunk ghép lại. Ghi rõ lý do chọn và giới hạn của format.
-2. Định nghĩa dữ liệu tối thiểu của một màn: kích thước, loại địa hình/ô, chướng ngại vật, vị trí bắt đầu, vị trí đích và các điểm có thể sinh quái.
-3. Tạo bộ sinh màn prototype có thể tạo các bố cục khác nhau từ seed. Cùng một seed cần tạo lại cùng một bố cục để tiện tái hiện lỗi.
-4. Bảo đảm màn có điểm bắt đầu và đích đến, đồng thời có đường đi hợp lệ giữa chúng. Bố trí chướng ngại vật và điểm sinh quái sao cho có thể kiểm tra được.
-5. Tạo Scene thử riêng `MapGenTest`, có cách sinh lại màn với seed khác và nhìn thấy rõ các điểm bắt đầu/đích/spawn.
-6. Thống nhất cách trả dữ liệu hoặc các điểm spawn để nhánh nhân vật/chiến đấu có thể đặt người chơi và quái vào màn mà không phụ thuộc vào Scene thử của Đạt.
+1. Nghiên cứu và chọn format để mô tả một room cùng các điểm/cửa kết nối của room. Ghi rõ dữ liệu nào cần có để đặt room và nối room với nhau.
+2. Định nghĩa dữ liệu tối thiểu cho một màn gồm nhiều room: danh sách room, vị trí/chiều xoay của từng room, các cửa kết nối và điểm bắt đầu/đích.
+3. Tạo bộ sinh prototype để chọn và bố trí nhiều room, sau đó nối các cửa tương ứng thành một bố cục hợp lệ.
+4. Bảo đảm các kết nối không bị hở hoặc đè sai vị trí và người chơi có thể đi từ room bắt đầu đến room đích. Ưu tiên kết nối hoạt động trước; chưa cần tối ưu độ đa dạng hay làm nội dung bên trong room phong phú.
+5. Tạo Scene thử riêng `MapGenTest`, hiển thị rõ từng room, các kết nối và tuyến đường tổng thể; thêm cách sinh lại bố cục để kiểm tra.
+6. Thống nhất cách cung cấp điểm bắt đầu, đích và dữ liệu/vị trí room cho các hệ thống khác dùng khi tích hợp.
 
 ### Tiêu chí hoàn thành
 
-- Có tài liệu mô tả format và cách cấu hình màn.
-- Có thể sinh ít nhất vài bố cục khác nhau; cùng seed cho kết quả lặp lại được.
-- Mỗi màn thử có bắt đầu, đích và đường đi hợp lệ giữa hai điểm.
-- Scene thử cho phép xem kết quả và sinh lại màn.
+- Có tài liệu mô tả format room, cửa kết nối và cách một màn được tạo từ nhiều room.
+- Có thể sinh một màn gồm nhiều room được nối đúng với nhau.
+- Có đường đi từ room bắt đầu đến room đích.
+- Scene thử cho phép quan sát kết quả và sinh lại màn.
+- Nội thất room có thể còn đơn giản hoặc dùng placeholder; đây không phải tiêu chí hoàn thành của prototype này.
 
 ### Bàn giao
 
-- Tài liệu format dữ liệu màn và hướng dẫn cấu hình.
-- Script/bộ sinh màn cùng dữ liệu cấu hình cần thiết.
+- Tài liệu format room và quy tắc kết nối.
+- Script/bộ sinh bố cục room cùng dữ liệu room mẫu cần thiết.
 - Scene `MapGenTest` để nhóm chạy thử.
-- Mô tả cách lấy vị trí bắt đầu, đích và điểm sinh quái; ghi rõ giới hạn hoặc vấn đề còn tồn tại.
-- PR từ `feature/map-generation` về `main`, mô tả cách chạy thử và seed dùng để tái hiện kết quả.
+- Mô tả cách lấy điểm bắt đầu, đích và dữ liệu kết nối giữa các room; ghi rõ giới hạn còn tồn tại.
+- PR từ `feature/map-generation` về `main`, mô tả cách chạy thử và cách kiểm tra các room đã nối đúng.
