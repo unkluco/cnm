@@ -4,10 +4,21 @@
 
 Nhiệm vụ chính vẫn là [`Tasks/2026-11-11/khai.md`](../2026-11-11/khai.md). File này bổ sung các yêu cầu để phần của bạn ghép được với bộ sinh màn của Đạt mà không phải sửa lại. Đọc trước: [`Docs/Conventions.md`](../../Docs/Conventions.md).
 
-## Trước khi code
+## Việc đầu tiên: cập nhật nhánh từ `develop`
 
-- Tạo nhánh mới nhất từ `develop`: nếu nhánh của bạn đã có commit thì merge `develop` vào trước.
-- Nhánh `develop` hiện đã có `Assets/Scripts/Common/` (`IDamageable`, `DamageInfo`), các tag/layer và ma trận va chạm.
+Nhánh `feature/character-combat` đã có sẵn, **không tạo nhánh mới**. Nhánh này được tách ra trước khi `develop` có quy ước, khung `Common`, tag/layer và ma trận va chạm, nên cần lấy các thay đổi đó về trước khi viết code:
+
+```bash
+git fetch origin
+git checkout feature/character-combat
+git merge origin/develop
+git push
+```
+
+- Nếu chưa commit gì trên nhánh, lệnh merge chỉ kéo nhánh lên ngang `develop` và không có xung đột.
+- Nếu Unity đang mở dự án, đóng Unity trước khi chạy các lệnh trên, rồi mở lại.
+- Sau bước này, kiểm tra đã có `Assets/Scripts/Common/` (`IDamageable`, `DamageInfo`) và `Docs/Conventions.md`.
+- Trong lúc làm, mỗi khi nhóm trưởng báo `develop` có thay đổi mới thì lặp lại các lệnh trên.
 
 ## Yêu cầu bổ sung
 

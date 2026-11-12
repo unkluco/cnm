@@ -10,9 +10,18 @@ Việc còn lại là sửa phần bàn giao cho khớp với code và với quy
 
 ## Việc cần làm
 
-1. **Cập nhật nhánh:**
-   - Merge `develop` vào `feature/map-generation` để lấy quy ước, `.gitattributes`, `Assets/Scripts/Common/` và tag/layer mới.
-   - Nếu xung đột ở `ProjectSettings/SceneTemplateSettings.json`, giữ bản của `develop`.
+1. **Việc đầu tiên: cập nhật nhánh từ `develop`.**
+
+   Nhánh `feature/map-generation` của bạn được tách ra trước khi `develop` có quy ước, `.gitattributes`, `Assets/Scripts/Common/` và tag/layer mới. Đóng Unity rồi chạy:
+
+   ```bash
+   git fetch origin
+   git checkout feature/map-generation
+   git merge origin/develop
+   ```
+
+   - Nhóm trưởng đã thử merge này trên bản hiện tại của nhánh (commit `14a158b`) và không có xung đột. Nếu bạn đã commit thêm mà gặp xung đột, báo nhóm trưởng trước khi tự giải quyết.
+   - Xong thì `git push`, mở lại Unity và kiểm tra console không có lỗi trước khi làm các bước sau.
 2. **Lưu Scene dạng văn bản:**
    - `Assets/Scenes/MapGenTest.unity` hiện đang ở dạng nhị phân, nên Git không xem được thay đổi và không merge được.
    - Mở Scene trong Unity, chọn file và chạy `Assets > Force Reserialize Assets`, rồi kiểm tra file bắt đầu bằng `%YAML`.
