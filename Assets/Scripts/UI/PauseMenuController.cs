@@ -6,7 +6,8 @@ using UnityEngine.UI;
 namespace LightSouls.UI
 {
     /// <summary>
-    /// Menu tạm dừng trong Scene Game. Bật/tắt bằng action được gán (mặc định UI/Cancel, phím Esc).
+    /// Menu tạm dừng trong Scene Game. Mở bằng nút tạm dừng trên màn hình hoặc action được gán
+    /// (mặc định UI/Cancel: phím Esc, nút Back của Android); action đó cũng đóng menu.
     /// Khi tạm dừng: Time.timeScale = 0 và con trỏ chuột được mở khóa.
     /// Hệ thống khác muốn chặn thao tác của người chơi khi tạm dừng thì nghe PausedChanged.
     /// </summary>
@@ -14,8 +15,13 @@ namespace LightSouls.UI
     {
         [SerializeField] private InputActionReference toggleAction;
         [SerializeField] private GameObject panel;
+        [SerializeField] private Button pauseButton;
         [SerializeField] private Button resumeButton;
+        [SerializeField] private Button settingsButton;
         [SerializeField] private Button mainMenuButton;
+
+        [Tooltip("Để trống thì tự tìm SettingsScreen trong Scene.")]
+        [SerializeField] private SettingsScreen settingsScreen;
 
         private float timeScaleBeforePause = 1f;
         private CursorState cursorBeforePause;
@@ -27,9 +33,17 @@ namespace LightSouls.UI
 
         private void Awake()
         {
+            if (settingsScreen == null)
+            {
+                settingsScreen = FindAnyObjectByType<SettingsScreen>(FindObjectsInactive.Include);
+            }
+
             panel.SetActive(false);
+            pauseButton.onClick.AddListener(Pause);
             resumeButton.onClick.AddListener(Resume);
             mainMenuButton.onClick.AddListener(SceneLoader.LoadMainMenu);
+            settingsButton.onClick.AddListener(OpenSettings);
+            settingsButton.gameObject.SetActive(settingsScreen != null);
         }
 
         private void OnEnable()
@@ -49,8 +63,24 @@ namespace LightSouls.UI
             }
         }
 
+        private void Update()
+        {
+            // Nút tạm dừng trên màn hình chỉ hiện khi đang chơi.
+            var showPauseButton = !IsPaused && !GameResultScreen.IsOpen;
+            if (pauseButton.gameObject.activeSelf != showPauseButton)
+            {
+                pauseButton.gameObject.SetActive(showPauseButton);
+            }
+        }
+
         private void OnTogglePerformed(InputAction.CallbackContext context)
         {
+            // Lần nhấn này đã dùng để đóng màn Cài đặt.
+            if (SettingsScreen.HandlesCancelThisFrame)
+            {
+                return;
+            }
+
             if (IsPaused)
             {
                 Resume();
@@ -72,6 +102,7 @@ namespace LightSouls.UI
             timeScaleBeforePause = Time.timeScale;
             Time.timeScale = 0f;
             cursorBeforePause = CursorState.CaptureAndRelease();
+            pauseButton.gameObject.SetActive(false);
             panel.SetActive(true);
             MenuUtility.Select(resumeButton);
             PausedChanged?.Invoke(true);
@@ -84,11 +115,18 @@ namespace LightSouls.UI
                 return;
             }
 
+            if (settingsScreen != null)
+            {
+                settingsScreen.Close();
+            }
+
             IsPaused = false;
             Time.timeScale = timeScaleBeforePause;
             cursorBeforePause.Restore();
             panel.SetActive(false);
             PausedChanged?.Invoke(false);
         }
+
+        private void OpenSettings() => settingsScreen.Open(settingsButton);
     }
 }
