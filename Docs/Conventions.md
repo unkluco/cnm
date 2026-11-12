@@ -16,6 +16,22 @@ Mục tiêu: các phần do từng người làm riêng (sinh màn, nhân vật/
 - Không tự thêm hoặc nâng cấp package. Cần package mới thì ghi trong PR và để nhóm trưởng duyệt, vì `Packages/manifest.json` ảnh hưởng cả nhóm.
 - Scene, prefab và asset phải lưu dạng văn bản (**Force Text** trong `Edit > Project Settings > Editor > Asset Serialization`). Trước khi mở PR, kiểm tra file `.unity`/`.prefab` không bị Git báo là nhị phân. Nếu bị, mở file trong Unity và chạy `Assets > Force Reserialize Assets` cho file đó.
 - `.gitattributes` của repo quy định file văn bản dùng xuống dòng `LF` và đánh dấu file nhị phân (ảnh, model, âm thanh). Không sửa file này trong nhánh tính năng.
+- **Nhóm dùng cả Windows và macOS** (Khải dùng MacBook). Những điểm cần nhớ:
+  - Phím tắt trong tài liệu ghi theo Windows; trên Mac thay `Ctrl` bằng `Cmd`. Đường dẫn menu của Unity giống nhau, trừ `Edit > Preferences` trên Windows nằm ở menu `Unity > Settings` trên Mac.
+  - Đổi tên file chỉ khác chữ hoa/thường (ví dụ `player.cs` thành `Player.cs`) thì làm trong Unity rồi kiểm tra `git status`. Cả Windows và macOS đều không phân biệt hoa/thường nên Git có thể bỏ sót; nếu vậy dùng `git mv`.
+  - Không commit file riêng của hệ điều hành (`.DS_Store`, `Thumbs.db`); `.gitignore` đã chặn sẵn.
+
+### Nền tảng đích: Android, màn hình ngang
+
+Game chạy trên điện thoại Android, điều khiển hoàn toàn bằng cảm ứng. Mọi tính năng phải dùng được mà không cần bàn phím hay chuột.
+
+- **Màn hình ngang** (đã khóa trong Player Settings, xoay được giữa hai chiều ngang). Giao diện thiết kế theo khung 1920×1080.
+- **Thử trong Editor bằng Device Simulator** (`Window > General > Device Simulator`), chọn một điện thoại Android có tai thỏ. Simulator giả lập cảm ứng và vùng an toàn. Không cần build ra máy để thử từng thay đổi.
+- **Nút bấm trên màn hình** cao tối thiểu 96 px (theo khung 1920×1080), tương đương khoảng 9 mm trên điện thoại. Các nút hay bấm lúc đang chơi (tấn công, đổi vũ khí, tạm dừng) nên to hơn.
+- **Vùng an toàn:** nút và chữ đặt sát cạnh màn hình phải nằm trong vùng an toàn, để không bị tai thỏ hay viền bo che. Cách làm: tạo một object con của Canvas, gắn component `LightSouls.Common.SafeAreaFitter`, rồi đặt các nút vào trong object đó.
+- **Nút Back của Android** được Input System coi là phím Esc, tức action `Cancel` của map `UI`. Trong game nó mở và đóng menu tạm dừng; trong menu nó quay lại màn trước.
+- **Hiệu năng:** Android dùng mức chất lượng `Mobile` (URP `Mobile_RPAsset`). Nhắm 60 FPS trên máy tầm trung; người chơi có thể hạ xuống 30 FPS trong Cài đặt để đỡ tốn pin. Không thêm hiệu ứng hậu kỳ nặng khi chưa thử trên máy thật.
+- **Build ra file APK** cần module Android của Unity: trong Unity Hub chọn `Installs` → `6000.5.7f1` → `Add modules` → **Android Build Support** (cùng OpenJDK và Android SDK & NDK Tools). Chỉ người build mới cần module này; Play Mode trong Editor không cần.
 
 ## 2. Đơn vị và kích thước
 
@@ -131,6 +147,8 @@ Quy định:
 
 - Chỉ nhóm trưởng sửa danh sách tag/layer (`ProjectSettings/TagManager.asset`) và ma trận va chạm. Cần thêm thì đề nghị trong PR hoặc nhắn nhóm.
 - Điều khiển trong game dùng file chung `Assets/InputSystem_Actions.inputactions`, action map `Player` (điều khiển nhân vật) và `UI` (menu). Khải sở hữu file này; người khác cần thêm action thì nhờ Khải. Không đọc phím trực tiếp (`Keyboard.current`) ngoài code trong `Testing/`.
+- Điều khiển cảm ứng dùng `OnScreenStick` và `OnScreenButton` của Input System. Hai component này giả lập một tay cầm, nên action trong map `Player` cần có binding cho tay cầm (`<Gamepad>/leftStick`, `<Gamepad>/buttonSouth`…) để nhận được tín hiệu từ nút trên màn hình. Binding bàn phím vẫn giữ để thử nhanh trong Editor.
+- Cài đặt của người chơi (âm lượng, FPS, rung) đọc qua `LightSouls.Common.GameSettings`. Ví dụ hệ thống chiến đấu chỉ rung máy khi `GameSettings.VibrationEnabled` là `true`.
 
 ## 6. Sở hữu Scene và file
 
