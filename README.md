@@ -10,6 +10,8 @@ Dự án game Unity về một nhân vật vượt qua các màn chơi có quái
 - Tạo Pull Request (PR) từ nhánh tính năng về `develop`; nhóm trưởng xem xét và là người duy nhất merge các PR tính năng vào `develop`.
 - Khi `develop` đã được kiểm tra và ổn định, nhóm trưởng tạo PR từ `develop` vào `main`. Có thể mở PR tính năng sớm để tích hợp và nhận góp ý.
 
+Quy ước kỹ thuật chung (phiên bản Unity, đơn vị, tổ chức code, hợp đồng giữa các hệ thống, tag/layer, sở hữu file) nằm trong [`Docs/Conventions.md`](Docs/Conventions.md).
+
 ## Tổ chức Scene
 
 - `MainMenu`: giao diện đầu game và nút bắt đầu.
