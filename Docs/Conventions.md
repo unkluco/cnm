@@ -1,6 +1,12 @@
 # Quy ước chung — Light Souls
 
-> **Trạng thái:** đề xuất, chờ nhóm trưởng (Kiệt) duyệt qua PR. Sau khi merge, mọi PR tính năng phải tuân theo tài liệu này. Muốn đổi quy ước thì mở PR sửa chính file này, không tự làm khác trong nhánh tính năng.
+> **Trạng thái:** đã được nhóm trưởng (Kiệt) duyệt. Mọi PR tính năng phải tuân theo tài liệu này. Muốn đổi quy ước thì mở PR sửa chính file này, không tự làm khác trong nhánh tính năng.
+
+| Thành viên | GitHub | Phụ trách | Nhánh |
+| :--- | :--- | :--- | :--- |
+| Kiệt (nhóm trưởng) | `unkluco` | Giao diện, menu; lắp ráp Scene `Game`; review và merge | `feature/menu-ui` |
+| Khải | `Khai810` | Nhân vật, quái, vũ khí, chiến đấu | `feature/character-combat` |
+| Đạt | `Coloky7098` | Format room, sinh màn | `feature/map-generation` |
 
 Mục tiêu: các phần do từng người làm riêng (sinh màn, nhân vật/chiến đấu, giao diện) ghép được vào Scene `Game` mà không phải sửa lại. Tài liệu chỉ ghi những điều phải thống nhất; chi tiết bên trong mỗi hệ thống do người phụ trách quyết định.
 
@@ -30,8 +36,8 @@ Assets/Scripts/
   Common/          LightSouls.Common          — interface, struct, enum dùng chung
   MapGeneration/   LightSouls.MapGeneration   — sinh màn (Đạt)
   Combat/          LightSouls.Combat          — nhân vật, quái, vũ khí (Khải)
-  UI/              LightSouls.UI              — menu, HUD
-  Game/            LightSouls.Game            — lắp ráp các hệ thống trong Scene Game
+  UI/              LightSouls.UI              — menu, HUD (Kiệt)
+  Game/            LightSouls.Game            — lắp ráp các hệ thống trong Scene Game (Kiệt)
 ```
 
 - Mỗi thư mục có một assembly definition (`.asmdef`) cùng tên với namespace.
@@ -56,7 +62,7 @@ Assets/Scripts/
 | `ctx.SpawnedRooms` | danh sách phòng; mỗi `RoomModule` có `RoomType`, `EnemySpawnPoints`, `LifecycleController` |
 | `ctx.IsNavMeshBaked` | chỉ cho quái di chuyển khi `true` |
 
-Các trường còn lại (máy bán vũ khí, rương boss) chưa thuộc phạm vi prototype và chưa được tính là hợp đồng.
+Các trường còn lại (`VendingMachine`, `BossRewardController`, `TriggerBossRewards()`) nằm ngoài phạm vi prototype và **không** thuộc hợp đồng: hệ thống khác không được dựa vào chúng. Mua vũ khí và phần thưởng boss sẽ được thiết kế lại ở một đợt sau, khi hệ thống vũ khí của Khải đã có.
 
 ### 4.2. Sát thương
 
@@ -81,6 +87,7 @@ namespace LightSouls.Common
 }
 ```
 
+- Hai kiểu này đã có sẵn trong `Assets/Scripts/Common/`. Không tạo bản riêng trong hệ thống của mình.
 - Dùng `struct` để sau này thêm trường (loại sát thương, lực đẩy) mà không phải sửa mọi nơi gọi.
 - Không đánh nhầm phe được xử lý bằng layer và ma trận va chạm (mục 5), không xử lý trong interface.
 
@@ -106,19 +113,28 @@ Sinh màn không biết gì về quái; chiến đấu không biết gì về c�
 | `Player` | đối tượng gốc của nhân vật người chơi (`RoomLifecycleController` dựa vào tag này để nhận biết người chơi vào phòng) |
 | `Enemy` | đối tượng gốc của mỗi quái |
 
-| Layer | Gắn cho |
-| :--- | :--- |
-| `Player` | nhân vật người chơi |
-| `Enemy` | quái |
-| `Environment` | sàn, tường, cửa |
-| `Projectile` | đạn và vùng đánh |
+| Layer | Số | Gắn cho |
+| :--- | :--- | :--- |
+| `Player` | 6 | nhân vật người chơi |
+| `Enemy` | 7 | quái |
+| `Environment` | 8 | sàn, tường, cửa, vật cản |
+| `PlayerAttack` | 9 | đạn và vùng đánh do người chơi tạo ra |
+| `EnemyAttack` | 10 | đạn và vùng đánh do quái tạo ra |
+
+Ma trận va chạm đã được đặt sẵn trong `ProjectSettings/DynamicsManager.asset`:
+
+- `PlayerAttack` chỉ va chạm với `Enemy` và `Environment`; `EnemyAttack` chỉ va chạm với `Player` và `Environment`. Nhờ vậy đòn đánh không bao giờ trúng phe mình và hai loại đạn không va vào nhau.
+- `Player`, `Enemy`, `Environment` va chạm với nhau bình thường.
+- Đòn đánh dùng collider kiểu trigger (hoặc raycast với `LayerMask` tương ứng), sau đó tìm `IDamageable` trên đối tượng trúng.
+
+Quy định:
 
 - Chỉ nhóm trưởng sửa danh sách tag/layer (`ProjectSettings/TagManager.asset`) và ma trận va chạm. Cần thêm thì đề nghị trong PR hoặc nhắn nhóm.
-- Điều khiển trong game dùng file chung `Assets/InputSystem_Actions.inputactions`, action map `Player`. Người làm nhân vật (Khải) sở hữu file này; người khác cần thêm action thì nhờ Khải. Không đọc phím trực tiếp (`Keyboard.current`) ngoài code trong `Testing/`.
+- Điều khiển trong game dùng file chung `Assets/InputSystem_Actions.inputactions`, action map `Player` (điều khiển nhân vật) và `UI` (menu). Khải sở hữu file này; người khác cần thêm action thì nhờ Khải. Không đọc phím trực tiếp (`Keyboard.current`) ngoài code trong `Testing/`.
 
 ## 6. Sở hữu Scene và file
 
-- Scene `Game`: chỉ nhóm trưởng sửa. Thành viên bàn giao bằng prefab và script, không bằng Scene.
+- Scene `MainMenu` và `Game`: chỉ nhóm trưởng (Kiệt) sửa. Thành viên bàn giao bằng prefab và script, không bằng Scene.
 - Scene thử (`MapGenTest`, `CharacterCombatTest`, …): chỉ người phụ trách sửa.
 - Không sửa prefab, Scene hay asset trong thư mục của hệ thống khác. Cần thay đổi thì nhờ người phụ trách.
 
