@@ -28,4 +28,17 @@ Các thư mục Unity có thể tạo lại như `Library`, `Temp` và `Logs` đ
 
 ## Nhật ký task
 
-Task được lưu theo từng đợt trong thư mục `Tasks/`, dùng tên file bắt đầu bằng ngày theo định dạng `YYYY-MM-DD`. Task mới được thêm thành file mới để giữ lịch sử phân công.
+Task được lưu theo từng đợt, mỗi người một file:
+
+```
+Tasks/
+  YYYY-MM-DD/      ngày giao đợt việc
+    kiet.md
+    khai.md
+    dat.md
+```
+
+- Mỗi đợt mới là một thư mục mới; không sửa nội dung giao việc của đợt cũ để giữ lịch sử phân công.
+- Một người không có việc trong đợt thì không cần file.
+- Mỗi file ghi rõ nhánh, việc cần làm, tiêu chí hoàn thành và những gì phải bàn giao.
+- Việc của một đợt cũ chưa xong vẫn còn hiệu lực, trừ khi file của đợt mới ghi khác.
