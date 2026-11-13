@@ -134,6 +134,9 @@ namespace LightSouls.MapGeneration
                 if (toCenter.sqrMagnitude > 0.01f)
                 {
                     other.transform.position += toCenter.normalized * 0.6f;
+                    // CharacterController chỉ nhận vị trí mới khi transform được đồng bộ sang physics;
+                    // nếu không, lần Move() kế tiếp có thể kéo người chơi về chỗ cũ.
+                    Physics.SyncTransforms();
                 }
 
                 EnterCombat();
