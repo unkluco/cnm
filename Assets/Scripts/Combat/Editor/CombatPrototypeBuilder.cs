@@ -32,6 +32,8 @@ namespace LightSouls.Combat.Editor
         private const string PrefabsRoot = "Assets/Prefabs/Combat";
         private const string WeaponsRoot = "Assets/ScriptableObjects/Combat/Weapons";
         private const string TestScenePath = "Assets/Scenes/CharacterCombatTest.unity";
+        private const string TestNavMeshFolder = "Assets/Scenes/CharacterCombatTest";
+        private const string TestNavMeshPath = TestNavMeshFolder + "/NavMesh-Floor_Arena.asset";
         private const string ScreenshotsRoot = "Docs/Reports/Screenshots";
 
         [MenuItem("LightSouls/Combat/Build Prototype Assets & CharacterCombatTest Scene")]
@@ -116,6 +118,25 @@ namespace LightSouls.Combat.Editor
             Debug.Log("[CombatPrototypeBuilder] Đã hoàn thành khởi tạo toàn bộ 3 loại quái, đạn quái, EnemySpawner và chụp ảnh nghiệm thu!");
         }
 
+        /// <summary>
+        /// Lấy InputActionReference (sub-asset) của action trong InputSystem_Actions, ví dụ "Player/Move".
+        /// </summary>
+        private static UnityEngine.InputSystem.InputActionReference FindActionReference(string actionPath)
+        {
+            foreach (Object asset in AssetDatabase.LoadAllAssetsAtPath("Assets/InputSystem_Actions.inputactions"))
+            {
+                if (asset is UnityEngine.InputSystem.InputActionReference reference &&
+                    reference.action != null &&
+                    $"{reference.action.actionMap.name}/{reference.action.name}" == actionPath)
+                {
+                    return reference;
+                }
+            }
+
+            Debug.LogError($"[CombatPrototypeBuilder] Không tìm thấy action {actionPath} trong InputSystem_Actions.");
+            return null;
+        }
+
         [MenuItem("LightSouls/Combat/Force Reserialize CharacterCombatTest Scene")]
         public static void ForceReserializeTestScene()
         {
@@ -149,7 +170,7 @@ namespace LightSouls.Combat.Editor
                 cam.transform.rotation = Quaternion.Euler(52f, 0f, 0f);
             }
 
-            Canvas[] canvases = Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            Canvas[] canvases = Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include);
             foreach (var c in canvases)
             {
                 if (c.renderMode == RenderMode.ScreenSpaceOverlay)
@@ -676,11 +697,15 @@ namespace LightSouls.Combat.Editor
             serMove.FindProperty("leftLeg").objectReferenceValue = leftLeg.transform;
             serMove.FindProperty("rightLeg").objectReferenceValue = rightLeg.transform;
             serMove.FindProperty("dashTrailEffect").objectReferenceValue = dashEffect;
+            serMove.FindProperty("moveAction").objectReferenceValue = FindActionReference("Player/Move");
+            serMove.FindProperty("dashAction").objectReferenceValue = FindActionReference("Player/Dash");
             serMove.ApplyModifiedPropertiesWithoutUndo();
 
             SerializedObject serCombat = new SerializedObject(combat);
             serCombat.FindProperty("weaponSocket").objectReferenceValue = socket.transform;
             serCombat.FindProperty("attackOrigin").objectReferenceValue = muzzle.transform;
+            serCombat.FindProperty("attackAction").objectReferenceValue = FindActionReference("Player/Attack");
+            serCombat.FindProperty("switchWeaponAction").objectReferenceValue = FindActionReference("Player/SwitchWeapon");
 
             SerializedProperty invProp = serCombat.FindProperty("weaponInventory");
             invProp.ClearArray();
@@ -1288,7 +1313,7 @@ namespace LightSouls.Combat.Editor
             atkImg.sprite = circleFilled;
             atkImg.color = new Color(0.92f, 0.28f, 0.22f, 0.95f);
             OnScreenButton atkOnScreen = attackBtn.AddComponent<OnScreenButton>();
-            atkOnScreen.controlPath = "<Gamepad>/buttonSouth";
+            atkOnScreen.controlPath = "<Gamepad>/buttonWest";
 
             GameObject atkIconObj = new GameObject("Icon");
             atkIconObj.transform.SetParent(attackBtn.transform, false);
@@ -1319,7 +1344,7 @@ namespace LightSouls.Combat.Editor
             skillImg.sprite = circleFilled;
             skillImg.color = new Color(0.12f, 0.72f, 0.95f, 0.95f); // Màu xanh Cyan nổi bật
             OnScreenButton skillOnScreen = skillBtn.AddComponent<OnScreenButton>();
-            skillOnScreen.controlPath = "<Gamepad>/buttonEast";
+            skillOnScreen.controlPath = "<Gamepad>/rightTrigger";
 
             GameObject skillIconObj = new GameObject("Icon");
             skillIconObj.transform.SetParent(skillBtn.transform, false);
@@ -1534,6 +1559,11 @@ namespace LightSouls.Combat.Editor
             // Bake NavMesh Surface cho agent Humanoid
             NavMeshSurface navSurface = floor.AddComponent<NavMeshSurface>();
             navSurface.BuildNavMesh();
+            // NavMeshData phải lưu thành asset riêng. Nếu để nhúng trong Scene, Unity buộc
+            // cả file .unity lưu dạng nhị phân (NavMeshData luôn serialize nhị phân).
+            EnsureFolder(TestNavMeshFolder);
+            AssetDatabase.DeleteAsset(TestNavMeshPath);
+            AssetDatabase.CreateAsset(navSurface.navMeshData, TestNavMeshPath);
 
             // Ánh sáng Directional Light
             GameObject lightObj = new GameObject("Directional Light");
@@ -1661,9 +1691,7 @@ namespace LightSouls.Combat.Editor
                 es.AddComponent<InputSystemUIInputModule>();
             }
 
-            EditorSettings.serializationMode = SerializationMode.ForceText;
             EditorSceneManager.SaveScene(scene, TestScenePath);
-            AssetDatabase.ForceReserializeAssets(new[] { TestScenePath }, ForceReserializeAssetsOptions.ReserializeAssetsAndMetadata);
             AssetDatabase.SaveAssets();
         }
 
