@@ -10,6 +10,8 @@ Dự án game Unity về một nhân vật vượt qua các màn chơi có quái
 - Tạo Pull Request (PR) từ nhánh tính năng về `develop`; nhóm trưởng xem xét và là người duy nhất merge các PR tính năng vào `develop`.
 - Khi `develop` đã được kiểm tra và ổn định, nhóm trưởng tạo PR từ `develop` vào `main`. Có thể mở PR tính năng sớm để tích hợp và nhận góp ý.
 
+Quy ước kỹ thuật chung (phiên bản Unity, đơn vị, tổ chức code, hợp đồng giữa các hệ thống, tag/layer, sở hữu file) nằm trong [`Docs/Conventions.md`](Docs/Conventions.md).
+
 ## Tổ chức Scene
 
 - `MainMenu`: giao diện đầu game và nút bắt đầu.
@@ -26,4 +28,17 @@ Các thư mục Unity có thể tạo lại như `Library`, `Temp` và `Logs` đ
 
 ## Nhật ký task
 
-Task được lưu theo từng đợt trong thư mục `Tasks/`, dùng tên file bắt đầu bằng ngày theo định dạng `YYYY-MM-DD`. Task mới được thêm thành file mới để giữ lịch sử phân công.
+Task được lưu theo từng đợt, mỗi người một file:
+
+```
+Tasks/
+  YYYY-MM-DD/      ngày giao đợt việc
+    kiet.md
+    khai.md
+    dat.md
+```
+
+- Mỗi đợt mới là một thư mục mới; không sửa nội dung giao việc của đợt cũ để giữ lịch sử phân công.
+- Một người không có việc trong đợt thì không cần file.
+- Mỗi file ghi rõ nhánh, việc cần làm, tiêu chí hoàn thành và những gì phải bàn giao.
+- Việc của một đợt cũ chưa xong vẫn còn hiệu lực, trừ khi file của đợt mới ghi khác.
