@@ -93,7 +93,7 @@ Khi `DungeonLayoutPlanner.TryPlan(...)` hoàn tất, toàn bộ bố cục đư�
    - Mọi Room Prefab chuẩn đều có đủ 4 hướng `(North, East, South, West)`. Hướng nào có cạnh nối sẽ bật `openVisual` (`DoorFrame`); hướng nào không có cạnh nối tự động bật `closedWallVisual` (`SolidWall` đặc kín mít).
 3. **Luật 3 — Trục Chính Tuyến Tính (`Start -> Combat_1 -> Combat_2 -> Combat_3 -> Boss`) + Khóa Bậc Start/Boss**:
    - Phòng **Start (Xanh)** bắt buộc chỉ mở đúng **1 cửa ra** (`Degree(Start) == 1`).
-   - Phòng **Boss / Exit (Tím, 20m×20m)** nằm ở cuối trục chính, bắt buộc chỉ mở đúng **1 cửa vào** (`Degree(Boss) == 1`), không có nhánh hay hành lang thừa phía sau.
+   - Phòng **Boss / Exit (Tím, 28m×28m)** nằm ở cuối trục chính, bắt buộc chỉ mở đúng **1 cửa vào** (`Degree(Boss) == 1`), không có nhánh hay hành lang thừa phía sau.
    - Nhánh phụ chỉ được phép mọc ra từ các phòng `Combat` nằm giữa trục chính.
 4. **Luật 4 — Quy tắc Gán Nhãn theo Bậc của Đỉnh (Node Degree Role Rule)**:
    - **Đỉnh gốc (`Root`):** `Start` (`Degree == 1`).
