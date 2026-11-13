@@ -57,8 +57,8 @@ namespace LightSouls.Combat.Weapons
             int otherLayerMask = 1 << other.gameObject.layer;
             bool isTargetLayer = (targetLayer.value & otherLayerMask) != 0;
             
-            // Layer 8 là Environment trong ProjectSettings
-            bool isEnvironment = other.gameObject.layer == 8 || other.CompareTag("Environment");
+            // Môi trường (sàn, tường, cửa) dùng layer Environment; dự án không có tag "Environment".
+            bool isEnvironment = other.gameObject.layer == LayerMask.NameToLayer("Environment");
 
             if (isTargetLayer)
             {

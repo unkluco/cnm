@@ -260,29 +260,10 @@ namespace LightSouls.Combat
                 return;
             }
 
-            if (moveAction != null && moveAction.action != null)
-            {
-                _inputVector = moveAction.action.ReadValue<Vector2>();
-            }
-            else
-            {
-                // Fallback nếu chưa gắn InputActionReference: đọc Gamepad hoặc Keyboard
-                Vector2 stick = Gamepad.current != null ? Gamepad.current.leftStick.ReadValue() : Vector2.zero;
-                Vector2 keys = Vector2.zero;
-                if (Keyboard.current != null)
-                {
-                    if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed) keys.y += 1;
-                    if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed) keys.y -= 1;
-                    if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) keys.x -= 1;
-                    if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) keys.x += 1;
-                }
-                _inputVector = stick.sqrMagnitude > keys.sqrMagnitude ? stick : keys.normalized;
-            }
-
-            if (Keyboard.current != null && (Keyboard.current.leftShiftKey.wasPressedThisFrame || Keyboard.current.spaceKey.wasPressedThisFrame))
-            {
-                PerformDash();
-            }
+            // Đọc input qua action Player/Move (bàn phím, tay cầm và cần analog trên màn hình đều đi qua action này).
+            _inputVector = moveAction != null && moveAction.action != null
+                ? moveAction.action.ReadValue<Vector2>()
+                : Vector2.zero;
 
             // Giới hạn độ dài vector input tối đa là 1 (tránh di chuyển chéo bị nhanh hơn)
             if (_inputVector.sqrMagnitude > 1f)

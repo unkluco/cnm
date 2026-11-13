@@ -107,52 +107,6 @@ namespace LightSouls.Combat
             }
         }
 
-        private void Update()
-        {
-            // Fallback đọc trực tiếp phím nếu không dùng InputActionReference
-            if (!_isInputActive) return;
-
-            if (attackAction == null || attackAction.action == null)
-            {
-                bool attackPressed = false;
-                if (Keyboard.current != null && (Keyboard.current.spaceKey.wasPressedThisFrame || Keyboard.current.enterKey.wasPressedThisFrame))
-                {
-                    attackPressed = true;
-                }
-                if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
-                {
-                    attackPressed = true;
-                }
-                if (Gamepad.current != null && (Gamepad.current.buttonSouth.wasPressedThisFrame || Gamepad.current.buttonWest.wasPressedThisFrame))
-                {
-                    attackPressed = true;
-                }
-
-                if (attackPressed)
-                {
-                    PerformAttack();
-                }
-            }
-
-            if (switchWeaponAction == null || switchWeaponAction.action == null)
-            {
-                bool switchPressed = false;
-                if (Keyboard.current != null && Keyboard.current.qKey.wasPressedThisFrame)
-                {
-                    switchPressed = true;
-                }
-                if (Gamepad.current != null && (Gamepad.current.buttonNorth.wasPressedThisFrame || Gamepad.current.rightShoulder.wasPressedThisFrame))
-                {
-                    switchPressed = true;
-                }
-
-                if (switchPressed)
-                {
-                    SwitchWeapon();
-                }
-            }
-        }
-
         private void OnAttackInput(InputAction.CallbackContext context)
         {
             if (!_isInputActive) return;

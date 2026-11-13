@@ -48,6 +48,8 @@ namespace LightSouls.Combat.UI
         [SerializeField] private Text skillButtonLabelText;
         [SerializeField] private Image skillCooldownOverlay;
 
+        private PlayerController _subscribedPlayer;
+
         private void Start()
         {
             if (player == null)
@@ -67,7 +69,7 @@ namespace LightSouls.Combat.UI
 
             if (skillButtonIconText != null && string.IsNullOrEmpty(skillButtonIconText.text))
             {
-                skillButtonIconText.text = "💨";
+                skillButtonIconText.text = "»";
             }
 
             if (skillButtonLabelText != null && string.IsNullOrEmpty(skillButtonLabelText.text))
@@ -75,17 +77,52 @@ namespace LightSouls.Combat.UI
                 skillButtonLabelText.text = "LƯỚT";
             }
 
-            if (player != null)
-            {
-                player.OnWeaponChanged += HandleWeaponChanged;
-                player.OnHealthChanged += HandleHealthChanged;
+            Subscribe();
+        }
 
-                if (player.CurrentWeapon != null)
-                {
-                    HandleWeaponChanged(player.CurrentWeapon);
-                }
-                HandleHealthChanged(player.CurrentHealth, player.MaxHealth);
+        /// <summary>
+        /// Gắn HUD với người chơi được sinh ra lúc chạy (GameBootstrap gọi sau khi đặt người chơi vào màn).
+        /// </summary>
+        public void SetPlayer(PlayerController newPlayer)
+        {
+            if (newPlayer == player)
+            {
+                return;
             }
+
+            Unsubscribe();
+            player = newPlayer;
+            Subscribe();
+        }
+
+        private void Subscribe()
+        {
+            if (player == null || _subscribedPlayer == player)
+            {
+                return;
+            }
+
+            _subscribedPlayer = player;
+            player.OnWeaponChanged += HandleWeaponChanged;
+            player.OnHealthChanged += HandleHealthChanged;
+
+            if (player.CurrentWeapon != null)
+            {
+                HandleWeaponChanged(player.CurrentWeapon);
+            }
+            HandleHealthChanged(player.CurrentHealth, player.MaxHealth);
+        }
+
+        private void Unsubscribe()
+        {
+            if (_subscribedPlayer == null)
+            {
+                return;
+            }
+
+            _subscribedPlayer.OnWeaponChanged -= HandleWeaponChanged;
+            _subscribedPlayer.OnHealthChanged -= HandleHealthChanged;
+            _subscribedPlayer = null;
         }
 
         private void Update()
@@ -101,11 +138,7 @@ namespace LightSouls.Combat.UI
 
         private void OnDestroy()
         {
-            if (player != null)
-            {
-                player.OnWeaponChanged -= HandleWeaponChanged;
-                player.OnHealthChanged -= HandleHealthChanged;
-            }
+            Unsubscribe();
         }
 
         private void HandleWeaponChanged(WeaponDataSO weapon)
@@ -152,7 +185,7 @@ namespace LightSouls.Combat.UI
 
             if (switchButtonIconText != null)
             {
-                switchButtonIconText.text = isNextSword ? "🗡️" : "🔫";
+                switchButtonIconText.text = isNextSword ? "KIẾM" : "SÚNG";
             }
 
             if (switchButtonLabelText != null)
