@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a292316dc2a16f4fb22c67902686433, type: 3}
+  m_Name: Template_Room_Exit
+  m_EditorClassIdentifier: LightSouls.MapGeneration::LightSouls.MapGeneration.RoomTemplateSO
+  templateId: Room_Exit
+  roomType: 5
+  prefab: {fileID: 8266622949355208831, guid: 8d37681be0e69ee4da4385ba91638f3d, type: 3}
+  selectionWeight: 1
+  minCount: 1
+  maxCount: 1
+  allowRotation: 0
+  localBounds:
+    m_Center: {x: 0, y: 1.5, z: 0}
+    m_Extent: {x: 14, y: 2, z: 14}
+  sockets:
+  - socketName: Socket_North
+    localPosition: {x: 0, y: 0, z: 14}
+    localDirection: 0
+  - socketName: Socket_South
+    localPosition: {x: 0, y: 0, z: -14}
+    localDirection: 2
+  - socketName: Socket_East
+    localPosition: {x: 14, y: 0, z: 0}
+    localDirection: 1
+  - socketName: Socket_West
+    localPosition: {x: -14, y: 0, z: 0}
+    localDirection: 3
+  hasPlayerSpawn: 0
+  playerSpawnLocalOffset: {x: 0, y: 0, z: 0}
+  hasExitPoint: 1
+  exitLocalOffset: {x: 0, y: 0, z: 1.5}
+  enemySpawnLocalOffsets:
+  - {x: -5, y: 0.06, z: -1.5}
+  - {x: 5, y: 0.06, z: -1.5}
