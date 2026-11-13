@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca5bee58beea4d31af7ec6c5613c970e, type: 3}
+  m_Name: Weapon_Gun_Shotgun
+  m_EditorClassIdentifier: LightSouls.Combat.Weapons::WeaponDataSO
+  weaponId: gun_shotgun
+  weaponName: "S\xFAng T\xE1n X\u1EA1 (Shotgun)"
+  description: "B\u1EAFn ra ch\xF9m 5 vi\xEAn \u0111\u1EA1n t\u1ECFa h\xECnh qu\u1EA1t,
+    s\xE1t th\u01B0\u01A1ng c\u1EF1c cao \u1EDF c\u1EF1 ly g\u1EA7n."
+  weaponType: 1
+  damage: 16
+  attackRate: 0.65
+  attackRange: 11
+  weaponPrefab: {fileID: 0}
+  weaponColor: {r: 1, g: 0.65, b: 0.1, a: 1}
+  swingArcAngle: 90
+  hitRadius: 1.5
+  knockbackForce: 4
+  projectilePrefab: {fileID: 6081238883670587671, guid: 1da134f1b388c433b974c52a1c410881, type: 3}
+  projectileSpeed: 18
+  projectileLifetime: 1.8
+  projectileCount: 5
+  spreadAngle: 32
