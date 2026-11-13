@@ -14,7 +14,7 @@ Mục tiêu: các phần do từng người làm riêng (sinh màn, nhân vật/
 
 - **Unity `6000.5.7f1`** (đúng như `ProjectSettings/ProjectVersion.txt`). Không mở dự án bằng bản khác, kể cả khác bản vá: Unity sẽ ghi lại hàng loạt file trong `ProjectSettings` và gây xung đột.
 - Không tự thêm hoặc nâng cấp package. Cần package mới thì ghi trong PR và để nhóm trưởng duyệt, vì `Packages/manifest.json` ảnh hưởng cả nhóm.
-- Scene, prefab và asset phải lưu dạng văn bản (**Force Text** trong `Edit > Project Settings > Editor > Asset Serialization`). Trước khi mở PR, kiểm tra file `.unity`/`.prefab` không bị Git báo là nhị phân. Nếu bị, mở file trong Unity và chạy `Assets > Force Reserialize Assets` cho file đó.
+- Scene, prefab và asset phải lưu dạng văn bản (**Force Text** trong `Edit > Project Settings > Editor > Asset Serialization`). Trước khi mở PR, kiểm tra file `.unity`/`.prefab` không bị Git báo là nhị phân. Nếu bị, mở file trong Unity và chạy `Assets > Force Reserialize Assets` cho file đó. Nếu vẫn bị, thường là do Scene đang nhúng dữ liệu nhị phân, hay gặp nhất là NavMesh bake bằng code (`NavMeshSurface.BuildNavMesh()`): lưu `navMeshData` thành asset riêng bằng `AssetDatabase.CreateAsset`, giống cách nút Bake trong Inspector làm.
 - `.gitattributes` của repo quy định file văn bản dùng xuống dòng `LF` và đánh dấu file nhị phân (ảnh, model, âm thanh). Không sửa file này trong nhánh tính năng.
 - **Nhóm dùng cả Windows và macOS** (Khải dùng MacBook). Những điểm cần nhớ:
   - Phím tắt trong tài liệu ghi theo Windows; trên Mac thay `Ctrl` bằng `Cmd`. Đường dẫn menu của Unity giống nhau, trừ `Edit > Preferences` trên Windows nằm ở menu `Unity > Settings` trên Mac.
@@ -78,6 +78,8 @@ Assets/Scripts/
 | `ctx.SpawnedRooms` | danh sách phòng; mỗi `RoomModule` có `RoomType`, `EnemySpawnPoints`, `LifecycleController` |
 | `ctx.IsNavMeshBaked` | chỉ cho quái di chuyển khi `true` |
 
+Khi `generateOnStart` bật, sự kiện này phát ngay trong `Start()` của `DungeonGenerator`. Ai cần nghe thì đăng ký trong `Awake()` hoặc `OnEnable()`; đăng ký trong `Start()` có thể bị lỡ.
+
 Các trường còn lại (`VendingMachine`, `BossRewardController`, `TriggerBossRewards()`) nằm ngoài phạm vi prototype và **không** thuộc hợp đồng: hệ thống khác không được dựa vào chúng. Mua vũ khí và phần thưởng boss sẽ được thiết kế lại ở một đợt sau, khi hệ thống vũ khí của Khải đã có.
 
 ### 4.2. Sát thương
@@ -122,6 +124,13 @@ Sinh màn không biết gì về quái; chiến đấu không biết gì về c�
 
 `MainMenu` chỉ nạp Scene `Game` (và ngược lại khi thoát). Hai Scene không giữ tham chiếu đến đối tượng của nhau.
 
+Luồng trong Scene `Game` (cài đặt trong `GameBootstrap`):
+
+1. `DungeonGenerator` sinh màn, `GameBootstrap` sinh `Player_Character` tại `ctx.PlayerSpawnPoint`, gán cho `GameCameraFollow` và `CombatHUD.SetPlayer()`.
+2. Mỗi phòng chiến đấu đi theo mục 4.3, quái do `EnemySpawner` trong Scene sinh ra.
+3. Người chơi chết → `GameResultScreen.ShowDefeat()`. Người chơi tới trong bán kính 2.5 m quanh `ctx.LevelExitPoint` khi phòng cuối đã sạch quái → `ShowVictory()`. Cả hai màn có nút chơi lại và về menu chính.
+4. `PauseMenuController.PausedChanged` bật/tắt điều khiển của người chơi (`PlayerController.SetInputActive`).
+
 ## 5. Tag, layer và input
 
 | Tag | Gắn cho |
@@ -147,7 +156,18 @@ Quy định:
 
 - Chỉ nhóm trưởng sửa danh sách tag/layer (`ProjectSettings/TagManager.asset`) và ma trận va chạm. Cần thêm thì đề nghị trong PR hoặc nhắn nhóm.
 - Điều khiển trong game dùng file chung `Assets/InputSystem_Actions.inputactions`, action map `Player` (điều khiển nhân vật) và `UI` (menu). Khải sở hữu file này; người khác cần thêm action thì nhờ Khải. Không đọc phím trực tiếp (`Keyboard.current`) ngoài code trong `Testing/`.
-- Điều khiển cảm ứng dùng `OnScreenStick` và `OnScreenButton` của Input System. Hai component này giả lập một tay cầm, nên action trong map `Player` cần có binding cho tay cầm (`<Gamepad>/leftStick`, `<Gamepad>/buttonSouth`…) để nhận được tín hiệu từ nút trên màn hình. Binding bàn phím vẫn giữ để thử nhanh trong Editor.
+- Điều khiển cảm ứng dùng `OnScreenStick` và `OnScreenButton` của Input System. Hai component này giả lập một tay cầm, nên action trong map `Player` cần có binding cho tay cầm để nhận được tín hiệu từ nút trên màn hình. Binding bàn phím vẫn giữ để thử nhanh trong Editor.
+- Nút tay cầm `buttonSouth` và `buttonEast` đã thuộc map `UI` (`UI/Submit`, `UI/Cancel`; `UI/Cancel` mở menu tạm dừng). Nút cảm ứng của map `Player` **không** được dùng hai nút này. Phân bổ hiện tại:
+
+  | Action | Nút tay cầm (nút cảm ứng gửi tín hiệu này) |
+  | :--- | :--- |
+  | `Player/Move` | `<Gamepad>/leftStick` |
+  | `Player/Attack` | `<Gamepad>/buttonWest` |
+  | `Player/Dash` | `<Gamepad>/rightTrigger` |
+  | `Player/SwitchWeapon` | `<Gamepad>/buttonNorth` |
+
+- Không thêm binding chạm toàn màn hình (`<Touchscreen>/primaryTouch/...`) cho action của người chơi: chạm vào joystick hay nút khác cũng sẽ kích hoạt action đó.
+- Script dùng action qua `InputActionReference` gán trên prefab. Khi thêm trường mới, kiểm tra prefab đã gán chưa: trường để trống không báo lỗi, chỉ là action không bao giờ chạy.
 - Cài đặt của người chơi (âm lượng, FPS, rung) đọc qua `LightSouls.Common.GameSettings`. Ví dụ hệ thống chiến đấu chỉ rung máy khi `GameSettings.VibrationEnabled` là `true`.
 
 ## 6. Sở hữu Scene và file
