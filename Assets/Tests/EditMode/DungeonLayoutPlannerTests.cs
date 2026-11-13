@@ -156,9 +156,6 @@ namespace LightSouls.MapGeneration.Tests
             foreach (RoomTemplateData t in request.normalTemplates) templateMap[t.templateId] = t;
             foreach (RoomTemplateData t in request.specialBranchTemplates) templateMap[t.templateId] = t;
             foreach (RoomTemplateData t in request.exitTemplates) templateMap[t.templateId] = t;
-            foreach (RoomTemplateData t in request.normalTemplates) templateMap[t.templateId] = t;
-            foreach (RoomTemplateData t in request.specialBranchTemplates) templateMap[t.templateId] = t;
-            foreach (RoomTemplateData t in request.exitTemplates) templateMap[t.templateId] = t;
 
             for (int seed = 1000; seed < 1050; seed++)
             {

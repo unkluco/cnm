@@ -32,6 +32,7 @@ Hệ thống sinh màn chơi được thiết kế theo kiến trúc tách lớp
 - **Tường bao (`Height = 3.5m`, `Thickness = 0.5m`)**: Tường nằm **bên trong** chu vi `width × length` của phòng.
 - **Kích thước ô cửa tiêu chuẩn (`Opening = 4.0m × 3.0m`)**: Đủ rộng cho Player, Enemy và `NavMeshAgent` di chuyển qua lại dễ dàng.
 - **Vị trí `DoorSocket`**: Đặt tại **mép ngoài cùng** của bức tường (ví dụ phòng `16×16` có `Socket_North` tại `(0, 0, +8)` hướng `North (+Z)`).
+- **Layer (`Environment` — Layer 8)**: Toàn bộ sàn, tường, cửa (`OpenVisual`, `ClosedWallVisual`), cổng khóa (`LockedGateVisual`) và vật cản trong prefab room đều được đặt layer `Environment` theo đúng quy ước chung (mục 5 của `Docs/Conventions.md`).
 
 ### 2.2. Thành phần của một Room Prefab (`RoomModule`)
 Mỗi Room Prefab gắn script `RoomModule` ở Root GameObject gồm:
@@ -104,45 +105,27 @@ Khi `DungeonLayoutPlanner.TryPlan(...)` hoàn tất, toàn bộ bố cục đư�
 
 ---
 
-## 5. Cách các hệ thống khác lấy dữ liệu khi tích hợp (Dành cho Khải & GameManager)
+## 5. Hợp đồng bàn giao và tích hợp với các hệ thống khác (Dành cho Khải & GameManager)
 
-### 5.1. Điểm Tương Tác Mua Vũ Khí (`WeaponVendingMachine`) tại Điểm Bắt Đầu
-Tại góc Tây Nam của phòng bắt đầu (`Room_Start`), một ki-ốt bán vũ khí tự động đã được dựng sẵn (`Assets/Prefabs/MapGeneration/Interactables/WeaponVendingMachine.prefab`):
-- **Script:** `WeaponVendingMachine.cs` (nằm trên GameObject `WeaponVendingMachine` trong `Room_Start`).
-- **Điểm đứng tương tác (`InteractionPoint`):** `Vector3` phía trước máy đã căn chỉnh sẵn.
-- **Truy cập nhanh:**
-  ```csharp
-  // Từ DungeonRuntimeContext hoặc DungeonGenerator:
-  WeaponVendingMachine vending = ctx.VendingMachine;
-  if (vending != null)
-  {
-      vending.OnWeaponPurchased += (weaponId, cost) => {
-          Debug.Log($"Khải: Player đã mua vũ khí {weaponId} với giá {cost}");
-      };
-      
-      // Khải gọi hàm khi người chơi xác nhận mua trên UI:
-      bool success = vending.TryPurchaseWeapon("Greatsword_Tier1", 100);
-  }
-  ```
+### 5.1. Phạm vi hợp đồng prototype (Theo mục 4.1 của `Docs/Conventions.md`)
 
-### 5.2. Rương Thưởng Sau Khi Diệt Boss (`BossRoomRewardController`) tại Phòng Boss Tím
-Tại phòng Boss màu tím (`Room_Exit`), hệ thống tích hợp sẵn 2 điểm xuất hiện hòm báu bí mật ẩn sẵn (`Bonus Loot Chests`):
-- **Script:** `BossRoomRewardController.cs` (gắn trên `Room_Exit`).
-- **Cơ chế:** Ban đầu các hòm này ẩn hoàn toàn. Khi người chơi hạ gục Boss, hệ thống Combat của Khải chỉ cần gọi:
-  ```csharp
-  // Cách 1: Gọi qua DungeonGenerator
-  dungeonGenerator.TriggerBossRewards(); // Trả về số rương xuất hiện (1 hoặc 2)
+`DungeonGenerator` (cài đặt `IDungeonProvider`) phát sự kiện `OnDungeonGenerated(DungeonRuntimeContext ctx)` khi màn đã dựng xong và NavMesh đã bake hoàn tất.
 
-  // Cách 2: Gọi qua DungeonRuntimeContext
-  ctx.TriggerBossRewards();
+Các hệ thống khác (`GameBootstrap`, hệ thống chiến đấu của Khải, UI) chỉ sử dụng các trường thuộc hợp đồng chính thức sau:
 
-  // Lắng nghe sự kiện rương xuất hiện:
-  ctx.BossRewardController.OnBossRewardsSpawned += (count) => {
-      Debug.Log($"Đã kích hoạt {count} rương báu phần thưởng Boss!");
-  };
-  ```
+| Trường dữ liệu | Kiểu | Vai trò sử dụng |
+| :--- | :--- | :--- |
+| `ctx.PlayerSpawnPoint` | `Transform` | Điểm đặt nhân vật người chơi khi vào màn |
+| `ctx.LevelExitPoint` | `Transform` | Vị trí cổng đích qua màn |
+| `ctx.SpawnedRooms` | `IReadOnlyList<RoomModule>` | Danh sách phòng đã sinh; mỗi phòng cung cấp `RoomType`, `EnemySpawnPoints`, và `LifecycleController` |
+| `ctx.IsNavMeshBaked` | `bool` | Trạng thái bake NavMesh (hệ thống quái chỉ kích hoạt di chuyển khi giá trị này là `true`) |
 
-### 5.3. Nhận dữ liệu qua ScriptableObject Event Channel & Runtime Anchors
+> **Lưu ý quan trọng về tính năng ngoài hợp đồng:**  
+> Các trường `ctx.VendingMachine`, `ctx.BossRewardController`, và hàm `ctx.TriggerBossRewards()` được Đạt dựng sẵn làm mẫu thử nghiệm cục bộ trong prototype, **hoàn toàn nằm ngoài hợp đồng prototype** (theo mục 4.1 của Quy ước chung). Các hệ thống khác không được dựa vào các trường này. Việc mua vũ khí và phần thưởng boss sẽ được thiết kế lại ở đợt sau khi hệ thống vũ khí của Khải hoàn thiện.
+
+---
+
+### 5.2. Nhận dữ liệu qua ScriptableObject Event Channel & Runtime Anchors
 Chỉ cần kéo các asset trong `Assets/ScriptableObjects/MapGeneration/Channels/` vào Inspector của script bên Combat/GameManager:
 - `OnDungeonGenerated.asset` (`DungeonGeneratedEventChannelSO`):
   ```csharp
@@ -159,22 +142,51 @@ Chỉ cần kéo các asset trong `Assets/ScriptableObjects/MapGeneration/Channe
 
   private void HandleDungeonReady(DungeonRuntimeContext ctx)
   {
-      // Vị trí spawn Player: ctx.PlayerSpawnPoint.position
-      // Vị trí Đích qua màn: ctx.LevelExitPoint.position
-      // Danh sách điểm spawn quái: ctx.EnemySpawnPoints (không có quái trên hành lang)
-      // NavMesh đã bake sẵn: ctx.IsNavMeshBaked
-      // Máy bán vũ khí góc xuất phát: ctx.VendingMachine
-      // Bộ điều khiển thưởng Boss: ctx.BossRewardController
+      // 1. Vị trí spawn Player:
+      Vector3 spawnPos = ctx.PlayerSpawnPoint.position;
+      Quaternion spawnRot = ctx.PlayerSpawnPoint.rotation;
+
+      // 2. Vị trí Đích qua màn:
+      Vector3 exitPos = ctx.LevelExitPoint.position;
+
+      // 3. Danh sách phòng & điểm spawn quái (chỉ phòng chiến đấu, 0 có ở hành lang):
+      foreach (RoomModule room in ctx.SpawnedRooms)
+      {
+          if (room.RoomType == RoomType.Normal || room.RoomType == RoomType.Combat || room.RoomType == RoomType.Exit)
+          {
+              IReadOnlyList<Transform> spawnPoints = room.EnemySpawnPoints;
+              // Khải gọi thành phần sinh quái tại danh sách spawnPoints này
+          }
+      }
+
+      // 4. Trạng thái NavMesh:
+      bool navReady = ctx.IsNavMeshBaked;
   }
   ```
 - `PlayerSpawnAnchor.asset` & `LevelExitAnchor.asset` (`TransformAnchorSO`): Đọc trực tiếp `anchor.Value` hoặc lắng nghe `anchor.OnAnchorProvided`.
 
-### 5.4. Vòng Đời Phòng & Khóa Cửa Khi Giao Tranh (`RoomLifecycleController`)
-Mỗi phòng chiến đấu (`Normal`, `Combat`, `Exit/Boss`) đều gắn sẵn component `RoomLifecycleController.cs` cùng vùng Trigger thụt sâu vào lòng phòng `2.2m` (chống kẹt nhân vật vào cánh cửa khi cửa đóng):
+---
+
+### 5.3. Vòng đời phòng & Khóa cửa khi giao tranh (`RoomLifecycleController`)
+Mọi phòng trong màn chơi đều được gắn component `RoomLifecycleController` (`room.LifecycleController`). Trong đó, các phòng chiến đấu (`Normal`, `Combat`, `Exit/Boss`) được cấu hình thêm vùng Trigger thụt sâu vào lòng phòng `2.2m` tính từ mép cửa (chống kẹt nhân vật vào cánh cửa khi cửa đóng); các phòng `Start`, `Corridor`, `Treasure` không có Trigger này:
 - **Trạng thái (`RoomLifecycleState`):**
   - `Unvisited`: Cửa mở sẵn, hiển thị màu khung cửa định hướng 3D (**Tím Đỏ** cho hướng Boss, **Vàng Kim** cho hướng Kho Báu, **Đồng** cho phòng thường).
-  - `Combat`: Khi Player bước qua vùng Trigger (`OnTriggerEnter` với tag `"Player"`) hoặc gọi `room.LifecycleController.EnterCombat()`, toàn bộ cửa kết nối của phòng đó lập tức **hạ cổng chắn vật lý màu đỏ (`LockedGateVisual` có `BoxCollider`)** và phát sự kiện `OnRoomEnteredCombat`.
-  - `Cleared`: Khi Khải xử lý diệt hết wave quái trong phòng và gọi `room.LifecycleController.ClearRoom()`, cổng chắn mở hoàn toàn, khung cửa chuyển sang màu **Xanh Ngọc (`LandmarkColorCleared`)**, và nếu là phòng Boss sẽ tự động gọi `TriggerBossRewards()`.
+  - `Combat`: Khi người chơi mang tag `Player` bước qua vùng Trigger hoặc khi `room.LifecycleController.EnterCombat()` được gọi, toàn bộ cửa kết nối của phòng đó lập tức **hạ cổng chắn vật lý màu đỏ (`LockedGateVisual` thuộc layer `Environment`, có `BoxCollider`)** và phát sự kiện `OnRoomEnteredCombat(room)`.
+  - `Cleared`: Khi Khải xử lý diệt hết wave quái trong phòng và `GameBootstrap` gọi `room.LifecycleController.ClearRoom()`, cổng chắn mở hoàn toàn, khung cửa chuyển sang màu **Xanh Ngọc (`LandmarkColorCleared`)**.
+
+---
+
+### 5.4. Tính năng thử nghiệm nội bộ (Ngoài hợp đồng prototype)
+
+1. **Ki-ốt bán vũ khí tự động (`WeaponVendingMachine`) tại phòng bắt đầu:**
+   - Nằm trực tiếp trên GameObject con bên trong prefab `Assets/Prefabs/MapGeneration/Rooms/Room_Start.prefab` (không có prefab độc lập).
+   - Component: `WeaponVendingMachine.cs`.
+   - Hàm thử nghiệm: `bool TryPurchaseWeapon(string weaponId, out string message)`.
+   - Sự kiện: `event Action<string> OnWeaponPurchased`.
+2. **Rương thưởng Boss (`BossRoomRewardController`) tại phòng Boss tím:**
+   - Nằm trên `Room_Exit.prefab`.
+   - Hàm thử nghiệm: `int TriggerBossRewards()`.
+   - Sự kiện: `event Action<int> OnBossRewardsSpawned`.
 
 ---
 

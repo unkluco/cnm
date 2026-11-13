@@ -41,6 +41,8 @@ namespace LightSouls.MapGeneration.Editor
                 return;
             }
 
+            EditorSettings.serializationMode = SerializationMode.ForceText;
+
             EnsureFolder(MaterialsRoot);
             EnsureFolder(RoomsRoot);
             EnsureFolder(TemplatesRoot);
@@ -381,6 +383,22 @@ namespace LightSouls.MapGeneration.Editor
                 bossRewardCtrl,
                 lifecycleCtrl);
 
+            int envLayer = LayerMask.NameToLayer("Environment");
+            if (envLayer >= 0)
+            {
+                SetLayerRecursively(floor, envLayer);
+                SetLayerRecursively(wallsRoot.gameObject, envLayer);
+                SetLayerRecursively(socketsRoot.gameObject, envLayer);
+                if (hasArenaPillars)
+                {
+                    Transform pillars = root.transform.Find("ArenaPillars");
+                    if (pillars != null)
+                    {
+                        SetLayerRecursively(pillars.gameObject, envLayer);
+                    }
+                }
+            }
+
             string prefabPath = $"{RoomsRoot}/{prefabName}.prefab";
             GameObject savedPrefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
             Object.DestroyImmediate(root);
@@ -582,6 +600,16 @@ namespace LightSouls.MapGeneration.Editor
             return go;
         }
 
+        private static void SetLayerRecursively(GameObject obj, int layer)
+        {
+            if (obj == null || layer < 0) return;
+            obj.layer = layer;
+            foreach (Transform child in obj.transform)
+            {
+                SetLayerRecursively(child.gameObject, layer);
+            }
+        }
+
         private static RoomTemplateSO CreateOrUpdateTemplate(
             string assetName,
             RoomModule prefab,
@@ -655,16 +683,10 @@ namespace LightSouls.MapGeneration.Editor
             // Build HUD Canvas + EventSystem (InputSystemUIInputModule)
             DungeonMinimapUI minimapUI = BuildTestHud(generator);
 
-            // Generate initial preview map right in the saved scene so opening MapGenTest displays rooms immediately
-            if (!generator.GenerateWithSeed(202611))
-            {
-                Debug.LogError($"[MapGenPrototypeBuilder] Failed to generate initial preview dungeon: {generator.LastError}");
-            }
-            else if (minimapUI != null)
-            {
-                minimapUI.RefreshMinimap(generator);
-            }
-
+            // Note: MapGenTest is saved clean (without pre-spawned room instances / embedded NavMeshData)
+            // so that Assets/Scenes/MapGenTest.unity serializes strictly as text YAML (%YAML 1.1).
+            // DungeonGenerator has generateOnStart = true, generating the dungeon dynamically on Play Mode.
+            AssetDatabase.DeleteAsset(TestScenePath);
             EditorSceneManager.SaveScene(scene, TestScenePath);
         }
 
