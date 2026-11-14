@@ -143,7 +143,17 @@ namespace LightSouls.Combat.UI
 
         private void HandleWeaponChanged(WeaponDataSO weapon)
         {
-            if (weapon == null) return;
+            if (weapon == null)
+            {
+                if (weaponNameText != null) weaponNameText.text = "Tay không";
+                if (weaponTypeText != null)
+                {
+                    weaponTypeText.text = "[TRỐNG]";
+                    weaponTypeText.color = Color.gray;
+                }
+                if (weaponColorBadge != null) weaponColorBadge.color = Color.clear;
+                return;
+            }
 
             if (weaponNameText != null)
             {
@@ -161,9 +171,7 @@ namespace LightSouls.Combat.UI
                 weaponColorBadge.color = weapon.WeaponColor;
             }
 
-            // Quy tắc: Nút Đổi vũ khí kiểm tra vũ khí TIẾP THEO để đổi icon:
-            // Nếu vũ khí tiếp theo là Kiếm -> hiển thị icon Kiếm.
-            // Nếu vũ khí tiếp theo là Súng -> hiển thị icon Súng.
+            // Nếu còn dùng nút đổi vũ khí cũ (dự phòng tương thích ngược)
             WeaponDataSO nextWeapon = player != null ? player.NextWeapon : null;
             bool isNextSword = false;
 
@@ -173,8 +181,6 @@ namespace LightSouls.Combat.UI
             }
             else
             {
-                // Dự phòng nếu inventory chỉ có 1 vũ khí hoặc chưa nạp xong:
-                // Nếu hiện tại là Kiếm thì tiếp theo sẽ là Súng, và ngược lại.
                 isNextSword = weapon.Type != WeaponType.Melee;
             }
 
