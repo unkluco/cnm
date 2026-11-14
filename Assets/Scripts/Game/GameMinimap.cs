@@ -8,7 +8,7 @@ namespace LightSouls.Game
     /// <summary>
     /// Bản đồ nhỏ trên HUD của Scene Game.
     /// Vẽ mỗi phòng bằng một hình chữ nhật theo đúng kích thước thật, thu nhỏ cho vừa khung.
-    /// Chỉ hiện phòng người chơi đã vào và các phòng nối liền với chúng; phòng đích luôn hiện để người chơi biết hướng đi.
+    /// Chỉ hiện phòng người chơi đã vào và các phòng nối liền với chúng. Phòng đích cũng vậy: chỉ hiện khi người chơi đã tới gần.
     /// Màu phòng đổi theo trạng thái (đang đánh, đã đi qua). Mũi tên ở giữa chấm người chơi chỉ hướng đang quay mặt.
     ///
     /// GameBootstrap gọi Show() sau khi bản đồ sinh xong và người chơi đã được đặt vào màn.
@@ -37,7 +37,6 @@ namespace LightSouls.Game
         [SerializeField] private Color combatColor = new Color(0.92f, 0.24f, 0.18f, 0.95f);
         [SerializeField] private Color treasureColor = new Color(0.95f, 0.75f, 0.15f, 0.95f);
         [SerializeField] private Color exitColor = new Color(0.90f, 0.22f, 0.62f, 0.95f);
-        [SerializeField, Range(0f, 1f)] private float unseenExitAlpha = 0.45f;
 
         private sealed class RoomEntry
         {
@@ -185,7 +184,8 @@ namespace LightSouls.Game
         private void UpdateRoomImage(RoomEntry entry)
         {
             bool isExit = entry.Room.RoomType == RoomType.Exit;
-            bool seen = entry.Visited || isExit || HasVisitedNeighbor(entry);
+            // Phòng đích (phòng boss) cũng chịu sương mù: người chơi phải tự tìm ra nó.
+            bool seen = entry.Visited || HasVisitedNeighbor(entry);
 
             if (entry.Image.enabled != seen)
             {
@@ -214,12 +214,7 @@ namespace LightSouls.Game
 
             if (isExit)
             {
-                var color = exitColor;
-                if (!entry.Visited && !HasVisitedNeighbor(entry))
-                {
-                    color.a *= unseenExitAlpha;
-                }
-                return color;
+                return exitColor;
             }
 
             if (entry.Room.RoomType == RoomType.Treasure)
