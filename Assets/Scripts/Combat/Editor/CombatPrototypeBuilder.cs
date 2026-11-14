@@ -710,7 +710,8 @@ namespace LightSouls.Combat.Editor
             SerializedProperty invProp = serCombat.FindProperty("weaponInventory");
             invProp.ClearArray();
 
-            string[] weaponNames = { "Weapon_Sword_Iron", "Weapon_Sword_Greatsword", "Weapon_Gun_Pistol", "Weapon_Gun_Shotgun" };
+            // Xen kẽ kiếm và súng để mỗi lần bấm Đổi vũ khí đều thấy rõ thay đổi (nút hiển thị loại vũ khí kế tiếp).
+            string[] weaponNames = { "Weapon_Sword_Iron", "Weapon_Gun_Pistol", "Weapon_Sword_Greatsword", "Weapon_Gun_Shotgun" };
             for (int i = 0; i < weaponNames.Length; i++)
             {
                 WeaponDataSO w = AssetDatabase.LoadAssetAtPath<WeaponDataSO>($"{WeaponsRoot}/{weaponNames[i]}.asset");
