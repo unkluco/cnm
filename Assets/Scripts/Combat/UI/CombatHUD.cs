@@ -64,7 +64,7 @@ namespace LightSouls.Combat.UI
 
             if (attackButtonIconText != null)
             {
-                attackButtonIconText.text = "⚔️\n<size=22>ĐÁNH</size>";
+                attackButtonIconText.text = "ĐÁNH";
             }
 
             if (skillButtonIconText != null && string.IsNullOrEmpty(skillButtonIconText.text))
