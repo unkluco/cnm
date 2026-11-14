@@ -1,4 +1,5 @@
 using System;
+using LightSouls.Common;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -77,6 +78,12 @@ namespace LightSouls.UI
         {
             // Lần nhấn này đã dùng để đóng màn Cài đặt.
             if (SettingsScreen.HandlesCancelThisFrame)
+            {
+                return;
+            }
+
+            // Đang mở balo, cửa hàng…: nút Back đóng bảng đó trước.
+            if (!IsPaused && BackButtonStack.TryCloseTop())
             {
                 return;
             }
