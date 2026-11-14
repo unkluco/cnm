@@ -166,7 +166,7 @@ Quy định:
   | `Player/Dash` | `<Gamepad>/rightTrigger` |
   | `Player/SwitchWeapon` | `<Gamepad>/buttonNorth` |
 
-- Không thêm binding chạm toàn màn hình (`<Touchscreen>/primaryTouch/...`) cho action của người chơi: chạm vào joystick hay nút khác cũng sẽ kích hoạt action đó.
+- Không thêm binding chạm toàn màn hình (`<Touchscreen>/primaryTouch/...`) hay chuột (`<Mouse>/leftButton`) cho action của người chơi: chạm hoặc bấm chuột vào joystick, nút khác cũng sẽ kích hoạt action đó. Thử trong Editor bằng bàn phím: WASD đi, Space đánh, Q đổi vũ khí, Shift lướt.
 - Script dùng action qua `InputActionReference` gán trên prefab. Khi thêm trường mới, kiểm tra prefab đã gán chưa: trường để trống không báo lỗi, chỉ là action không bao giờ chạy.
 - Cài đặt của người chơi (âm lượng, FPS, rung) đọc qua `LightSouls.Common.GameSettings`. Ví dụ hệ thống chiến đấu chỉ rung máy khi `GameSettings.VibrationEnabled` là `true`.
 
