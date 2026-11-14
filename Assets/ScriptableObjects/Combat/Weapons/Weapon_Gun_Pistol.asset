@@ -12,21 +12,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ca5bee58beea4d31af7ec6c5613c970e, type: 3}
   m_Name: Weapon_Gun_Pistol
   m_EditorClassIdentifier: LightSouls.Combat.Weapons::WeaponDataSO
-  weaponId: gun_pistol
-  weaponName: "S\xFAng Ng\u1EAFn Ma Ph\xE1p"
-  description: "B\u1EAFn \u0111\u1EA1n n\u0103ng l\u01B0\u1EE3ng t\u1EA7m xa chu\u1EA9n
-    x\xE1c v\u1EDBi t\u1ED1c \u0111\u1ED9 cao."
+  itemId: weapon.pistol
+  displayName: "S\xFAng L\u1EE5c"
+  description: "Kh\u1EA9u s\xFAng l\u1EE5c b\u1EAFn ph\xE1t m\u1ED9t, t\u1ED1c \u0111\u1ED9
+    \u0111\u1EA1n cao, t\u1EA7m b\u1EAFn xa v\xE0 ch\xEDnh x\xE1c."
+  icon: {fileID: 21300000, guid: fe610fcd959fc4ae68e6dd30674849a2, type: 3}
+  price: 150
+  maxStack: 1
   weaponType: 1
-  damage: 22
-  attackRate: 0.28
-  attackRange: 16
+  damage: 20
+  attackRate: 0.4
+  attackRange: 12
   weaponPrefab: {fileID: 0}
   weaponColor: {r: 0.25, g: 0.7, b: 1, a: 1}
-  swingArcAngle: 90
-  hitRadius: 1.5
-  knockbackForce: 2
+  swingArcAngle: 0
+  hitRadius: 0
+  knockbackForce: 0
   projectilePrefab: {fileID: 6081238883670587671, guid: 1da134f1b388c433b974c52a1c410881, type: 3}
-  projectileSpeed: 22
-  projectileLifetime: 2.5
+  projectileSpeed: 18
+  projectileLifetime: 3
   projectileCount: 1
   spreadAngle: 0

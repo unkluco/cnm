@@ -618,6 +618,8 @@ GameObject:
   - component: {fileID: 7607671530615191967}
   - component: {fileID: 3246068417336905907}
   - component: {fileID: 403602438177506346}
+  - component: {fileID: 3720585345791518777}
+  - component: {fileID: 3527446630947112426}
   m_Layer: 6
   m_Name: Player_Character
   m_TagString: Player
@@ -697,6 +699,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: LightSouls.Combat::LightSouls.Combat.HealthComponent
   maxHealth: 100
   currentHealth: 100
+  damageReduction: 0
   invincibleAfterHit: 0
   invincibilityDuration: 0.2
 --- !u!114 &7607671530615191967
@@ -751,7 +754,7 @@ MonoBehaviour:
   autoAimEnabled: 1
   autoAimMaxDistance: 12
   attackAction: {fileID: 1120369429361536294, guid: 052faaac586de48259a63d0c4782560b, type: 3}
-  switchWeaponAction: {fileID: 7785709813025918767, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  switchWeaponAction: {fileID: 0}
 --- !u!114 &403602438177506346
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -764,6 +767,43 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f940f684f81b4f53a8233f6ebac977c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LightSouls.Combat::LightSouls.Combat.PlayerController
+--- !u!114 &3720585345791518777
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4784123409826077597}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff4029616732147c3b049fea21d68930, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LightSouls.Combat::LightSouls.Combat.Inventory.PlayerInventory
+  itemDatabase: {fileID: 11400000, guid: b9c402470842148058afeccd5503ffea, type: 2}
+  defaultStartingItems:
+  - SlotKey: hotbar/0
+    Item: {fileID: 11400000, guid: 9c7a55a8b93a400bb24390d46b13257f, type: 2}
+    Count: 1
+  - SlotKey: hotbar/1
+    Item: {fileID: 11400000, guid: cd8f66707622b48cc83209b340d84939, type: 2}
+    Count: 3
+--- !u!114 &3527446630947112426
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4784123409826077597}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fdc2805e41a484dea98eb0174ad94695, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LightSouls.Combat::LightSouls.Combat.PlayerInteraction
+  interactRadius: 2
+  interactableLayer:
+    serializedVersion: 2
+    m_Bits: 0
+  interactAction: {fileID: 1781555164194001046, guid: 052faaac586de48259a63d0c4782560b, type: 3}
 --- !u!1 &5134363265201108293
 GameObject:
   m_ObjectHideFlags: 0
