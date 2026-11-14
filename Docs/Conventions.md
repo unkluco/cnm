@@ -4,9 +4,11 @@
 
 | Thành viên | GitHub | Phụ trách | Nhánh |
 | :--- | :--- | :--- | :--- |
-| Kiệt (nhóm trưởng) | `unkluco` | Giao diện, menu; lắp ráp Scene `Game`; review và merge | `feature/menu-ui` |
-| Khải | `Khai810` | Nhân vật, quái, vũ khí, chiến đấu | `feature/character-combat` |
-| Đạt | `Coloky7098` | Format room, sinh màn | `feature/map-generation` |
+| Kiệt (nhóm trưởng) | `unkluco` | Giao diện, menu; `Common`, `ProjectSettings`; lắp ráp Scene `MainMenu`, `Game`, `Lobby`; review và merge | tạo theo từng việc |
+| Khải | `Khai810` | Nhân vật, quái, vũ khí, chiến đấu; túi đồ và vật phẩm | `feature/inventory-hotbar` |
+| Đạt | `Coloky7098` | Format room, sinh màn; địa hình đặc biệt; sảnh | `feature/hazard-rooms-lobby` |
+
+Nhánh của mỗi người là nhánh của đợt việc hiện tại (xem `Tasks/` mới nhất). Nhánh của đợt cũ đã merge sẽ bị xóa; không commit tiếp lên nhánh cũ.
 
 Mục tiêu: các phần do từng người làm riêng (sinh màn, nhân vật/chiến đấu, giao diện) ghép được vào Scene `Game` mà không phải sửa lại. Tài liệu chỉ ghi những điều phải thống nhất; chi tiết bên trong mỗi hệ thống do người phụ trách quyết định.
 
@@ -51,7 +53,8 @@ Game chạy trên điện thoại Android, điều khiển hoàn toàn bằng c�
 Assets/Scripts/
   Common/          LightSouls.Common          — interface, struct, enum dùng chung
   MapGeneration/   LightSouls.MapGeneration   — sinh màn (Đạt)
-  Combat/          LightSouls.Combat          — nhân vật, quái, vũ khí (Khải)
+  Combat/          LightSouls.Combat          — nhân vật, quái, vũ khí, túi đồ, vật phẩm (Khải)
+  Lobby/           LightSouls.Lobby           — sảnh: cửa hàng, chọn ngục (Đạt)
   UI/              LightSouls.UI              — menu, HUD (Kiệt)
   Game/            LightSouls.Game            — lắp ráp các hệ thống trong Scene Game (Kiệt)
 ```
@@ -59,11 +62,15 @@ Assets/Scripts/
 - Mỗi thư mục có một assembly definition (`.asmdef`) cùng tên với namespace.
 - **Quy tắc tham chiếu:**
   - `MapGeneration`, `Combat`, `UI` chỉ được tham chiếu `Common`, không tham chiếu lẫn nhau.
+  - `Lobby` được tham chiếu `Common` và `MapGeneration` (để đọc danh sách ngục), không tham chiếu `Combat` hay `UI`. Cửa hàng làm việc với vật phẩm qua `ItemDefinitionSO` và `IInventory` trong `Common`.
+  - Chỉ nhóm trưởng sửa `Common`. Cần thêm hay đổi gì trong đó thì nhắn nhóm trưởng; đừng tự sửa trong nhánh tính năng, vì `Common` được mọi người dùng nên rất dễ xung đột.
   - Chỉ `Game` được tham chiếu tất cả. Script `GameBootstrap` trong Scene `Game` là nơi duy nhất nối các hệ thống với nhau (xem mục 4).
   - Unity sẽ báo lỗi biên dịch nếu vi phạm, nên quy tắc tự được kiểm tra.
 - Code chỉ dùng để thử nghiệm (điều khiển scene test, phím tắt debug, giao diện thử) đặt trong thư mục con `Testing/` của hệ thống và **không bao giờ** được đặt vào Scene `Game`.
 - Prefab và asset cũng chia theo hệ thống: `Assets/Prefabs/<HeThong>/`, `Assets/ScriptableObjects/<HeThong>/`.
-- Tên trong code (lớp, hàm, biến) bằng tiếng Anh; comment và tài liệu bằng tiếng Việt. Tên file trùng tên lớp. Prefab đặt tên `PascalCase` có tiền tố loại: `Room_`, `Enemy_`, `Weapon_`, `UI_`.
+- Tên trong code (lớp, hàm, biến) bằng tiếng Anh; comment và tài liệu bằng tiếng Việt. Tên file trùng tên lớp. Prefab đặt tên `PascalCase` có tiền tố loại: `Room_`, `Enemy_`, `Weapon_`, `Item_`, `Hazard_`, `Lobby_`, `UI_`.
+- **Enum được lưu trong prefab hay asset** (`RoomType`, `ItemCategory`, …): Unity lưu chúng dạng số. Chỉ thêm giá trị mới vào **cuối**, không đổi thứ tự, không xóa giá trị đang dùng, nếu không mọi prefab cũ sẽ đổi nghĩa mà không báo lỗi.
+- **Tên công khai mà code người khác đang gọi thì không đổi tên hay xóa.** Danh sách nằm trong mục 4. Cần đổi thì báo nhóm trưởng trước để sửa phần lắp ráp cùng lúc.
 
 ## 4. Hợp đồng giữa các hệ thống
 
@@ -131,6 +138,74 @@ Luồng trong Scene `Game` (cài đặt trong `GameBootstrap`):
 3. Người chơi chết → `GameResultScreen.ShowDefeat()`. Người chơi tới trong bán kính 2.5 m quanh `ctx.LevelExitPoint` khi phòng cuối đã sạch quái → `ShowVictory()`. Cả hai màn có nút chơi lại và về menu chính.
 4. `PauseMenuController.PausedChanged` bật/tắt điều khiển của người chơi (`PlayerController.SetInputActive`).
 
+**Tên đang được phần lắp ráp gọi, không đổi tên hay xóa** (thêm hàm, thêm sự kiện thì thoải mái):
+
+| Hệ thống | Tên |
+| :--- | :--- |
+| Combat | `PlayerController`: `OnDied`, `OnHealthChanged`, `OnWeaponChanged`, `SetInputActive()`, `IsDead`, `CurrentHealth`, `MaxHealth`; `EnemySpawner`: `SpawnWave()`, `AllEnemiesDefeated`, `SetEnemyPrefabs()`; `CombatHUD.SetPlayer()`; `HealthComponent`; prefab `Player_Character`, `Combat_TouchControls` |
+| MapGeneration | `DungeonGenerator.OnDungeonGenerated`; `DungeonRuntimeContext`: `PlayerSpawnPoint`, `LevelExitPoint`, `SpawnedRooms`, `Layout`; `RoomModule`: `RoomType`, `RoomId`, `EnemySpawnPoints`, `LootSpawnPoints`, `LifecycleController`, `GetCurrentWorldBounds()`; `RoomLifecycleController`: `OnRoomEnteredCombat`, `ClearRoom()`, `State`, `RequiresCombatLock`; enum `RoomType` |
+| UI | `PauseMenuController.PausedChanged`, `GameResultScreen` |
+
+### 4.5. Vật phẩm và túi đồ
+
+Các kiểu sau nằm trong `Common`, để cửa hàng, rương, phần thưởng làm việc với vật phẩm mà không cần tham chiếu `Combat`:
+
+| Kiểu | Vai trò |
+| :--- | :--- |
+| `ItemDefinitionSO` | lớp gốc (abstract) của mọi vật phẩm: `ItemId`, `DisplayName`, `Description`, `Icon`, `Price`, `MaxStack`, `Category`. Vũ khí, trang bị, đồ dùng là lớp con do Khải làm |
+| `ItemCategory` | `Weapon`, `Equipment`, `Consumable`, `Misc` |
+| `IInventory` | túi đồ nhìn từ ngoài: `HasSpaceFor`, `TryAdd`, `TryRemove`, `GetCount`, sự kiện `Changed`. Cài đặt trên đối tượng gốc của người chơi |
+| `ItemSlotRecord` | một ô túi đồ dạng lưu được (`SlotKey`, `ItemId`, `Count`) |
+
+- `ItemId` là duy nhất và **không đổi** sau khi đã dùng, vì túi đồ được lưu qua Scene bằng mã này. Đặt dạng `loại.tên`, ví dụ `weapon.iron_sword`, `armor.leather_vest`.
+- Asset vật phẩm đặt trong `Assets/ScriptableObjects/Combat/Items/` (Khải sở hữu). Hệ thống khác chỉ tham chiếu asset, không sửa.
+- Muốn đưa đồ cho người chơi: lấy `IInventory` trên người chơi rồi gọi `TryAdd`. Không tự thêm vào danh sách bên trong của túi đồ.
+- Thanh nhanh, balo, ô trang bị xếp thế nào là việc bên trong túi đồ; hệ thống khác không dựa vào cách xếp đó.
+
+### 4.6. Dữ liệu một lượt chơi (`RunState`)
+
+`LightSouls.Common.RunState` (tĩnh) giữ dữ liệu khi chuyển Scene sảnh → ngục → sảnh. Chỉ sống trong bộ nhớ, tắt game là mất.
+
+| Dữ liệu | Ai ghi | Ai đọc |
+| :--- | :--- | :--- |
+| `Coins`, `AddCoins()`, `TrySpendCoins()`, `CoinsChanged` | sảnh trừ khi mua; `GameBootstrap` cộng khi dọn phòng | ai cũng đọc |
+| `InventorySlots`, `SaveInventory()` | túi đồ của người chơi, mỗi khi thay đổi | túi đồ của người chơi, khi được sinh ra trong Scene mới |
+| `SelectedDungeonId` | sảnh, khi người chơi chọn ngục | bộ sinh màn trong Scene `Game`; chuỗi rỗng là ngục mặc định |
+
+`RunState.Reset()` (bắt đầu lượt mới) do phần lắp ráp gọi. Mỗi lần vào Play Mode `RunState` tự xóa sạch, nên vào thẳng Scene thử vẫn chạy được.
+
+### 4.7. Địa hình nguy hiểm
+
+- Vùng gây sát thương (lava, gai, bẫy) gọi `IDamageable.TakeDamage()` lên nhân vật đứng trong vùng, `Source` là chính vùng đó. Không gọi thẳng vào `HealthComponent`.
+- Vùng làm chậm (nước, bùn) gọi `ISpeedModifiable.SetSpeedMultiplier(this, hệ số)` khi nhân vật vào và `RemoveSpeedMultiplier(this)` khi ra. Người chơi và mọi quái cài đặt `ISpeedModifiable` (Khải).
+- Collider của vùng là trigger, đặt layer `Hazard` (mục 5). Tìm `IDamageable`/`ISpeedModifiable` bằng `GetComponentInParent` trên collider chạm vào.
+- Quái dùng `NavMeshAgent` không có `Rigidbody`, nên vùng cần một `Rigidbody` `isKinematic` thì mới nhận được sự kiện trigger từ quái.
+- Cho quái biết chỗ nguy hiểm bằng NavMesh area: `Water` (cost 3) và `Lava` (cost 20), đã có trong `ProjectSettings/NavMeshAreas.asset`. Đánh dấu bằng `NavMeshModifier`/`NavMeshModifierVolume` trong prefab phòng.
+
+### 4.8. Tương tác
+
+- Vật bấm nút Tương tác để dùng (vật phẩm rơi, rương, quầy hàng, cổng vào ngục) cài đặt `LightSouls.Common.IInteractable`: `Prompt`, `CanInteract()`, `Interact(interactor)`.
+- Vật đó có một collider trigger đặt layer `Interactable`.
+- Phía người chơi (tìm vật gần nhất, hiện nút cùng chữ `Prompt`, gọi `Interact`) chỉ có một bản, do Khải làm. Người khác không tự làm cách tương tác riêng.
+
+### 4.9. Nút Back và thứ tự Canvas
+
+- Bảng mở đè lên màn chơi (balo, cửa hàng, chọn ngục…) gọi `BackButtonStack.Push(this, Close)` khi mở và `BackButtonStack.Remove(this)` khi đóng. Nút Back (Esc) sẽ đóng bảng trên cùng trước khi mở menu tạm dừng. Bảng không tự nghe `UI/Cancel`.
+- Khi bảng đang mở, gọi `PlayerController.SetInputActive(false)` (hoặc cách tương đương của túi đồ) để chạm vào bảng không làm nhân vật đánh hay đi.
+- Thứ tự Canvas (sort order, Screen Space - Overlay):
+
+  | Sort order | Canvas |
+  | :--- | :--- |
+  | 0 | menu chính |
+  | 5 | điều khiển cảm ứng, HUD chiến đấu, thanh nhanh |
+  | 6 | bản đồ nhỏ |
+  | 8 | bảng mở đè lên màn chơi: balo, cửa hàng, chọn ngục |
+  | 10 | menu tạm dừng |
+  | 20 | màn Thắng/Thua |
+  | 30 | màn Cài đặt |
+
+- Bố cục HUD (khung 1920×1080): cần analog ở góc trái dưới, nút đánh và kỹ năng ở góc phải dưới, thanh máu ở góc trái trên, bản đồ nhỏ và nút tạm dừng ở góc phải trên. Thanh nhanh đặt ở giữa cạnh dưới, không đè lên cần analog hay nút đánh.
+
 ## 5. Tag, layer và input
 
 | Tag | Gắn cho |
@@ -145,16 +220,20 @@ Luồng trong Scene `Game` (cài đặt trong `GameBootstrap`):
 | `Environment` | 8 | sàn, tường, cửa, vật cản |
 | `PlayerAttack` | 9 | đạn và vùng đánh do người chơi tạo ra |
 | `EnemyAttack` | 10 | đạn và vùng đánh do quái tạo ra |
+| `Hazard` | 11 | vùng trigger của địa hình nguy hiểm: lava, nước, gai, bẫy |
+| `Interactable` | 12 | vùng trigger của vật tương tác được: vật phẩm rơi, rương, quầy hàng, cổng |
 
 Ma trận va chạm đã được đặt sẵn trong `ProjectSettings/DynamicsManager.asset`:
 
 - `PlayerAttack` chỉ va chạm với `Enemy` và `Environment`; `EnemyAttack` chỉ va chạm với `Player` và `Environment`. Nhờ vậy đòn đánh không bao giờ trúng phe mình và hai loại đạn không va vào nhau.
+- `Hazard` chỉ va chạm với `Player` và `Enemy`: đạn bay qua lava không bị chặn. `Interactable` chỉ va chạm với `Player`.
+- Sàn lava, mặt nước vẫn cần một collider đứng được riêng ở layer `Environment`; collider `Hazard` chỉ dùng để phát hiện ai đang đứng trong đó.
 - `Player`, `Enemy`, `Environment` va chạm với nhau bình thường.
 - Đòn đánh dùng collider kiểu trigger (hoặc raycast với `LayerMask` tương ứng), sau đó tìm `IDamageable` trên đối tượng trúng.
 
 Quy định:
 
-- Chỉ nhóm trưởng sửa danh sách tag/layer (`ProjectSettings/TagManager.asset`) và ma trận va chạm. Cần thêm thì đề nghị trong PR hoặc nhắn nhóm.
+- Chỉ nhóm trưởng sửa danh sách tag/layer (`ProjectSettings/TagManager.asset`), ma trận va chạm và NavMesh area (`ProjectSettings/NavMeshAreas.asset`). Nói chung mọi file trong `ProjectSettings/` và `Packages/` do nhóm trưởng sửa. Cần thêm thì đề nghị trong PR hoặc nhắn nhóm.
 - Điều khiển trong game dùng file chung `Assets/InputSystem_Actions.inputactions`, action map `Player` (điều khiển nhân vật) và `UI` (menu). Khải sở hữu file này; người khác cần thêm action thì nhờ Khải. Không đọc phím trực tiếp (`Keyboard.current`) ngoài code trong `Testing/`.
 - Điều khiển cảm ứng dùng `OnScreenStick` và `OnScreenButton` của Input System. Hai component này giả lập một tay cầm, nên action trong map `Player` cần có binding cho tay cầm để nhận được tín hiệu từ nút trên màn hình. Binding bàn phím vẫn giữ để thử nhanh trong Editor.
 - Nút tay cầm `buttonSouth` và `buttonEast` đã thuộc map `UI` (`UI/Submit`, `UI/Cancel`; `UI/Cancel` mở menu tạm dừng). Nút cảm ứng của map `Player` **không** được dùng hai nút này. Phân bổ hiện tại:
@@ -164,21 +243,34 @@ Quy định:
   | `Player/Move` | `<Gamepad>/leftStick` |
   | `Player/Attack` | `<Gamepad>/buttonWest` |
   | `Player/Dash` | `<Gamepad>/rightTrigger` |
-  | `Player/SwitchWeapon` | `<Gamepad>/buttonNorth` |
+  | `Player/Interact` | `<Gamepad>/buttonNorth` |
 
-- Không thêm binding chạm toàn màn hình (`<Touchscreen>/primaryTouch/...`) hay chuột (`<Mouse>/leftButton`) cho action của người chơi: chạm hoặc bấm chuột vào joystick, nút khác cũng sẽ kích hoạt action đó. Thử trong Editor bằng bàn phím: WASD đi, Space đánh, Q đổi vũ khí, Shift lướt.
+  `Player/SwitchWeapon` đang dùng `buttonNorth` sẽ bị bỏ khi có thanh nhanh (nhiệm vụ của Khải ngày 2026-11-14); `buttonNorth` chuyển cho `Interact`. Các nút còn trống để dùng sau: `leftShoulder`, `rightShoulder`, `leftTrigger`, `dpad`.
+- Chọn ô trên thanh nhanh và mở balo là nút giao diện (uGUI `Button`), không phải action của map `Player`.
+- Không thêm binding chạm toàn màn hình (`<Touchscreen>/primaryTouch/...`) hay chuột (`<Mouse>/leftButton`) cho action của người chơi: chạm hoặc bấm chuột vào joystick, nút khác cũng sẽ kích hoạt action đó. Thử trong Editor bằng bàn phím: WASD đi, Space đánh, Shift lướt, E tương tác, phím 1–5 chọn ô thanh nhanh, Tab mở balo.
 - Script dùng action qua `InputActionReference` gán trên prefab. Khi thêm trường mới, kiểm tra prefab đã gán chưa: trường để trống không báo lỗi, chỉ là action không bao giờ chạy.
 - Cài đặt của người chơi (âm lượng, FPS, rung) đọc qua `LightSouls.Common.GameSettings`. Ví dụ hệ thống chiến đấu chỉ rung máy khi `GameSettings.VibrationEnabled` là `true`.
 
 ## 6. Sở hữu Scene và file
 
-- Scene `MainMenu` và `Game`: chỉ nhóm trưởng (Kiệt) sửa. Thành viên bàn giao bằng prefab và script, không bằng Scene.
-- Scene thử (`MapGenTest`, `CharacterCombatTest`, …): chỉ người phụ trách sửa.
+- Scene chơi thật `MainMenu`, `Game` và `Lobby` (sẽ tạo khi ghép phần sảnh): chỉ nhóm trưởng (Kiệt) sửa. Thành viên bàn giao bằng prefab và script, không bằng Scene. `SceneNames` và danh sách Scene trong Build Settings cũng do nhóm trưởng sửa.
+- Mọi thử nghiệm làm trong Scene thử riêng của mình. Mỗi người chỉ sửa Scene thử của mình:
+
+  | Scene thử | Người phụ trách |
+  | :--- | :--- |
+  | `CharacterCombatTest`, `InventoryTest` | Khải |
+  | `MapGenTest`, `HazardRoomsTest`, `LobbyTest` | Đạt |
+
+  Asset chỉ dùng cho một Scene (NavMesh bake, Lighting) đặt trong thư mục cùng tên cạnh Scene, ví dụ `Assets/Scenes/InventoryTest/`.
 - Không sửa prefab, Scene hay asset trong thư mục của hệ thống khác. Cần thay đổi thì nhờ người phụ trách.
+- Được kéo prefab của người khác vào Scene thử của mình (ví dụ đặt `Player_Character` vào `LobbyTest`), vì Scene không cần tham chiếu assembly. Chỉ không được sửa prefab đó.
+- Script tạo prefab hoặc Scene tự động (`CombatPrototypeBuilder`, `MapGenPrototypeBuilder`) ghi đè lên bản đang có, kể cả những sửa đổi đã làm tay khi ghép. Không chạy lại chúng lên prefab đã bàn giao. Nếu vẫn dùng thì sửa script để tạo ra đúng bản hiện tại trong `develop`, rồi so `git diff` trước khi commit.
 
 ## 7. Git và Pull Request
 
 - Quy trình nhánh theo `README.md`. Commit theo dạng `loại(phạm vi): mô tả`, ví dụ `feat(map-gen): …`, `fix(combat): …`, `docs: …`.
+- Nhánh của mỗi đợt việc được nhóm trưởng tách từ `develop` mới nhất và ghi trong file task. Làm đúng nhánh đó; nhánh cũ đã merge thì xóa bản local: `git fetch --prune`, rồi `git branch -d <tên nhánh cũ>`.
+- Khi `develop` có thay đổi mới (nhóm trưởng sẽ báo), đóng Unity rồi `git fetch origin` và `git merge origin/develop` vào nhánh của mình. Luôn làm bước này ngay trước khi mở PR, để xung đột được giải quyết ở nhánh của mình chứ không phải lúc merge.
 - PR chỉ chứa file thuộc phạm vi nhiệm vụ. Kiểm tra lại các file Unity tự sinh như `ProjectSettings/*.json` trước khi commit.
 - Tài liệu viết bằng Markdown (`.md`) để Git xem được thay đổi; không dùng `.docx`.
 - Trước khi mở PR, tự kiểm tra:
