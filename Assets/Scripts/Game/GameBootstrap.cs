@@ -14,7 +14,7 @@ namespace LightSouls.Game
     ///
     /// Luồng một màn chơi:
     ///   1. DungeonGenerator sinh màn trong Start() và phát OnDungeonGenerated (vì vậy phải đăng ký trong Awake).
-    ///   2. Sinh người chơi tại ctx.PlayerSpawnPoint, gán cho camera và HUD.
+    ///   2. Sinh người chơi tại ctx.PlayerSpawnPoint, gán cho camera, HUD và bản đồ nhỏ.
     ///   3. Người chơi bước vào phòng chiến đấu: phòng khóa cửa và phát OnRoomEnteredCombat,
     ///      EnemySpawner sinh quái tại room.EnemySpawnPoints.
     ///   4. Hết quái (AllEnemiesDefeated): gọi room.LifecycleController.ClearRoom() để mở cửa.
@@ -40,6 +40,7 @@ namespace LightSouls.Game
         [Header("Giao diện")]
         [SerializeField] private PauseMenuController pauseMenu;
         [SerializeField] private GameResultScreen resultScreen;
+        [SerializeField] private GameMinimap minimap;
 
         [Header("Đích")]
         [Tooltip("Người chơi đứng trong bán kính này (mét, mặt phẳng XZ) quanh điểm đích thì thắng.")]
@@ -149,6 +150,11 @@ namespace LightSouls.Game
                     exitRoom = lifecycle;
                 }
             }
+
+            if (minimap != null)
+            {
+                minimap.Show(context, player.transform);
+            }
         }
 
         private void SpawnPlayer(Transform spawnPoint)
@@ -225,6 +231,11 @@ namespace LightSouls.Game
             if (touchControlsRoot != null)
             {
                 touchControlsRoot.SetActive(false);
+            }
+
+            if (minimap != null)
+            {
+                minimap.Hide();
             }
 
             if (resultScreen == null)
