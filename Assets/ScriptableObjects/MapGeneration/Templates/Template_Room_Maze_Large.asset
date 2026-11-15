@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a292316dc2a16f4fb22c67902686433, type: 3}
+  m_Name: Template_Room_Maze_Large
+  m_EditorClassIdentifier: LightSouls.MapGeneration::LightSouls.MapGeneration.RoomTemplateSO
+  templateId: Template_Room_Maze_Large
+  roomType: 2
+  prefab: {fileID: 1610431006702661883, guid: bc3f96dc37c697146b2174a34b3f7577, type: 3}
+  selectionWeight: 0.8
+  minCount: 0
+  maxCount: 2
+  allowRotation: 1
+  localBounds:
+    m_Center: {x: 0, y: 1.5, z: 0}
+    m_Extent: {x: 12, y: 2, z: 12}
+  sockets:
+  - socketName: Socket_North
+    localPosition: {x: 0, y: 0, z: 12}
+    localDirection: 0
+  - socketName: Socket_South
+    localPosition: {x: 0, y: 0, z: -12}
+    localDirection: 2
+  - socketName: Socket_East
+    localPosition: {x: 12, y: 0, z: 0}
+    localDirection: 1
+  - socketName: Socket_West
+    localPosition: {x: -12, y: 0, z: 0}
+    localDirection: 3
+  hasPlayerSpawn: 0
+  playerSpawnLocalOffset: {x: 0, y: 0, z: 0}
+  hasExitPoint: 0
+  exitLocalOffset: {x: 0, y: 0, z: 0}
+  enemySpawnLocalOffsets:
+  - {x: -8, y: 0.06, z: 4}
+  - {x: 8, y: 0.06, z: 4}
+  - {x: -8, y: 0.06, z: -4}
+  - {x: 8, y: 0.06, z: -4}
+  - {x: 0, y: 0.06, z: 5}
+  - {x: 0, y: 0.06, z: -5}

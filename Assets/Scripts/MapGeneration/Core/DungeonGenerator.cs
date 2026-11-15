@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using LightSouls.Common;
 using Unity.AI.Navigation;
 using UnityEngine;
 using UnityEngine.AI;
@@ -15,6 +16,8 @@ namespace LightSouls.MapGeneration
     {
         [Header("Configuration")]
         [SerializeField] private DungeonGenerationConfigSO config;
+        [Tooltip("Danh mục các ngục có thể chọn tại Sảnh. Khi RunState.SelectedDungeonId khớp với một mục trong catalog, config của ngục đó sẽ được sử dụng thay cho config mặc định.")]
+        [SerializeField] private DungeonCatalogSO catalog;
         [SerializeField] private bool generateOnStart = true;
 
         [Header("Scene Containers & Navigation")]
@@ -57,6 +60,27 @@ namespace LightSouls.MapGeneration
             set => config = value;
         }
 
+        public DungeonCatalogSO Catalog
+        {
+            get => catalog;
+            set => catalog = value;
+        }
+
+        public DungeonGenerationConfigSO ActiveConfig => ResolveActiveConfig();
+
+        public DungeonGenerationConfigSO ResolveActiveConfig()
+        {
+            if (catalog != null && !string.IsNullOrEmpty(RunState.SelectedDungeonId))
+            {
+                if (catalog.TryGetConfig(RunState.SelectedDungeonId, out DungeonGenerationConfigSO resolvedConfig) && resolvedConfig != null)
+                {
+                    return resolvedConfig;
+                }
+            }
+
+            return config;
+        }
+
         public bool ShowMainPathLine
         {
             get => showMainPathLine;
@@ -95,9 +119,11 @@ namespace LightSouls.MapGeneration
             DungeonGeneratedEventChannelSO eventChannel,
             TransformAnchorSO spawnAnchor,
             TransformAnchorSO exitAnchor,
-            LineRenderer pathLine)
+            LineRenderer pathLine,
+            DungeonCatalogSO dungeonCatalog = null)
         {
             config = generationConfig;
+            catalog = dungeonCatalog != null ? dungeonCatalog : catalog;
             navMeshSurface = surface;
             onDungeonGeneratedChannel = eventChannel;
             playerSpawnAnchor = spawnAnchor;
@@ -108,25 +134,27 @@ namespace LightSouls.MapGeneration
         [ContextMenu("Generate New Dungeon")]
         public void Generate()
         {
-            if (config == null)
+            DungeonGenerationConfigSO activeConfig = ResolveActiveConfig();
+            if (activeConfig == null)
             {
-                LastError = "DungeonGenerationConfigSO is not assigned.";
+                LastError = "No active DungeonGenerationConfigSO is available.";
                 Debug.LogError($"[DungeonGenerator] {LastError}", this);
                 return;
             }
 
-            int seed = config.UseRandomSeed
+            int seed = activeConfig.UseRandomSeed
                 ? UnityEngine.Random.Range(int.MinValue + 1, int.MaxValue)
-                : config.FixedSeed;
+                : activeConfig.FixedSeed;
 
             GenerateWithSeed(seed);
         }
 
         public bool GenerateWithSeed(int seed)
         {
-            if (config == null)
+            DungeonGenerationConfigSO activeConfig = ResolveActiveConfig();
+            if (activeConfig == null)
             {
-                LastError = "DungeonGenerationConfigSO is not assigned.";
+                LastError = "No active DungeonGenerationConfigSO is available.";
                 Debug.LogError($"[DungeonGenerator] {LastError}", this);
                 return false;
             }
@@ -134,7 +162,7 @@ namespace LightSouls.MapGeneration
             ClearDungeon();
             EnsureRoomsContainer();
 
-            DungeonPlanRequest planRequest = config.ToPlanRequest(out Dictionary<string, RoomTemplateSO> templateLookup);
+            DungeonPlanRequest planRequest = activeConfig.ToPlanRequest(out Dictionary<string, RoomTemplateSO> templateLookup);
             if (!DungeonLayoutPlanner.TryPlan(planRequest, seed, out DungeonLayoutData layout, out string error))
             {
                 LastError = error;
@@ -164,9 +192,10 @@ namespace LightSouls.MapGeneration
 
         public async Awaitable<bool> GenerateAsync(int? customSeed = null)
         {
-            if (config == null)
+            DungeonGenerationConfigSO activeConfig = ResolveActiveConfig();
+            if (activeConfig == null)
             {
-                LastError = "DungeonGenerationConfigSO is not assigned.";
+                LastError = "No active DungeonGenerationConfigSO is available.";
                 Debug.LogError($"[DungeonGenerator] {LastError}", this);
                 return false;
             }
@@ -174,11 +203,11 @@ namespace LightSouls.MapGeneration
             ClearDungeon();
             EnsureRoomsContainer();
 
-            int seed = customSeed ?? (config.UseRandomSeed
+            int seed = customSeed ?? (activeConfig.UseRandomSeed
                 ? UnityEngine.Random.Range(int.MinValue + 1, int.MaxValue)
-                : config.FixedSeed);
+                : activeConfig.FixedSeed);
 
-            DungeonPlanRequest planRequest = config.ToPlanRequest(out Dictionary<string, RoomTemplateSO> templateLookup);
+            DungeonPlanRequest planRequest = activeConfig.ToPlanRequest(out Dictionary<string, RoomTemplateSO> templateLookup);
             if (!DungeonLayoutPlanner.TryPlan(planRequest, seed, out DungeonLayoutData layout, out string error))
             {
                 LastError = error;
