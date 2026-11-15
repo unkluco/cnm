@@ -42,6 +42,7 @@ namespace LightSouls.MapGeneration
         private readonly List<RoomModule> spawnedRooms = new List<RoomModule>();
         private readonly List<Transform> enemySpawnPoints = new List<Transform>();
         private readonly List<Transform> lootSpawnPoints = new List<Transform>();
+        private int currentDungeonSeed;
 
         public bool IsGenerated { get; private set; }
         public DungeonLayoutData CurrentLayout { get; private set; }
@@ -161,6 +162,7 @@ namespace LightSouls.MapGeneration
 
             ClearDungeon();
             EnsureRoomsContainer();
+            currentDungeonSeed = seed;
 
             DungeonPlanRequest planRequest = activeConfig.ToPlanRequest(out Dictionary<string, RoomTemplateSO> templateLookup);
             if (!DungeonLayoutPlanner.TryPlan(planRequest, seed, out DungeonLayoutData layout, out string error))
@@ -206,6 +208,7 @@ namespace LightSouls.MapGeneration
             int seed = customSeed ?? (activeConfig.UseRandomSeed
                 ? UnityEngine.Random.Range(int.MinValue + 1, int.MaxValue)
                 : activeConfig.FixedSeed);
+            currentDungeonSeed = seed;
 
             DungeonPlanRequest planRequest = activeConfig.ToPlanRequest(out Dictionary<string, RoomTemplateSO> templateLookup);
             if (!DungeonLayoutPlanner.TryPlan(planRequest, seed, out DungeonLayoutData layout, out string error))
@@ -331,6 +334,13 @@ namespace LightSouls.MapGeneration
             instance.TemplateId = placed.templateId;
             instance.RefreshSocketsFromChildren();
             instance.ResetAllSocketsToSealed();
+
+            var applicator = instance.GetComponent<ProceduralRoomApplicator>();
+            if (applicator != null)
+            {
+                int roomSeed = (currentDungeonSeed ^ (placed.roomId * 73856093)) & 0x7FFFFFFF;
+                applicator.GenerateAndApply(roomSeed);
+            }
 
             if (placed.roomType == RoomType.Start && instance.PlayerSpawnPoint != null)
             {

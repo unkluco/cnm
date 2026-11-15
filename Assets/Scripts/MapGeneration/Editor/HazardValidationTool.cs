@@ -146,21 +146,23 @@ namespace LightSouls.MapGeneration.Editor
             }
 
             // 2. Kiểm tra chiều cao vật cản bên trong (Cover Height <= 1.2m)
-            Transform coverRoot = roomObj.transform.Find("Cover") ?? roomObj.transform.Find("ArenaPillars");
-            if (coverRoot != null)
+            Transform coverRoot = roomObj.transform.Find("Cover");
+            Transform pillarsRoot = roomObj.transform.Find("ArenaPillars");
+
+            var colliders = new List<Collider>();
+            if (coverRoot != null) colliders.AddRange(coverRoot.GetComponentsInChildren<Collider>());
+            if (pillarsRoot != null) colliders.AddRange(pillarsRoot.GetComponentsInChildren<Collider>());
+
+            foreach (Collider col in colliders)
             {
-                var colliders = coverRoot.GetComponentsInChildren<Collider>();
-                foreach (Collider col in colliders)
+                if (col == null || col.isTrigger) continue;
+                float height = col.bounds.size.y;
+                // Bỏ qua cột trụ mỏng được thiết kế riêng
+                bool isThinPillar = col.name.Contains("Pillar") && col.bounds.size.x <= 1.8f && col.bounds.size.z <= 1.8f;
+                if (!isThinPillar && height > 1.25f)
                 {
-                    if (col == null || col.isTrigger) continue;
-                    float height = col.bounds.size.y;
-                    // Bỏ qua cột trụ mỏng được thiết kế riêng
-                    bool isThinPillar = col.name.Contains("Pillar") && col.bounds.size.x <= 1.8f && col.bounds.size.z <= 1.8f;
-                    if (!isThinPillar && height > 1.25f)
-                    {
-                        result.IsValid = false;
-                        result.Errors.Add($"Vật che chắn '{col.name}' có chiều cao {height:F2}m vượt quá giới hạn tầm thấp 1.2m (nguy cơ che camera)!");
-                    }
+                    result.IsValid = false;
+                    result.Errors.Add($"Vật che chắn '{col.name}' có chiều cao {height:F2}m vượt quá giới hạn tầm thấp 1.2m (nguy cơ che camera)!");
                 }
             }
 

@@ -88,6 +88,15 @@ namespace LightSouls.MapGeneration
         }
 
         /// <summary>
+        /// Updates enemy and loot spawn points dynamically during procedural encounter generation.
+        /// </summary>
+        public void SetSpawnPoints(List<Transform> enemySpawns, List<Transform> lootSpawns)
+        {
+            enemySpawnPoints = enemySpawns ?? new List<Transform>();
+            lootSpawnPoints = lootSpawns ?? new List<Transform>();
+        }
+
+        /// <summary>
         /// Sets every doorway on this room to its sealed-wall state before connection wiring runs.
         /// </summary>
         public void ResetAllSocketsToSealed()

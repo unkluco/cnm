@@ -399,5 +399,151 @@ namespace LightSouls.MapGeneration.Tests
                 Assert.IsTrue(result.IsValid, $"Phòng '{prefab.name}' vi phạm tiêu chuẩn thiết kế: {string.Join(", ", result.Errors)}");
             }
         }
+
+        [Test]
+        public void ProceduralGeneration_100DeterministicSeeds_AllPassHardConstraintsAndSafeRouteConnectivity()
+        {
+            var themes = new[] { TerrainTheme.Lava, TerrainTheme.Spike, TerrainTheme.Water, TerrainTheme.LowCover };
+            var sizes = new[] { new Vector2(24f, 24f), new Vector2(16f, 16f) };
+            var sockets = new List<DoorDirection>
+            {
+                DoorDirection.North,
+                DoorDirection.South,
+                DoorDirection.East,
+                DoorDirection.West
+            };
+
+            int totalTested = 0;
+            int passCount = 0;
+            var failedSeeds = new List<string>();
+
+            for (int seed = 1000; seed < 1100; seed++)
+            {
+                totalTested++;
+                TerrainTheme theme = themes[seed % themes.Length];
+                Vector2 size = sizes[seed % sizes.Length];
+
+                RoomTacticalLayout layout = ProceduralLayoutGenerator.Generate(seed, theme, size, sockets);
+
+                if (!layout.IsValid)
+                {
+                    failedSeeds.Add($"Seed {seed} ({theme}): {layout.RejectionReason}");
+                    continue;
+                }
+
+                // Kiểm tra 1: Mọi hazard đều có khoảng cách >= 2.5m tới mọi đoạn cửa
+                bool hasDoorwayViolation = false;
+                foreach (var h in layout.Hazards)
+                {
+                    if (ProceduralLayoutGenerator.IsBoundsOverlappingDoorwaySafeZones(h.GetLocalBounds(), size, sockets))
+                    {
+                        hasDoorwayViolation = true;
+                        break;
+                    }
+                }
+
+                if (hasDoorwayViolation)
+                {
+                    failedSeeds.Add($"Seed {seed} ({theme}): Hazard vi phạm vùng an toàn cửa.");
+                    continue;
+                }
+
+                // Kiểm tra 2: Mọi điểm sinh quái đều nằm ngoài vùng an toàn cửa
+                bool hasSpawnViolation = false;
+                foreach (var sp in layout.EnemySpawns)
+                {
+                    if (ProceduralLayoutGenerator.IsPointInsideAnyDoorwaySafeZone(sp, size, sockets))
+                    {
+                        hasSpawnViolation = true;
+                        break;
+                    }
+                }
+
+                if (hasSpawnViolation)
+                {
+                    failedSeeds.Add($"Seed {seed} ({theme}): Điểm sinh quái vi phạm vùng an toàn cửa.");
+                    continue;
+                }
+
+                // Kiểm tra 3: Xác minh đường an toàn liên tục giữa các cặp cửa
+                if (layout.VerifiedSafeRoutes == null || layout.VerifiedSafeRoutes.Count == 0)
+                {
+                    failedSeeds.Add($"Seed {seed} ({theme}): Thiếu đường an toàn kết nối giữa các cửa.");
+                    continue;
+                }
+
+                passCount++;
+            }
+
+            Assert.AreEqual(100, totalTested);
+            Assert.AreEqual(100, passCount, $"Có {failedSeeds.Count} seeds thất bại: {string.Join("; ", failedSeeds)}");
+        }
+
+        [Test]
+        public void ProceduralGeneration_SameSeed_ProducesIdenticalDeterministicLayout()
+        {
+            const int testSeed = 4242;
+            var size = new Vector2(24f, 24f);
+
+            RoomTacticalLayout run1 = ProceduralLayoutGenerator.Generate(testSeed, TerrainTheme.Lava, size);
+            RoomTacticalLayout run2 = ProceduralLayoutGenerator.Generate(testSeed, TerrainTheme.Lava, size);
+
+            Assert.AreEqual(run1.PatternName, run2.PatternName);
+            Assert.AreEqual(run1.Hazards.Count, run2.Hazards.Count);
+            Assert.AreEqual(run1.Covers.Count, run2.Covers.Count);
+            Assert.AreEqual(run1.EnemySpawns.Count, run2.EnemySpawns.Count);
+
+            for (int i = 0; i < run1.Hazards.Count; i++)
+            {
+                Assert.AreEqual(run1.Hazards[i].LocalPosition, run2.Hazards[i].LocalPosition);
+                Assert.AreEqual(run1.Hazards[i].LocalScale, run2.Hazards[i].LocalScale);
+            }
+
+            for (int i = 0; i < run1.EnemySpawns.Count; i++)
+            {
+                Assert.AreEqual(run1.EnemySpawns[i], run2.EnemySpawns[i]);
+            }
+        }
+
+        [Test]
+        public void ProceduralGeneration_DifferentSeeds_ProduceMeaningfulPatternVariation()
+        {
+            var size = new Vector2(24f, 24f);
+            var distinctPatterns = new HashSet<string>();
+
+            for (int i = 0; i < 20; i++)
+            {
+                RoomTacticalLayout layout = ProceduralLayoutGenerator.Generate(2000 + i, TerrainTheme.Lava, size);
+                distinctPatterns.Add(layout.PatternName);
+            }
+
+            Assert.GreaterOrEqual(distinctPatterns.Count, 3, "20 seed khác nhau phải sinh ra ít nhất 3 mẫu bố cục dung nham khác biệt (đạt chuẩn Intentional Diversity).");
+        }
+
+        [Test]
+        public void ProceduralRoomApplicator_AppliesLayoutToRoomModule_CorrectlyInstantiatesContainers()
+        {
+            var roomGo = new GameObject("TestProceduralRoom");
+            var module = roomGo.AddComponent<RoomModule>();
+            var trigger = roomGo.AddComponent<BoxCollider>();
+            var lifecycle = roomGo.AddComponent<RoomLifecycleController>();
+            lifecycle.Configure(module, trigger);
+            module.Configure(RoomType.Combat, new Bounds(Vector3.zero, new Vector3(24f, 4f, 24f)), null, null, null, null, null, null, lifecycle);
+
+            var applicator = roomGo.AddComponent<ProceduralRoomApplicator>();
+            applicator.Theme = TerrainTheme.Spike;
+            applicator.CustomSeed = 555;
+
+            var layout = applicator.GenerateAndApply(555);
+
+            Assert.IsNotNull(layout);
+            Assert.IsTrue(layout.IsValid);
+            Assert.IsNotNull(roomGo.transform.Find("Hazards"));
+            Assert.IsNotNull(roomGo.transform.Find("Cover"));
+            Assert.IsNotNull(roomGo.transform.Find("ProceduralSpawns"));
+            Assert.GreaterOrEqual(module.EnemySpawnPoints.Count, 1);
+
+            UnityEngine.Object.DestroyImmediate(roomGo);
+        }
     }
 }
