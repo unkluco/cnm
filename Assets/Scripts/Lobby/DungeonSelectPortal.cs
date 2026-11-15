@@ -54,7 +54,7 @@ namespace LightSouls.Lobby
             }
             else
             {
-                DungeonSelectUI selectUI = FindFirstObjectByType<DungeonSelectUI>();
+                DungeonSelectUI selectUI = FindAnyObjectByType<DungeonSelectUI>();
                 if (selectUI != null)
                 {
                     selectUI.Open(interactor);

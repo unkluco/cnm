@@ -1059,13 +1059,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: LightSouls.MapGeneration::LightSouls.MapGeneration.Hazards.SpikeTrapHazard
   autoConfigurePhysics: 1
-  idleDuration: 1.8
-  telegraphDuration: 0.6
-  activeDuration: 0.8
+  restDuration: 1.2
+  warningDuration: 0.6
+  extendingDuration: 0.15
+  activeDuration: 0.55
+  retractingDuration: 0.25
+  phaseOffset: 0
+  roomLifecycle: {fileID: 0}
+  alwaysActive: 0
   spikeDamage: 15
   spikesTransform: {fileID: 1474292113688091460}
   warningPlateRenderer: {fileID: 8919660729101817545}
   normalColor: {r: 0.3, g: 0.3, b: 0.35, a: 1}
-  telegraphColor: {r: 0.9, g: 0.2, b: 0.1, a: 1}
+  warningColor: {r: 0.95, g: 0.2, b: 0.1, a: 1}
   retractedHeight: -0.4
   extendedHeight: 0.6

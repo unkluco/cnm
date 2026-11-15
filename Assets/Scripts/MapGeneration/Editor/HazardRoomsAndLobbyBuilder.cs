@@ -67,6 +67,7 @@ namespace LightSouls.MapGeneration.Editor
             Material matSpike = CreateUrpMaterial("Mat_Hazard_Spike", new Color(0.42f, 0.44f, 0.48f));
             Material matWarning = CreateUrpMaterial("Mat_Hazard_Warning", new Color(0.92f, 0.22f, 0.12f));
             Material matMazeWall = CreateUrpMaterial("Mat_Maze_Wall", new Color(0.38f, 0.42f, 0.48f));
+            Material matBarrel = CreateUrpMaterial("Mat_Hazard_Barrel", new Color(0.85f, 0.22f, 0.12f));
 
             Material matWall = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsRoot}/Mat_Wall.mat");
             Material matDoorFrame = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsRoot}/Mat_DoorFrame.mat");
@@ -80,10 +81,11 @@ namespace LightSouls.MapGeneration.Editor
             GameObject prefabHazardLava = BuildHazardLavaPrefab(matLava);
             GameObject prefabHazardWater = BuildHazardWaterPrefab(matWater);
             GameObject prefabHazardSpike = BuildHazardSpikePrefab(matSpike, matWarning);
+            GameObject prefabHazardBarrel = BuildHazardBarrelPrefab(matBarrel);
 
             // 3. New Combat Room Prefabs
             RoomModule roomLava = BuildLavaArenaRoom(matFloorArena, matWall, matDoorFrame, matEnemy, matLoot, prefabHazardLava);
-            RoomModule roomWater = BuildWaterPondRoom(matFloorNormal, matWall, matDoorFrame, matEnemy, matLoot, prefabHazardWater);
+            RoomModule roomWater = BuildWaterPondRoom(matFloorNormal, matWall, matDoorFrame, matEnemy, matLoot, prefabHazardWater, prefabHazardBarrel);
             RoomModule roomSpikes = BuildSpikeTrapsRoom(matFloorNormal, matWall, matDoorFrame, matEnemy, matLoot, prefabHazardSpike);
             RoomModule roomMaze = BuildMazeLargeRoom(matFloorNormal, matWall, matMazeWall, matDoorFrame, matEnemy, matLoot);
 
@@ -355,6 +357,40 @@ namespace LightSouls.MapGeneration.Editor
             return saved;
         }
 
+        private static GameObject BuildHazardBarrelPrefab(Material matBarrel)
+        {
+            var root = new GameObject("Hazard_ExplosiveBarrel");
+            int envLayer = LayerMask.NameToLayer("Environment");
+            if (envLayer >= 0) root.layer = envLayer;
+
+            var col = root.AddComponent<CapsuleCollider>();
+            col.center = new Vector3(0f, 0.55f, 0f);
+            col.radius = 0.4f;
+            col.height = 1.1f;
+
+            var rb = root.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+            rb.useGravity = false;
+
+            var hazard = root.AddComponent<ExplosiveBarrelHazard>();
+
+            GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            visual.name = "BarrelVisual";
+            visual.transform.SetParent(root.transform, false);
+            visual.transform.localPosition = new Vector3(0f, 0.55f, 0f);
+            visual.transform.localScale = new Vector3(0.8f, 0.55f, 0.8f);
+            if (visual.GetComponent<Collider>() != null) Object.DestroyImmediate(visual.GetComponent<Collider>());
+            visual.GetComponent<Renderer>().sharedMaterial = matBarrel;
+
+            var rendField = typeof(ExplosiveBarrelHazard).GetField("barrelRenderer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (rendField != null) rendField.SetValue(hazard, visual.GetComponent<Renderer>());
+
+            string path = $"{HazardsPrefabRoot}/Hazard_ExplosiveBarrel.prefab";
+            GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, path);
+            Object.DestroyImmediate(root);
+            return saved;
+        }
+
         private static RoomModule BuildLavaArenaRoom(Material floorMat, Material wallMat, Material doorFrameMat, Material enemyMat, Material lootMat, GameObject prefabLava)
         {
             float width = 24f;
@@ -378,7 +414,7 @@ namespace LightSouls.MapGeneration.Editor
                 BuildWallSide(d, width, length, socketSet.Contains(d), wallsRoot, socketsRoot, wallMat, doorFrameMat);
             }
 
-            // 4 vùng dung nham ở 4 góc (chừa hành lang trung tâm 10m nối thông 4 cửa)
+            // 4 hào dung nham ở 4 góc (khoảng cách tối thiểu tới bất kỳ cửa nào >= 4.65m > 2.5m)
             var hazardsRoot = new GameObject("Hazards").transform;
             hazardsRoot.SetParent(root.transform, false);
 
@@ -395,16 +431,33 @@ namespace LightSouls.MapGeneration.Editor
                 GameObject lava = (GameObject)PrefabUtility.InstantiatePrefab(prefabLava, hazardsRoot);
                 lava.name = $"LavaZone_Corner_{i + 1}";
                 lava.transform.localPosition = lavaPositions[i];
-                lava.transform.localScale = new Vector3(1.75f, 1f, 1.75f); // 7x7m
+                lava.transform.localScale = new Vector3(1.375f, 1f, 1.375f); // 5.5m x 5.5m
             }
 
-            // Điểm sinh quái (nằm trên hành lang an toàn, không nằm trong lava)
+            // Low-Cover: 4 bệ đá che chắn tầm thấp (chiều cao 1.0m <= 1.1m) tại góc sàn chiến đấu
+            Transform coverRoot = new GameObject("Cover").transform;
+            coverRoot.SetParent(root.transform, false);
+
+            Vector3[] coverPositions =
+            {
+                new Vector3(-3.5f, 0.5f, 3.5f),
+                new Vector3(3.5f, 0.5f, 3.5f),
+                new Vector3(-3.5f, 0.5f, -3.5f),
+                new Vector3(3.5f, 0.5f, -3.5f)
+            };
+            for (int i = 0; i < coverPositions.Length; i++)
+            {
+                CreatePrimitiveChild($"Cover_Corner_{i + 1}", PrimitiveType.Cube, coverRoot,
+                    coverPositions[i], new Vector3(1.4f, 1.0f, 1.4f), wallMat, true);
+            }
+
+            // Điểm sinh quái (nằm trên sàn chiến đấu trung tâm, cách cửa > 8m)
             Vector3[] enemyPositions =
             {
-                new Vector3(0f, 0f, 3.5f),
-                new Vector3(0f, 0f, -3.5f),
-                new Vector3(-3.5f, 0f, 0f),
-                new Vector3(3.5f, 0f, 0f)
+                new Vector3(0f, 0f, 3.0f),
+                new Vector3(0f, 0f, -3.0f),
+                new Vector3(-3.0f, 0f, 0f),
+                new Vector3(3.0f, 0f, 0f)
             };
             var enemyTransforms = new List<Transform>();
             for (int i = 0; i < enemyPositions.Length; i++)
@@ -442,7 +495,7 @@ namespace LightSouls.MapGeneration.Editor
             return saved.GetComponent<RoomModule>();
         }
 
-        private static RoomModule BuildWaterPondRoom(Material floorMat, Material wallMat, Material doorFrameMat, Material enemyMat, Material lootMat, GameObject prefabWater)
+        private static RoomModule BuildWaterPondRoom(Material floorMat, Material wallMat, Material doorFrameMat, Material enemyMat, Material lootMat, GameObject prefabWater, GameObject prefabBarrel)
         {
             float width = 16f;
             float length = 16f;
@@ -463,25 +516,36 @@ namespace LightSouls.MapGeneration.Editor
                 BuildWallSide(d, width, length, socketSet.Contains(d), wallsRoot, socketsRoot, wallMat, doorFrameMat);
             }
 
-            // 2 hồ nước hai bên, hành lang trung tâm 4m nối thẳng North-South
+            // Archetype 3: Slow Water & Explosive Barrels
+            // Hồ nước trung tâm (6m x 6m), cách tất cả 4 cửa 5.0m (> 3m & > 2.5m)
+            // Tuyến đường ven khô ráo rộng 5m bao quanh hồ kết nối 4 cửa
             var hazardsRoot = new GameObject("Hazards").transform;
             hazardsRoot.SetParent(root.transform, false);
 
-            GameObject waterLeft = (GameObject)PrefabUtility.InstantiatePrefab(prefabWater, hazardsRoot);
-            waterLeft.name = "WaterZone_West";
-            waterLeft.transform.localPosition = new Vector3(-4.5f, 0f, 0f);
-            waterLeft.transform.localScale = new Vector3(1.1f, 1f, 2.2f); // 4.4m x 8.8m
+            GameObject water = (GameObject)PrefabUtility.InstantiatePrefab(prefabWater, hazardsRoot);
+            water.name = "WaterZone_Center";
+            water.transform.localPosition = Vector3.zero;
+            water.transform.localScale = new Vector3(1.5f, 1f, 1.5f); // 4m * 1.5 = 6.0m
 
-            GameObject waterRight = (GameObject)PrefabUtility.InstantiatePrefab(prefabWater, hazardsRoot);
-            waterRight.name = "WaterZone_East";
-            waterRight.transform.localPosition = new Vector3(4.5f, 0f, 0f);
-            waterRight.transform.localScale = new Vector3(1.1f, 1f, 2.2f);
+            // 3 Thùng nổ chiến thuật trong hồ nước / gần vị trí quái
+            Vector3[] barrelPositions =
+            {
+                new Vector3(-2.0f, 0f, 2.0f),
+                new Vector3(2.0f, 0f, -2.0f),
+                new Vector3(0f, 0f, 0f)
+            };
+            for (int i = 0; i < barrelPositions.Length; i++)
+            {
+                GameObject barrel = (GameObject)PrefabUtility.InstantiatePrefab(prefabBarrel, hazardsRoot);
+                barrel.name = $"ExplosiveBarrel_{i + 1}";
+                barrel.transform.localPosition = barrelPositions[i];
+            }
 
             Vector3[] enemyPositions =
             {
-                new Vector3(-4.5f, 0f, 2f),
-                new Vector3(4.5f, 0f, -2f),
-                new Vector3(0f, 0f, 2.5f)
+                new Vector3(-2.0f, 0f, 1.0f),
+                new Vector3(2.0f, 0f, -1.0f),
+                new Vector3(0f, 0f, 2.0f)
             };
             var enemyTransforms = new List<Transform>();
             for (int i = 0; i < enemyPositions.Length; i++)
@@ -493,7 +557,7 @@ namespace LightSouls.MapGeneration.Editor
 
             var lootTransforms = new List<Transform>();
             GameObject lootMarker = CreatePrimitiveChild("LootSpawn_1", PrimitiveType.Cube, root.transform,
-                new Vector3(0f, 0.45f, 0f), new Vector3(1.4f, 0.9f, 1.0f), lootMat, true);
+                new Vector3(0f, 0.45f, -3.8f), new Vector3(1.4f, 0.9f, 1.0f), lootMat, true);
             lootTransforms.Add(lootMarker.transform);
 
             var roomModule = root.AddComponent<RoomModule>();
@@ -538,30 +602,54 @@ namespace LightSouls.MapGeneration.Editor
                 BuildWallSide(d, width, length, socketSet.Contains(d), wallsRoot, socketsRoot, wallMat, doorFrameMat);
             }
 
-            // 4 cụm bẫy gai đặt lệch tâm, chừa đường đi chữ thập an toàn
+            // Archetype 2: Timed Spike Crossroads
+            // 4 Vách che chắn tầm thấp (chiều cao 1.0m <= 1.1m)
+            Transform coverRoot = new GameObject("Cover").transform;
+            coverRoot.SetParent(root.transform, false);
+
+            Vector3[] coverPositions =
+            {
+                new Vector3(-2.6f, 0.5f, 2.6f),
+                new Vector3(2.6f, 0.5f, 2.6f),
+                new Vector3(-2.6f, 0.5f, -2.6f),
+                new Vector3(2.6f, 0.5f, -2.6f)
+            };
+            for (int i = 0; i < coverPositions.Length; i++)
+            {
+                CreatePrimitiveChild($"Cover_Cross_{i + 1}", PrimitiveType.Cube, coverRoot,
+                    coverPositions[i], new Vector3(1.8f, 1.0f, 0.4f), wallMat, true);
+            }
+
+            // 4 Dải bẫy gai so le lệch pha (phaseOffset: 0s, 0.4s, 0.8s) giữa các điểm cover
             var hazardsRoot = new GameObject("Hazards").transform;
             hazardsRoot.SetParent(root.transform, false);
 
-            Vector3[] trapPositions =
+            (Vector3 pos, float phase)[] trapConfigs =
             {
-                new Vector3(-3.5f, 0f, 3.5f),
-                new Vector3(3.5f, 0f, 3.5f),
-                new Vector3(-3.5f, 0f, -3.5f),
-                new Vector3(3.5f, 0f, -3.5f)
+                (new Vector3(0f, 0f, 2.6f), 0.0f),
+                (new Vector3(2.6f, 0f, 0f), 0.4f),
+                (new Vector3(0f, 0f, -2.6f), 0.8f),
+                (new Vector3(-2.6f, 0f, 0f), 0.4f)
             };
 
-            for (int i = 0; i < trapPositions.Length; i++)
+            for (int i = 0; i < trapConfigs.Length; i++)
             {
                 GameObject trap = (GameObject)PrefabUtility.InstantiatePrefab(prefabSpikes, hazardsRoot);
                 trap.name = $"SpikeTrap_{i + 1}";
-                trap.transform.localPosition = trapPositions[i];
+                trap.transform.localPosition = trapConfigs[i].pos;
+
+                var spikeHazard = trap.GetComponent<SpikeTrapHazard>();
+                if (spikeHazard != null)
+                {
+                    spikeHazard.PhaseOffset = trapConfigs[i].phase;
+                }
             }
 
             Vector3[] enemyPositions =
             {
-                new Vector3(0f, 0f, 3.0f),
-                new Vector3(0f, 0f, -3.0f),
-                new Vector3(-3.0f, 0f, 0f)
+                new Vector3(-3.5f, 0f, 0f),
+                new Vector3(3.5f, 0f, 0f),
+                new Vector3(0f, 0f, -3.5f)
             };
             var enemyTransforms = new List<Transform>();
             for (int i = 0; i < enemyPositions.Length; i++)
@@ -618,26 +706,50 @@ namespace LightSouls.MapGeneration.Editor
                 BuildWallSide(d, width, length, socketSet.Contains(d), wallsRoot, socketsRoot, wallMat, doorFrameMat);
             }
 
-            // Tường mê cung bên trong (đảm bảo lối đi rộng tối thiểu 2.5m - 4m, nối thông mọi cửa)
-            var mazeWallsRoot = new GameObject("MazeWalls").transform;
-            mazeWallsRoot.SetParent(root.transform, false);
+            // Archetype 4: Low-Cover Arena
+            // Thay tường mê cung cao bằng các bờ tường che thấp (<= 1.1m) và cột mỏng,
+            // bảo tồn góc nhìn camera 3D/isometric và các làn chiến đấu rộng >= 5m
+            Transform coverRoot = new GameObject("Cover").transform;
+            coverRoot.SetParent(root.transform, false);
 
-            // Bố cục vách tường chữ L và T tạo mê cung nhưng NavMesh hoàn toàn thông
-            CreatePrimitiveChild("MazeWall_1", PrimitiveType.Cube, mazeWallsRoot, new Vector3(-5f, 1.5f, 4f), new Vector3(0.5f, 3.0f, 8f), mazeWallMat, true);
-            CreatePrimitiveChild("MazeWall_2", PrimitiveType.Cube, mazeWallsRoot, new Vector3(5f, 1.5f, 4f), new Vector3(0.5f, 3.0f, 8f), mazeWallMat, true);
-            CreatePrimitiveChild("MazeWall_3", PrimitiveType.Cube, mazeWallsRoot, new Vector3(-5f, 1.5f, -4f), new Vector3(0.5f, 3.0f, 8f), mazeWallMat, true);
-            CreatePrimitiveChild("MazeWall_4", PrimitiveType.Cube, mazeWallsRoot, new Vector3(5f, 1.5f, -4f), new Vector3(0.5f, 3.0f, 8f), mazeWallMat, true);
-            CreatePrimitiveChild("MazeWall_Center_H", PrimitiveType.Cube, mazeWallsRoot, new Vector3(0f, 1.5f, 0f), new Vector3(6f, 3.0f, 0.5f), mazeWallMat, true);
+            CreatePrimitiveChild("Cover_NW_H", PrimitiveType.Cube, coverRoot, new Vector3(-5.5f, 0.5f, 5.5f), new Vector3(5.0f, 1.0f, 0.5f), mazeWallMat, true);
+            CreatePrimitiveChild("Cover_NW_V", PrimitiveType.Cube, coverRoot, new Vector3(-7.5f, 0.5f, 3.0f), new Vector3(0.5f, 1.0f, 4.0f), mazeWallMat, true);
 
-            // Quái sinh rải rác trong các nhánh mê cung
+            CreatePrimitiveChild("Cover_NE_H", PrimitiveType.Cube, coverRoot, new Vector3(5.5f, 0.5f, 5.5f), new Vector3(5.0f, 1.0f, 0.5f), mazeWallMat, true);
+            CreatePrimitiveChild("Cover_NE_V", PrimitiveType.Cube, coverRoot, new Vector3(7.5f, 0.5f, 3.0f), new Vector3(0.5f, 1.0f, 4.0f), mazeWallMat, true);
+
+            CreatePrimitiveChild("Cover_SW_H", PrimitiveType.Cube, coverRoot, new Vector3(-5.5f, 0.5f, -5.5f), new Vector3(5.0f, 1.0f, 0.5f), mazeWallMat, true);
+            CreatePrimitiveChild("Cover_SW_V", PrimitiveType.Cube, coverRoot, new Vector3(-7.5f, 0.5f, -3.0f), new Vector3(0.5f, 1.0f, 4.0f), mazeWallMat, true);
+
+            CreatePrimitiveChild("Cover_SE_H", PrimitiveType.Cube, coverRoot, new Vector3(5.5f, 0.5f, -5.5f), new Vector3(5.0f, 1.0f, 0.5f), mazeWallMat, true);
+            CreatePrimitiveChild("Cover_SE_V", PrimitiveType.Cube, coverRoot, new Vector3(7.5f, 0.5f, -3.0f), new Vector3(0.5f, 1.0f, 4.0f), mazeWallMat, true);
+
+            // 4 Cột trụ mỏng (0.7m x 3.5m x 0.7m) tạo điểm nhấn kiến trúc không cản trở camera
+            Transform pillarsRoot = new GameObject("ArenaPillars").transform;
+            pillarsRoot.SetParent(root.transform, false);
+
+            Vector3[] pillarPositions =
+            {
+                new Vector3(-4.0f, 1.75f, 4.0f),
+                new Vector3(4.0f, 1.75f, 4.0f),
+                new Vector3(-4.0f, 1.75f, -4.0f),
+                new Vector3(4.0f, 1.75f, -4.0f)
+            };
+            for (int i = 0; i < pillarPositions.Length; i++)
+            {
+                CreatePrimitiveChild($"Pillar_{i + 1}", PrimitiveType.Cube, pillarsRoot,
+                    pillarPositions[i], new Vector3(0.7f, 3.5f, 0.7f), wallMat, true);
+            }
+
+            // Quái sinh trong các làn chiến đấu
             Vector3[] enemyPositions =
             {
-                new Vector3(-8f, 0f, 4f),
-                new Vector3(8f, 0f, 4f),
-                new Vector3(-8f, 0f, -4f),
-                new Vector3(8f, 0f, -4f),
-                new Vector3(0f, 0f, 5f),
-                new Vector3(0f, 0f, -5f)
+                new Vector3(-6.0f, 0f, 4.0f),
+                new Vector3(6.0f, 0f, 4.0f),
+                new Vector3(-6.0f, 0f, -4.0f),
+                new Vector3(6.0f, 0f, -4.0f),
+                new Vector3(0f, 0f, 4.5f),
+                new Vector3(0f, 0f, -4.5f)
             };
             var enemyTransforms = new List<Transform>();
             for (int i = 0; i < enemyPositions.Length; i++)
@@ -649,7 +761,7 @@ namespace LightSouls.MapGeneration.Editor
 
             var lootTransforms = new List<Transform>();
             GameObject lootMarker = CreatePrimitiveChild("LootSpawn_1", PrimitiveType.Cube, root.transform,
-                new Vector3(0f, 0.45f, 2.5f), new Vector3(1.4f, 0.9f, 1.0f), lootMat, true);
+                new Vector3(0f, 0.45f, 0f), new Vector3(1.4f, 0.9f, 1.0f), lootMat, true);
             lootTransforms.Add(lootMarker.transform);
 
             var roomModule = root.AddComponent<RoomModule>();
@@ -749,6 +861,9 @@ namespace LightSouls.MapGeneration.Editor
 
             var doorSocket = socketObj.AddComponent<DoorSocket>();
             doorSocket.Configure($"Socket_{dir}", dir, new Vector2(DoorWidth, DoorHeight), openVisual, closedVisual, lockedGateVisual);
+
+            var safeZone = socketObj.AddComponent<DoorwaySafeZone>();
+            safeZone.Configure(dir, 2.5f, DoorWidth);
         }
 
         private static void BuildLobbyInteractablePrefabs()

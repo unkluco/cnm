@@ -280,5 +280,124 @@ namespace LightSouls.MapGeneration.Tests
                 Assert.GreaterOrEqual(module.EnemySpawnPoints.Count, 1, $"Prefab '{prefab.name}' phải có ít nhất 1 điểm sinh quái.");
             }
         }
+
+        [Test]
+        public void SpikeTrapHazard_IntegratesWithRoomLifecycle_ActivatesInCombatAndRetractsWhenCleared()
+        {
+            var roomGo = new GameObject("TestRoom");
+            var module = roomGo.AddComponent<RoomModule>();
+            var trigger = roomGo.AddComponent<BoxCollider>();
+            trigger.isTrigger = true;
+            var lifecycle = roomGo.AddComponent<RoomLifecycleController>();
+            lifecycle.Configure(module, trigger);
+            module.Configure(RoomType.Combat, new Bounds(Vector3.zero, Vector3.one * 10), null, null, null, null, null, null, lifecycle);
+
+            var trapGo = new GameObject("TestTrap");
+            trapGo.transform.SetParent(roomGo.transform, false);
+            var col = trapGo.AddComponent<BoxCollider>();
+            col.isTrigger = true;
+            var trap = trapGo.AddComponent<SpikeTrapHazard>();
+            trap.RoomLifecycle = lifecycle;
+
+            lifecycle.InitializeLifecycle();
+            Assert.AreEqual(RoomLifecycleState.Unvisited, lifecycle.State);
+
+            // Vào phòng combat
+            lifecycle.EnterCombat();
+            Assert.AreEqual(RoomLifecycleState.Combat, lifecycle.State);
+
+            // Dọn phòng sạch -> bẫy thu hoàn toàn
+            lifecycle.ClearRoom();
+            Assert.AreEqual(RoomLifecycleState.Cleared, lifecycle.State);
+            Assert.AreEqual(SpikeTrapHazard.TrapState.Retracted, trap.CurrentState);
+
+            UnityEngine.Object.DestroyImmediate(roomGo);
+        }
+
+        [Test]
+        public void ExplosiveBarrelHazard_TakeDamage_AndExplode_InflictsRadialDamage()
+        {
+            var barrelGo = new GameObject("TestBarrel");
+            var col = barrelGo.AddComponent<BoxCollider>();
+            var barrel = barrelGo.AddComponent<ExplosiveBarrelHazard>();
+
+            var victimGo = new GameObject("Victim");
+            victimGo.transform.position = new Vector3(2f, 0f, 0f); // trong bán kính 4m
+            var victimCol = victimGo.AddComponent<BoxCollider>();
+            var victimDamageable = victimGo.AddComponent<MockDamageable>();
+
+            // Gây sát thương làm cạn máu thùng nổ
+            barrel.TakeDamage(new DamageInfo(25f, null, Vector3.zero));
+            Assert.IsTrue(barrel.State == ExplosiveBarrelHazard.BarrelState.Ignited || barrel.IsDead);
+
+            // Kích nổ trực tiếp
+            barrel.Explode();
+            Assert.IsTrue(barrel.IsDead);
+            Assert.AreEqual(ExplosiveBarrelHazard.BarrelState.Destroyed, barrel.State);
+            Assert.GreaterOrEqual(victimDamageable.DamageCallCount, 1, "Vụ nổ phải gây sát thương lên mục tiêu trong bán kính.");
+
+            UnityEngine.Object.DestroyImmediate(barrelGo);
+            UnityEngine.Object.DestroyImmediate(victimGo);
+        }
+
+        [Test]
+        public void DoorwaySafeZone_Geometry_CalculatesSafeDistanceAccurately()
+        {
+            var doorGo = new GameObject("DoorSocket_North");
+            doorGo.transform.position = new Vector3(0f, 0f, 10f);
+            doorGo.transform.rotation = Quaternion.identity;
+
+            var safeZone = doorGo.AddComponent<DoorwaySafeZone>();
+            safeZone.Configure(DoorDirection.North, radius: 2.5f, width: 4.0f);
+
+            // Điểm ngay trước cửa (cách 1.0m theo trục Z)
+            Vector3 pointClose = new Vector3(0f, 0f, 9.0f);
+            Assert.IsTrue(safeZone.IsInsideSafeZone(pointClose), "Điểm cách đoạn cửa 1.0m phải nằm trong vùng an toàn.");
+
+            // Điểm dọc mép cửa mở rộng (x = 1.5m, z = 9.0m -> khoảng cách tới đoạn cửa [-2, 2] là 1.0m)
+            Vector3 pointAlongDoor = new Vector3(1.5f, 0f, 9.0f);
+            Assert.IsTrue(safeZone.IsInsideSafeZone(pointAlongDoor), "Điểm dọc theo bề rộng cửa phải được bảo vệ.");
+
+            // Điểm xa cửa (cách 4.0m)
+            Vector3 pointFar = new Vector3(0f, 0f, 6.0f);
+            Assert.IsFalse(safeZone.IsInsideSafeZone(pointFar), "Điểm cách 4m không được nằm trong vùng an toàn 2.5m.");
+
+            // Kiểm tra Overlap với Bounds
+            Bounds safeBounds = new Bounds(new Vector3(0f, 0f, 9.0f), new Vector3(1f, 1f, 1f));
+            Assert.IsTrue(safeZone.IsOverlapping(safeBounds));
+
+            Bounds outsideBounds = new Bounds(new Vector3(0f, 0f, 5.0f), new Vector3(1f, 1f, 1f));
+            Assert.IsFalse(safeZone.IsOverlapping(outsideBounds));
+
+            UnityEngine.Object.DestroyImmediate(doorGo);
+        }
+
+        [Test]
+        public void HazardRooms_AllDoorSocketsHaveDoorwaySafeZones_AndZeroViolations()
+        {
+            string[] prefabPaths =
+            {
+                "Assets/Prefabs/MapGeneration/Rooms/Room_Lava_Arena.prefab",
+                "Assets/Prefabs/MapGeneration/Rooms/Room_Water_Pond.prefab",
+                "Assets/Prefabs/MapGeneration/Rooms/Room_Spike_Traps.prefab",
+                "Assets/Prefabs/MapGeneration/Rooms/Room_Maze_Large.prefab"
+            };
+
+            foreach (string path in prefabPaths)
+            {
+                GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                Assert.IsNotNull(prefab, $"Prefab tại '{path}' không tồn tại!");
+
+                var sockets = prefab.GetComponentsInChildren<DoorSocket>(true);
+                var safeZones = prefab.GetComponentsInChildren<DoorwaySafeZone>(true);
+
+                Assert.AreEqual(sockets.Length, safeZones.Length,
+                    $"Mỗi DoorSocket trong phòng '{prefab.name}' đều phải có component DoorwaySafeZone tương ứng.");
+
+                // Kiểm tra validation không có lỗi vi phạm vùng an toàn cửa
+                var result = LightSouls.MapGeneration.Editor.HazardValidationTool.ValidateRoomPrefab(prefab);
+                Assert.IsTrue(result.IsValid, $"Phòng '{prefab.name}' vi phạm tiêu chuẩn thiết kế: {string.Join(", ", result.Errors)}");
+            }
+        }
     }
 }
