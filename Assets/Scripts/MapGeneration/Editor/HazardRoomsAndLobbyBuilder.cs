@@ -33,6 +33,9 @@ namespace LightSouls.MapGeneration.Editor
         private const string ConfigRoot = "Assets/ScriptableObjects/MapGeneration/Config";
         private const string LobbySoRoot = "Assets/ScriptableObjects/Lobby";
         private const string LobbyTestingSoRoot = "Assets/ScriptableObjects/Lobby/Testing";
+        private const string PlayerPrefabPath = "Assets/Prefabs/Combat/Player_Character.prefab";
+        private const string TouchControlsPrefabPath = "Assets/Prefabs/Combat/Combat_TouchControls.prefab";
+        private const string BackpackPrefabPath = "Assets/Prefabs/Combat/Combat_Backpack.prefab";
 
         private const float WallHeight = 3.5f;
         private const float WallThickness = 0.5f;
@@ -203,7 +206,9 @@ namespace LightSouls.MapGeneration.Editor
 
             // 9. Build Test Scenes
             BuildHazardRoomsTestScene(roomLava.gameObject, roomWater.gameObject, roomSpikes.gameObject, roomMaze.gameObject);
-            BuildLobbyTestScene(shopCatalog, dungeonCatalog);
+            // Sảnh thử dùng nhân vật thật, nên bán item thật (ShopCatalog_Main) nếu đã có; item thử chỉ là dự phòng.
+            ShopCatalogSO mainShopCatalog = AssetDatabase.LoadAssetAtPath<ShopCatalogSO>($"{LobbySoRoot}/ShopCatalog_Main.asset");
+            BuildLobbyTestScene(mainShopCatalog != null ? mainShopCatalog : shopCatalog, dungeonCatalog);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -884,17 +889,38 @@ namespace LightSouls.MapGeneration.Editor
             GameObject portalInst = (GameObject)PrefabUtility.InstantiatePrefab(portalPrefab);
             portalInst.transform.position = new Vector3(5f, 0f, 4f);
 
-            // Nhân vật người chơi với TestInventory, TestInteractor, CoinTester
-            var playerGo = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            playerGo.name = "Player_Character";
-            playerGo.tag = "Player";
-            int playerLayer = LayerMask.NameToLayer("Player");
-            if (playerLayer >= 0) playerGo.layer = playerLayer;
-            playerGo.transform.position = new Vector3(0f, 1f, -2f);
+            // Nhân vật người chơi thật (di chuyển, túi đồ, tương tác của Khải) cùng điều khiển cảm ứng và balo.
+            // Chưa có prefab thật thì dùng khối trụ thử với TestInventory/TestInteractor như trước.
+            GameObject realPlayerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerPrefabPath);
+            if (realPlayerPrefab != null)
+            {
+                var playerInst = (GameObject)PrefabUtility.InstantiatePrefab(realPlayerPrefab);
+                playerInst.transform.position = new Vector3(0f, 0.05f, -2f);
 
-            playerGo.AddComponent<TestInventory>();
-            playerGo.AddComponent<TestInteractor>();
-            playerGo.AddComponent<CoinTester>();
+                foreach (string uiPrefabPath in new[] { TouchControlsPrefabPath, BackpackPrefabPath })
+                {
+                    GameObject uiPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(uiPrefabPath);
+                    if (uiPrefab != null)
+                    {
+                        PrefabUtility.InstantiatePrefab(uiPrefab);
+                    }
+                }
+            }
+            else
+            {
+                var playerGo = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                playerGo.name = "Player_Character";
+                playerGo.tag = "Player";
+                int playerLayer = LayerMask.NameToLayer("Player");
+                if (playerLayer >= 0) playerGo.layer = playerLayer;
+                playerGo.transform.position = new Vector3(0f, 1f, -2f);
+
+                playerGo.AddComponent<TestInventory>();
+                playerGo.AddComponent<TestInteractor>();
+            }
+
+            // Công cụ cộng xu nhanh (phím C) để thử mua đồ.
+            new GameObject("LobbyTestTools").AddComponent<CoinTester>();
 
             // UI Canvas cho Sảnh (Sort order 8 theo quy ước)
             var canvasGo = new GameObject("Canvas_LobbyUI", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
