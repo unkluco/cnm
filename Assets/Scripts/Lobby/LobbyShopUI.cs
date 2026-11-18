@@ -7,26 +7,65 @@ namespace LightSouls.Lobby
 {
     /// <summary>
     /// Giao diện bảng Cửa hàng tại Sảnh (Canvas sort order 8).
-    /// Tích hợp BackButtonStack để nút Back đóng bảng, SafeAreaFitter, cập nhật số xu theo RunState.
+    /// Bố cục: bên trái là lưới vật phẩm (ảnh, tên, giá) trong khung cuộn được; chạm một ô thì
+    /// bên phải hiện chi tiết (ảnh lớn, mô tả, giá) và nút Mua.
+    /// Lưới và bảng chi tiết tự dựng bằng mã bên trong vùng itemsContainer, nên Scene chỉ cần
+    /// khung bảng (tiêu đề, số xu, nút đóng, dòng thông báo) và một vùng trống cho itemsContainer.
+    /// Tích hợp BackButtonStack để nút Back đóng bảng, cập nhật số xu theo RunState.
     /// Quy trình mua: HasSpaceFor -> TrySpendCoins -> TryAdd.
     /// </summary>
     public class LobbyShopUI : MonoBehaviour
     {
+        private static readonly Color CellColor = new Color(0.2f, 0.22f, 0.28f, 1f);
+        private static readonly Color CellSelectedColor = new Color(0.32f, 0.42f, 0.62f, 1f);
+        private static readonly Color DetailColor = new Color(0.15f, 0.17f, 0.22f, 1f);
+        private static readonly Color PriceColor = new Color(1f, 0.85f, 0.2f);
+
         [Header("Catalog & References")]
         [SerializeField] private ShopCatalogSO catalog;
         [SerializeField] private GameObject panelRoot;
         [SerializeField] private Text coinsText;
         [SerializeField] private Text statusNotificationText;
 
-        [Header("Item List Container")]
-        [SerializeField] private Transform itemsContainer;
-        [SerializeField] private GameObject itemRowPrefab;
+        [Header("Vùng nội dung")]
+        [Tooltip("Vùng chứa lưới vật phẩm và bảng chi tiết (tự dựng khi chạy).")]
+        [SerializeField] private RectTransform itemsContainer;
         [SerializeField] private Button closeButton;
 
+        [Header("Lưới")]
+        [Tooltip("Số cột của lưới; bề rộng ô tự tính theo bề rộng khung.")]
+        [SerializeField, Min(1)] private int columns = 3;
+        [Tooltip("Tỉ lệ cao / rộng của một ô.")]
+        [SerializeField] private float cellAspect = 1.15f;
+        [SerializeField] private float cellSpacing = 16f;
+
+        private class CellView
+        {
+            public ItemDefinitionSO Item;
+            public Image Background;
+        }
+
+        private readonly List<CellView> cells = new List<CellView>();
         private GameObject currentInteractor;
-        private readonly List<GameObject> spawnedRows = new List<GameObject>();
+        private ItemDefinitionSO selectedItem;
+        private bool layoutBuilt;
+        private Font font;
+
+        private ScrollRect gridScroll;
+        private RectTransform gridContent;
+        private GridLayoutGroup gridLayout;
+        private float lastViewportWidth = -1f;
+        private GameObject detailEmptyHint;
+        private GameObject detailBody;
+        private Image detailIcon;
+        private Text detailName;
+        private Text detailPrice;
+        private Text detailDescription;
+        private Button buyButton;
 
         public bool IsOpen => panelRoot != null && panelRoot.activeSelf;
+        public ItemDefinitionSO SelectedItem => selectedItem;
+        public ScrollRect GridScroll => gridScroll;
 
         private void Awake()
         {
@@ -39,6 +78,33 @@ namespace LightSouls.Lobby
             {
                 panelRoot = gameObject;
             }
+
+            EnsureLayout();
+        }
+
+        private void LateUpdate()
+        {
+            FitCellsToViewport();
+        }
+
+        /// <summary>Chia đều bề rộng khung cho số cột, để lưới luôn vừa khít trên mọi tỉ lệ màn hình.</summary>
+        private void FitCellsToViewport()
+        {
+            if (gridScroll == null || gridLayout == null)
+            {
+                return;
+            }
+
+            float width = gridScroll.viewport.rect.width;
+            if (width <= 0f || Mathf.Approximately(width, lastViewportWidth))
+            {
+                return;
+            }
+
+            lastViewportWidth = width;
+            float usable = width - gridLayout.padding.left - gridLayout.padding.right - cellSpacing * (columns - 1);
+            float cellWidth = Mathf.Max(80f, usable / columns);
+            gridLayout.cellSize = new Vector2(cellWidth, cellWidth * cellAspect);
         }
 
         private void OnEnable()
@@ -100,6 +166,8 @@ namespace LightSouls.Lobby
             {
                 coinsText.text = $"Xu: {amount}";
             }
+
+            RefreshBuyButton();
         }
 
         private void ShowStatus(string message)
@@ -121,116 +189,80 @@ namespace LightSouls.Lobby
 
         public void PopulateItems()
         {
-            // Xóa các dòng hàng cũ
-            foreach (GameObject row in spawnedRows)
-            {
-                if (row != null)
-                {
-                    Destroy(row);
-                }
-            }
-            spawnedRows.Clear();
-
-            if (catalog == null || catalog.Items == null || itemsContainer == null)
+            EnsureLayout();
+            if (gridContent == null)
             {
                 return;
             }
 
-            foreach (ItemDefinitionSO item in catalog.Items)
+            for (int i = gridContent.childCount - 1; i >= 0; i--)
             {
-                if (item == null)
-                {
-                    continue;
-                }
+                Destroy(gridContent.GetChild(i).gameObject);
+            }
+            cells.Clear();
 
-                GameObject rowObj = CreateItemRow(item);
-                if (rowObj != null)
+            if (catalog != null && catalog.Items != null)
+            {
+                foreach (ItemDefinitionSO item in catalog.Items)
                 {
-                    spawnedRows.Add(rowObj);
+                    if (item != null)
+                    {
+                        cells.Add(CreateCell(item));
+                    }
                 }
             }
+
+            // Danh sách mới mở thì cuộn về đầu.
+            gridContent.anchoredPosition = Vector2.zero;
+            if (gridScroll != null)
+            {
+                gridScroll.StopMovement();
+            }
+
+            SelectItem(null);
         }
 
-        private GameObject CreateItemRow(ItemDefinitionSO item)
+        /// <summary>Chọn một vật phẩm để xem chi tiết (null = bỏ chọn).</summary>
+        public void SelectItem(ItemDefinitionSO item)
         {
-            GameObject row;
-            if (itemRowPrefab != null)
+            selectedItem = item;
+
+            foreach (CellView cell in cells)
             {
-                row = Instantiate(itemRowPrefab, itemsContainer);
-            }
-            else
-            {
-                // Fallback runtime UI row nếu prefab chưa gán
-                row = new GameObject($"ShopRow_{item.ItemId}", typeof(RectTransform), typeof(Image));
-                row.transform.SetParent(itemsContainer, false);
-                var rowImg = row.GetComponent<Image>();
-                rowImg.color = new Color(0.18f, 0.18f, 0.22f, 0.95f);
-
-                var rt = (RectTransform)row.transform;
-                rt.sizeDelta = new Vector2(0f, 100f);
-
-                // Text thông tin
-                var infoGo = new GameObject("InfoText", typeof(RectTransform), typeof(Text));
-                infoGo.transform.SetParent(row.transform, false);
-                var infoText = infoGo.GetComponent<Text>();
-                infoText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                infoText.fontSize = 24;
-                infoText.color = Color.white;
-                infoText.alignment = TextAnchor.MiddleLeft;
-                infoText.text = $"{item.DisplayName} - {item.Price} Xu\n<size=18>{item.Description}</size>";
-                var infoRt = (RectTransform)infoGo.transform;
-                infoRt.anchorMin = new Vector2(0.05f, 0f);
-                infoRt.anchorMax = new Vector2(0.7f, 1f);
-                infoRt.offsetMin = Vector2.zero;
-                infoRt.offsetMax = Vector2.zero;
-
-                // Nút Mua (cao tối thiểu 96 px)
-                var btnGo = new GameObject("BuyButton", typeof(RectTransform), typeof(Image), typeof(Button));
-                btnGo.transform.SetParent(row.transform, false);
-                var btnImg = btnGo.GetComponent<Image>();
-                btnImg.color = new Color(0.2f, 0.65f, 0.3f, 1f);
-                var btnRt = (RectTransform)btnGo.transform;
-                btnRt.anchorMin = new Vector2(0.72f, 0.05f);
-                btnRt.anchorMax = new Vector2(0.98f, 0.95f);
-                btnRt.offsetMin = Vector2.zero;
-                btnRt.offsetMax = Vector2.zero;
-
-                var btnTextGo = new GameObject("Text", typeof(RectTransform), typeof(Text));
-                btnTextGo.transform.SetParent(btnGo.transform, false);
-                var btnText = btnTextGo.GetComponent<Text>();
-                btnText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                btnText.fontSize = 28;
-                btnText.alignment = TextAnchor.MiddleCenter;
-                btnText.color = Color.white;
-                btnText.text = "Mua";
-                var btnTextRt = (RectTransform)btnTextGo.transform;
-                btnTextRt.anchorMin = Vector2.zero;
-                btnTextRt.anchorMax = Vector2.one;
-                btnTextRt.offsetMin = Vector2.zero;
-                btnTextRt.offsetMax = Vector2.zero;
-
-                var button = btnGo.GetComponent<Button>();
-                button.onClick.AddListener(() => TryBuyItem(item));
-                return row;
+                cell.Background.color = cell.Item == item ? CellSelectedColor : CellColor;
             }
 
-            // Gán thông tin nếu dùng prefab có component cấu hình sẵn
-            var rowButton = row.GetComponentInChildren<Button>();
-            if (rowButton != null)
+            if (detailBody == null)
             {
-                rowButton.onClick.AddListener(() => TryBuyItem(item));
+                return;
             }
 
-            var texts = row.GetComponentsInChildren<Text>();
-            foreach (Text t in texts)
+            detailBody.SetActive(item != null);
+            detailEmptyHint.SetActive(item == null);
+
+            if (item != null)
             {
-                if (t.name.Contains("Name") || t.name.Contains("Info"))
-                {
-                    t.text = $"{item.DisplayName} - {item.Price} Xu";
-                }
+                detailIcon.sprite = item.Icon;
+                detailIcon.enabled = item.Icon != null;
+                detailName.text = item.DisplayName;
+                detailPrice.text = $"Giá: {item.Price} xu";
+                detailDescription.text = item.Description;
             }
 
-            return row;
+            RefreshBuyButton();
+        }
+
+        public void BuySelected()
+        {
+            TryBuyItem(selectedItem);
+        }
+
+        private void RefreshBuyButton()
+        {
+            if (buyButton != null)
+            {
+                buyButton.interactable = selectedItem != null && RunState.Coins >= selectedItem.Price;
+            }
         }
 
         public void TryBuyItem(ItemDefinitionSO item)
@@ -284,6 +316,215 @@ namespace LightSouls.Lobby
             }
 
             ShowStatus($"Đã mua thành công: {item.DisplayName} (-{item.Price} xu).");
+        }
+
+        // ---------------------------------------------------------------- Dựng giao diện
+
+        private void EnsureLayout()
+        {
+            if (layoutBuilt || itemsContainer == null)
+            {
+                return;
+            }
+
+            layoutBuilt = true;
+            font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+            // Bố cục cũ (danh sách dọc) có thể còn layout group trên vùng chứa: bỏ đi.
+            var oldLayout = itemsContainer.GetComponent<LayoutGroup>();
+            if (oldLayout != null)
+            {
+                DestroyImmediate(oldLayout);
+            }
+
+            for (int i = itemsContainer.childCount - 1; i >= 0; i--)
+            {
+                Destroy(itemsContainer.GetChild(i).gameObject);
+            }
+
+            BuildGrid();
+            BuildDetailPanel();
+        }
+
+        private void BuildGrid()
+        {
+            // Khung cuộn: kéo dọc để xem hết danh sách, phần tràn bị cắt bởi RectMask2D.
+            var scrollGo = new GameObject("GridScroll", typeof(RectTransform), typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
+            scrollGo.transform.SetParent(itemsContainer, false);
+            scrollGo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.2f);
+            var scrollRt = (RectTransform)scrollGo.transform;
+            scrollRt.anchorMin = new Vector2(0f, 0f);
+            scrollRt.anchorMax = new Vector2(0.6f, 1f);
+            scrollRt.offsetMin = Vector2.zero;
+            scrollRt.offsetMax = new Vector2(-12f, 0f);
+
+            var contentGo = new GameObject("Content", typeof(RectTransform), typeof(GridLayoutGroup), typeof(ContentSizeFitter));
+            contentGo.transform.SetParent(scrollGo.transform, false);
+            gridContent = (RectTransform)contentGo.transform;
+            gridContent.anchorMin = new Vector2(0f, 1f);
+            gridContent.anchorMax = new Vector2(1f, 1f);
+            gridContent.pivot = new Vector2(0.5f, 1f);
+            gridContent.anchoredPosition = Vector2.zero;
+            gridContent.sizeDelta = Vector2.zero;
+
+            gridLayout = contentGo.GetComponent<GridLayoutGroup>();
+            gridLayout.cellSize = new Vector2(200f, 200f * cellAspect);
+            gridLayout.spacing = new Vector2(cellSpacing, cellSpacing);
+            gridLayout.padding = new RectOffset(16, 16, 16, 16);
+            gridLayout.childAlignment = TextAnchor.UpperCenter;
+            gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            gridLayout.constraintCount = columns;
+
+            var fitter = contentGo.GetComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+            gridScroll = scrollGo.GetComponent<ScrollRect>();
+            gridScroll.content = gridContent;
+            gridScroll.viewport = scrollRt;
+            gridScroll.horizontal = false;
+            gridScroll.vertical = true;
+            gridScroll.movementType = ScrollRect.MovementType.Elastic;
+            gridScroll.scrollSensitivity = 40f;
+            gridScroll.inertia = true;
+        }
+
+        private void BuildDetailPanel()
+        {
+            Image panel = CreateImage("DetailPanel", itemsContainer, DetailColor);
+            var panelRt = panel.rectTransform;
+            panelRt.anchorMin = new Vector2(0.6f, 0f);
+            panelRt.anchorMax = new Vector2(1f, 1f);
+            panelRt.offsetMin = new Vector2(12f, 0f);
+            panelRt.offsetMax = Vector2.zero;
+
+            Text hint = CreateText("EmptyHint", panel.transform, "Chạm vào một vật phẩm để xem chi tiết.", 26, new Color(0.75f, 0.78f, 0.85f), TextAnchor.MiddleCenter);
+            Stretch(hint.rectTransform, new Vector2(24f, 24f));
+            detailEmptyHint = hint.gameObject;
+
+            var body = new GameObject("Body", typeof(RectTransform));
+            body.transform.SetParent(panel.transform, false);
+            Stretch((RectTransform)body.transform, Vector2.zero);
+            detailBody = body;
+
+            detailIcon = CreateImage("Icon", body.transform, Color.white);
+            detailIcon.preserveAspect = true;
+            detailIcon.raycastTarget = false;
+            Anchor(detailIcon.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -110f), new Vector2(170f, 170f));
+
+            detailName = CreateText("Name", body.transform, string.Empty, 32, Color.white, TextAnchor.MiddleCenter);
+            detailName.fontStyle = FontStyle.Bold;
+            AnchorStretchX(detailName.rectTransform, 1f, -230f, 50f);
+
+            detailPrice = CreateText("Price", body.transform, string.Empty, 28, PriceColor, TextAnchor.MiddleCenter);
+            detailPrice.fontStyle = FontStyle.Bold;
+            AnchorStretchX(detailPrice.rectTransform, 1f, -280f, 40f);
+
+            detailDescription = CreateText("Description", body.transform, string.Empty, 22, new Color(0.85f, 0.87f, 0.92f), TextAnchor.UpperLeft);
+            var descRt = detailDescription.rectTransform;
+            descRt.anchorMin = new Vector2(0f, 0f);
+            descRt.anchorMax = new Vector2(1f, 1f);
+            descRt.offsetMin = new Vector2(24f, 130f);
+            descRt.offsetMax = new Vector2(-24f, -310f);
+
+            Image buyImage = CreateImage("BuyButton", body.transform, new Color(0.2f, 0.65f, 0.3f, 1f));
+            buyButton = buyImage.gameObject.AddComponent<Button>();
+            buyButton.onClick.AddListener(BuySelected);
+            var buyColors = buyButton.colors;
+            buyColors.disabledColor = new Color(0.45f, 0.45f, 0.45f, 0.6f);
+            buyButton.colors = buyColors;
+            Anchor(buyImage.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 70f), new Vector2(260f, 96f));
+
+            Text buyText = CreateText("Text", buyImage.transform, "Mua", 32, Color.white, TextAnchor.MiddleCenter);
+            buyText.fontStyle = FontStyle.Bold;
+            Stretch(buyText.rectTransform, Vector2.zero);
+
+            body.SetActive(false);
+        }
+
+        private CellView CreateCell(ItemDefinitionSO item)
+        {
+            Image background = CreateImage("Cell_" + item.ItemId, gridContent, CellColor);
+            var button = background.gameObject.AddComponent<Button>();
+            button.onClick.AddListener(() => SelectItem(item));
+
+            // Bố cục theo tỉ lệ ô: ảnh ở 60% trên, tên và giá ở dưới.
+            Image icon = CreateImage("Icon", background.transform, Color.white);
+            icon.sprite = item.Icon;
+            icon.enabled = item.Icon != null;
+            icon.preserveAspect = true;
+            icon.raycastTarget = false;
+            AnchorBox(icon.rectTransform, new Vector2(0.15f, 0.4f), new Vector2(0.85f, 0.95f));
+
+            Text name = CreateText("Name", background.transform, item.DisplayName, 22, Color.white, TextAnchor.MiddleCenter);
+            name.resizeTextForBestFit = true;
+            name.resizeTextMinSize = 14;
+            name.resizeTextMaxSize = 24;
+            AnchorBox(name.rectTransform, new Vector2(0.04f, 0.18f), new Vector2(0.96f, 0.4f));
+
+            Text price = CreateText("Price", background.transform, item.Price + " xu", 22, PriceColor, TextAnchor.MiddleCenter);
+            price.fontStyle = FontStyle.Bold;
+            AnchorBox(price.rectTransform, new Vector2(0.04f, 0.02f), new Vector2(0.96f, 0.18f));
+
+            return new CellView { Item = item, Background = background };
+        }
+
+        private Image CreateImage(string name, Transform parent, Color color)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            var image = go.GetComponent<Image>();
+            image.color = color;
+            return image;
+        }
+
+        private Text CreateText(string name, Transform parent, string value, int size, Color color, TextAnchor alignment)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Text));
+            go.transform.SetParent(parent, false);
+            var text = go.GetComponent<Text>();
+            text.font = font;
+            text.fontSize = size;
+            text.color = color;
+            text.alignment = alignment;
+            text.text = value;
+            text.raycastTarget = false;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Truncate;
+            return text;
+        }
+
+        private static void Stretch(RectTransform rt, Vector2 padding)
+        {
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = padding;
+            rt.offsetMax = -padding;
+        }
+
+        private static void AnchorBox(RectTransform rt, Vector2 anchorMin, Vector2 anchorMax)
+        {
+            rt.anchorMin = anchorMin;
+            rt.anchorMax = anchorMax;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+        }
+
+        private static void Anchor(RectTransform rt, Vector2 anchor, Vector2 position, Vector2 size)
+        {
+            rt.anchorMin = anchor;
+            rt.anchorMax = anchor;
+            rt.anchoredPosition = position;
+            rt.sizeDelta = size;
+        }
+
+        /// <summary>Kéo giãn theo chiều ngang, neo ở anchorY (0 = đáy, 1 = đỉnh), y là vị trí tâm.</summary>
+        private static void AnchorStretchX(RectTransform rt, float anchorY, float y, float height)
+        {
+            rt.anchorMin = new Vector2(0f, anchorY);
+            rt.anchorMax = new Vector2(1f, anchorY);
+            rt.anchoredPosition = new Vector2(0f, y);
+            rt.sizeDelta = new Vector2(-16f, height);
         }
     }
 }
