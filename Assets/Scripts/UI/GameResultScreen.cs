@@ -5,7 +5,8 @@ namespace LightSouls.UI
 {
     /// <summary>
     /// Màn Thua và màn Qua màn trong Scene Game. Không tự bật: GameBootstrap gọi ShowDefeat()
-    /// khi người chơi chết và ShowVictory() khi tới đích. Có thể thử từ menu chuột phải của component trong Inspector.
+    /// khi người chơi chết và ShowVictory() khi tới đích.
+    /// Thua: "Chơi lại" bắt đầu lượt mới ở sảnh (mất xu và đồ). Qua màn: "Về sảnh" giữ nguyên lượt chơi. Có thể thử từ menu chuột phải của component trong Inspector.
     /// </summary>
     public class GameResultScreen : MonoBehaviour
     {
@@ -27,7 +28,8 @@ namespace LightSouls.UI
             defeatPanel.SetActive(false);
             victoryPanel.SetActive(false);
             defeatRetryButton.onClick.AddListener(SceneLoader.StartNewRun);
-            victoryRetryButton.onClick.AddListener(SceneLoader.StartNewRun);
+            // Qua màn: về sảnh, giữ xu và túi đồ để mua thêm rồi vào ngục tiếp.
+            victoryRetryButton.onClick.AddListener(SceneLoader.LoadLobby);
             defeatMainMenuButton.onClick.AddListener(SceneLoader.LoadMainMenu);
             victoryMainMenuButton.onClick.AddListener(SceneLoader.LoadMainMenu);
         }

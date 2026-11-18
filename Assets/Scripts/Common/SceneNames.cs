@@ -7,5 +7,6 @@ namespace LightSouls.Common
     {
         public const string MainMenu = "MainMenu";
         public const string Game = "Game";
+        public const string Lobby = "Lobby";
     }
 }
