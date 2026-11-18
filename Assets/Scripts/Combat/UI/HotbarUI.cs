@@ -156,6 +156,10 @@ namespace LightSouls.Combat.UI
             {
                 var view = slotViews[i];
                 var slot = slots[i];
+                if (view.button != null)
+                {
+                    RarityFrame.Apply(view.button.transform as RectTransform, slot != null && !slot.IsEmpty ? slot.Item : null);
+                }
 
                 if (slot != null && !slot.IsEmpty)
                 {

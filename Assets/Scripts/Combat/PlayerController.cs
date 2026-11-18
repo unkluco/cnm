@@ -3,6 +3,7 @@ using UnityEngine;
 using LightSouls.Common;
 using LightSouls.Combat.Weapons;
 using LightSouls.Combat.Inventory;
+using LightSouls.Combat.Stats;
 
 namespace LightSouls.Combat
 {
@@ -28,6 +29,7 @@ namespace LightSouls.Combat
         // khóa được di chuyển mà không cần tham chiếu tới PlayerController.
         private bool _inputRequested = true;
         private bool _lockedByPanel;
+        private Vector3 _safePoint;
 
         // Dữ liệu cho HUD của Kiệt và các hệ thống khác
         public float CurrentHealth => _health != null ? _health.CurrentHealth : 100f;
@@ -39,7 +41,15 @@ namespace LightSouls.Combat
         public PlayerCombat Combat => _combat;
         public PlayerInventory Inventory => _inventory;
         public PlayerInteraction Interaction => _interaction;
-        public float DamageReduction => _inventory != null ? _inventory.CurrentDamageReduction : 0f;
+        public float DamageReduction => _health != null ? _health.DamageReduction : 0f;
+        public PlayerStats Stats { get; private set; }
+
+        /// <summary>Điểm an toàn để dịch chuyển về (phòng xuất phát). GameBootstrap đặt khi sinh người chơi.</summary>
+        public Vector3 SafePoint => _safePoint;
+        public bool HasSafePoint { get; private set; }
+
+        /// <summary>True khi người chơi đang ở trong phòng bị khóa cửa vì giao tranh.</summary>
+        public bool InLockedCombat { get; set; }
 
         public event Action<float, float> OnHealthChanged
         {
@@ -66,6 +76,7 @@ namespace LightSouls.Combat
             _health = GetComponent<HealthComponent>();
             _inventory = GetComponent<PlayerInventory>();
             _interaction = GetComponent<PlayerInteraction>();
+            Stats = PlayerStats.GetOrAdd(gameObject);
 
             // Đảm bảo đúng Tag và Layer theo hợp đồng với Đạt và Kiệt
             gameObject.tag = "Player";
@@ -83,6 +94,23 @@ namespace LightSouls.Combat
             {
                 _health.Died -= HandlePlayerDied;
             }
+        }
+
+        public void SetSafePoint(Vector3 position)
+        {
+            _safePoint = position;
+            HasSafePoint = true;
+        }
+
+        /// <summary>Đưa người chơi tới vị trí mới ngay lập tức (tắt CharacterController trong lúc dời).</summary>
+        public void Teleport(Vector3 position)
+        {
+            var controller = GetComponent<CharacterController>();
+            bool wasEnabled = controller != null && controller.enabled;
+            if (controller != null) controller.enabled = false;
+            transform.position = position;
+            Physics.SyncTransforms();
+            if (controller != null) controller.enabled = wasEnabled;
         }
 
         /// <summary>

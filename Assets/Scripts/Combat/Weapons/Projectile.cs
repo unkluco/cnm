@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using LightSouls.Common;
 
@@ -6,6 +7,7 @@ namespace LightSouls.Combat.Weapons
     /// <summary>
     /// Điều khiển viên đạn bay thẳng và gây sát thương khi va chạm.
     /// Layer của đạn phải được gán PlayerAttack (cho Player) hoặc EnemyAttack (cho Quái).
+    /// Đạn có thể xuyên qua nhiều mục tiêu (pierce) và mang hiệu ứng trúng đòn của vũ khí (qua WeaponHitResolver).
     /// </summary>
     [RequireComponent(typeof(Collider))]
     public class Projectile : MonoBehaviour
@@ -17,7 +19,10 @@ namespace LightSouls.Combat.Weapons
 
         private GameObject _source;
         private float _spawnTime;
-        private bool _hasHit = false;
+        private bool _finished;
+        private WeaponDataSO _weapon;
+        private int _pierceRemaining;
+        private readonly HashSet<IDamageable> _alreadyHit = new HashSet<IDamageable>();
 
         public void Initialize(float damageAmount, float projectileSpeed, float lifetime, LayerMask targets, GameObject source)
         {
@@ -27,6 +32,13 @@ namespace LightSouls.Combat.Weapons
             targetLayer = targets;
             _source = source;
             _spawnTime = Time.time;
+        }
+
+        /// <summary>Gắn vũ khí bắn ra (để chạy hiệu ứng trúng đòn) và số mục tiêu được xuyên thêm.</summary>
+        public void SetWeapon(WeaponDataSO weapon, int pierceCount)
+        {
+            _weapon = weapon;
+            _pierceRemaining = Mathf.Max(0, pierceCount);
         }
 
         private void Start()
@@ -51,34 +63,29 @@ namespace LightSouls.Combat.Weapons
 
         private void OnTriggerEnter(Collider other)
         {
-            if (_hasHit) return;
+            if (_finished) return;
 
             // Kiểm tra xem đối tượng có nằm trong Layer mục tiêu hoặc là môi trường không
             int otherLayerMask = 1 << other.gameObject.layer;
             bool isTargetLayer = (targetLayer.value & otherLayerMask) != 0;
-            
+
             // Môi trường (sàn, tường, cửa) dùng layer Environment; dự án không có tag "Environment".
             bool isEnvironment = other.gameObject.layer == LayerMask.NameToLayer("Environment");
 
             if (isTargetLayer)
             {
-                IDamageable damageable = other.GetComponent<IDamageable>();
-                if (damageable == null)
+                IDamageable damageable = WeaponHitResolver.FindDamageable(other);
+                if (damageable != null && !damageable.IsDead && _alreadyHit.Add(damageable))
                 {
-                    damageable = other.GetComponentInParent<IDamageable>();
-                }
+                    WeaponHitResolver.Apply(_weapon, damage, _source, damageable, other.ClosestPoint(transform.position));
 
-                if (damageable != null && !damageable.IsDead)
-                {
-                    _hasHit = true;
-                    DamageInfo info = new DamageInfo
+                    if (_pierceRemaining > 0)
                     {
-                        Amount = damage,
-                        Source = _source,
-                        HitPoint = other.ClosestPoint(transform.position)
-                    };
+                        _pierceRemaining--;
+                        return;
+                    }
 
-                    damageable.TakeDamage(info);
+                    _finished = true;
                     Destroy(gameObject);
                     return;
                 }
@@ -86,7 +93,7 @@ namespace LightSouls.Combat.Weapons
 
             if (isEnvironment)
             {
-                _hasHit = true;
+                _finished = true;
                 Destroy(gameObject);
             }
         }

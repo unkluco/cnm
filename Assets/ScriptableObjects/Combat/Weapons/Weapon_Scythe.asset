@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca5bee58beea4d31af7ec6c5613c970e, type: 3}
+  m_Name: Weapon_Scythe
+  m_EditorClassIdentifier: LightSouls.Combat::LightSouls.Combat.Weapons.WeaponDataSO
+  itemId: weapon.scythe
+  displayName: "L\u01B0\u1EE1i H\xE1i"
+  description: "Qu\xE9t n\u1EEDa v\xF2ng tr\xF2n tr\u01B0\u1EDBc m\u1EB7t. H\xFAt
+    5% s\xE1t th\u01B0\u01A1ng g\xE2y ra th\xE0nh m\xE1u."
+  icon: {fileID: 21300000, guid: 12b354d78daa81341b1fecdcf35d9894, type: 3}
+  price: 300
+  maxStack: 1
+  rarity: 2
+  weaponType: 0
+  damage: 30
+  attackRate: 0.7
+  attackRange: 2.8
+  weaponPrefab: {fileID: 0}
+  weaponColor: {r: 0.45, g: 0.12, b: 0.25, a: 1}
+  swingArcAngle: 180
+  hitRadius: 1.8
+  knockbackForce: 2
+  projectilePrefab: {fileID: 0}
+  projectileSpeed: 18
+  projectileLifetime: 3
+  projectileCount: 1
+  spreadAngle: 25
+  inaccuracy: 0
+  autoFire: 0
+  pierceCount: 0
+  explosionRadius: 0
+  explosionDamagesOwner: 0
+  arcHeight: 2.5
+  strikeCount: 1
+  strikeInterval: 0.12
+  hitEffects:
+  - {fileID: 11400000, guid: 347c8dc22bc677d41982f1bb22d71e36, type: 2}
+  vfx:
+    slashColor: {r: 0.75, g: 0.1, b: 0.3, a: 0.95}
+    auraColor: {r: 0.6, g: 0.1, b: 0.35, a: 0.85}
+    auraRate: 14
+    hitColor: {r: 0.9, g: 0.15, b: 0.3, a: 1}
+    trailColor: {r: 1, g: 1, b: 1, a: 0}
+    muzzleColor: {r: 1, g: 1, b: 1, a: 0}
+    groundShockwave: 0

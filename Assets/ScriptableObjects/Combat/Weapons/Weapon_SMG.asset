@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca5bee58beea4d31af7ec6c5613c970e, type: 3}
+  m_Name: Weapon_SMG
+  m_EditorClassIdentifier: LightSouls.Combat::LightSouls.Combat.Weapons.WeaponDataSO
+  itemId: weapon.smg
+  displayName: "S\xFAng Ti\u1EC3u Li\xEAn"
+  description: "Gi\u1EEF n\xFAt t\u1EA5n c\xF4ng \u0111\u1EC3 x\u1EA3 \u0111\u1EA1n
+    li\xEAn t\u1EE5c. M\u1ED7i vi\xEAn y\u1EBFu v\xE0 h\u01A1i l\u1EC7ch."
+  icon: {fileID: 21300000, guid: 481a878ec513fcc4d9011200b90e4168, type: 3}
+  price: 300
+  maxStack: 1
+  rarity: 2
+  weaponType: 1
+  damage: 7
+  attackRate: 0.09
+  attackRange: 11
+  weaponPrefab: {fileID: 0}
+  weaponColor: {r: 0.3, g: 0.3, b: 0.34, a: 1}
+  swingArcAngle: 90
+  hitRadius: 1.5
+  knockbackForce: 2
+  projectilePrefab: {fileID: 6081238883670587671, guid: 1da134f1b388c433b974c52a1c410881, type: 3}
+  projectileSpeed: 24
+  projectileLifetime: 1.5
+  projectileCount: 1
+  spreadAngle: 0
+  inaccuracy: 6
+  autoFire: 1
+  pierceCount: 0
+  explosionRadius: 0
+  explosionDamagesOwner: 0
+  arcHeight: 2.5
+  strikeCount: 1
+  strikeInterval: 0.12
+  hitEffects: []
+  vfx:
+    slashColor: {r: 1, g: 1, b: 1, a: 0.9}
+    auraColor: {r: 0.8, g: 0.5, b: 1, a: 0.5}
+    auraRate: 8
+    hitColor: {r: 1, g: 0.95, b: 0.8, a: 1}
+    trailColor: {r: 1, g: 0.85, b: 0.3, a: 0.7}
+    muzzleColor: {r: 1, g: 0.8, b: 0.3, a: 1}
+    groundShockwave: 0

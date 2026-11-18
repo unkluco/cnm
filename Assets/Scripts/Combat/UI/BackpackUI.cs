@@ -490,7 +490,11 @@ namespace LightSouls.Combat.UI
         {
             if (detailPanel != null) detailPanel.SetActive(true);
 
-            if (itemNameText != null) itemNameText.text = item.DisplayName;
+            if (itemNameText != null)
+            {
+                itemNameText.text = item.DisplayName;
+                itemNameText.color = ItemRarityStyle.GetColor(item.Rarity);
+            }
             if (itemDescriptionText != null) itemDescriptionText.text = item.Description;
 
             if (itemCategoryText != null)
@@ -501,31 +505,14 @@ namespace LightSouls.Combat.UI
                     ItemCategory.Equipment => "[TRANG BỊ]",
                     ItemCategory.Consumable => "[TIÊU HAO]",
                     _ => "[VẬT PHẨM]"
-                };
+                } + "  " + ItemRarityStyle.ColoredName(item.Rarity);
+                itemCategoryText.supportRichText = true;
             }
 
             if (itemStatsText != null)
             {
-                if (item is WeaponDataSO weapon)
-                {
-                    itemStatsText.text = $"Sát thương: {weapon.Damage}\nTốc đánh: {1f / Mathf.Max(0.01f, weapon.AttackRate):F1}/s\nTầm: {weapon.AttackRange}m";
-                }
-                else if (item is EquipmentDataSO equip)
-                {
-                    string stats = "";
-                    if (equip.DamageReduction > 0f) stats += $"Giảm sát thương: {equip.DamageReduction * 100:F0}%\n";
-                    if (equip.SpeedMultiplier > 1f) stats += $"Tăng tốc chạy: +{(equip.SpeedMultiplier - 1f) * 100:F0}%\n";
-                    if (equip.BonusMaxHealth > 0f) stats += $"Máu tối đa: +{equip.BonusMaxHealth:F0}\n";
-                    itemStatsText.text = stats.TrimEnd();
-                }
-                else if (item is ConsumableDataSO cons)
-                {
-                    itemStatsText.text = $"Hồi phục: +{cons.HealAmount} HP";
-                }
-                else
-                {
-                    itemStatsText.text = "";
-                }
+                // Mỗi loại vật phẩm tự mô tả chỉ số (ItemDefinitionSO.GetStatsText), kể cả hiệu ứng đặc biệt.
+                itemStatsText.text = item.GetStatsText();
             }
 
             if (itemIconImage != null)
@@ -589,6 +576,10 @@ namespace LightSouls.Combat.UI
                 string key = kvp.Key;
                 var view = kvp.Value;
                 var slot = inventory.GetSlot(key);
+                if (view.button != null)
+                {
+                    RarityFrame.Apply(view.button.transform as RectTransform, slot != null && !slot.IsEmpty ? slot.Item : null);
+                }
 
                 if (slot != null && !slot.IsEmpty)
                 {

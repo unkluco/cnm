@@ -238,6 +238,8 @@ namespace LightSouls.Game
             var spawnRotation = Quaternion.Euler(0f, spawnPoint.eulerAngles.y, 0f);
             player = Instantiate(playerPrefab, spawnPoint.position, spawnRotation);
             player.OnDied += HandlePlayerDied;
+            // Cuộn Dịch Chuyển đưa người chơi về đây.
+            player.SetSafePoint(spawnPoint.position);
 
             if (cameraFollow != null)
             {
@@ -291,6 +293,11 @@ namespace LightSouls.Game
 
             // Gán trước khi sinh quái: phòng không có điểm sinh quái sẽ phát AllEnemiesDefeated ngay trong SpawnWave.
             roomInCombat = room;
+            if (player != null)
+            {
+                player.InLockedCombat = true;
+            }
+
             enemySpawner.SpawnWave(room.EnemySpawnPoints);
         }
 
@@ -303,6 +310,10 @@ namespace LightSouls.Game
 
             var room = roomInCombat;
             roomInCombat = null;
+            if (player != null)
+            {
+                player.InLockedCombat = false;
+            }
             if (room.LifecycleController != null)
             {
                 room.LifecycleController.ClearRoom();

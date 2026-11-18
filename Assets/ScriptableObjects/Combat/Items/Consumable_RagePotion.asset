@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 917f5d6b77c9c4680a3359e2a563c23f, type: 3}
+  m_Name: Consumable_RagePotion
+  m_EditorClassIdentifier: LightSouls.Combat::LightSouls.Combat.Items.ConsumableDataSO
+  itemId: consumable.rage_potion
+  displayName: "Thu\u1ED1c Cu\u1ED3ng N\u1ED9"
+  description: "T\u0103ng 30% s\xE1t th\u01B0\u01A1ng trong 15 gi\xE2y."
+  icon: {fileID: 21300000, guid: a8acde8b9f72e0d4ba3677a5342d885a, type: 3}
+  price: 100
+  maxStack: 3
+  rarity: 1
+  healAmount: 35
+  effects:
+  - {fileID: 11400000, guid: 57d0ea2e649708a49b854166f3e7789a, type: 2}
+  triggersOnDeath: 0

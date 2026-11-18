@@ -129,6 +129,18 @@ namespace LightSouls.Combat
             }
         }
 
+        private void Update()
+        {
+            // Vũ khí bắn tự động (Súng Tiểu Liên): giữ nút tấn công là bắn liên tục theo tốc bắn.
+            if (!_isInputActive || attackAction == null || attackAction.action == null) return;
+            WeaponDataSO current = CurrentWeaponData;
+            bool holdingConsumable = _inventory != null && _inventory.SelectedItem is ConsumableDataSO;
+            if (current != null && current.AutoFire && !holdingConsumable && attackAction.action.IsPressed())
+            {
+                PerformAttack();
+            }
+        }
+
         private void OnAttackInput(InputAction.CallbackContext context)
         {
             if (!_isInputActive) return;

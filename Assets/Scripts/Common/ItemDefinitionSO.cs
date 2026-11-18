@@ -34,13 +34,26 @@ namespace LightSouls.Common
         [Tooltip("Số lượng tối đa trong một ô. Vũ khí và trang bị là 1.")]
         [SerializeField, Min(1)] private int maxStack = 1;
 
+        [Tooltip("Độ hiếm: quyết định màu viền ô vật phẩm.")]
+        [SerializeField] private ItemRarity rarity = ItemRarity.Common;
+
         public string ItemId => itemId;
         public string DisplayName => string.IsNullOrEmpty(displayName) ? name : displayName;
         public string Description => description;
         public Sprite Icon => icon;
         public int Price => price;
         public int MaxStack => maxStack;
+        public ItemRarity Rarity => rarity;
 
         public abstract ItemCategory Category { get; }
+
+        /// <summary>
+        /// Các dòng chỉ số hiện trong bảng chi tiết (balo, cửa hàng, hòm). Lớp con ghi đè để mô tả chỉ số riêng;
+        /// UI chỉ gọi hàm này nên sảnh/cửa hàng không cần tham chiếu LightSouls.Combat.
+        /// </summary>
+        public virtual string GetStatsText()
+        {
+            return string.Empty;
+        }
     }
 }

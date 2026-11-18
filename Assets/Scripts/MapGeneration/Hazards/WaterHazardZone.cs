@@ -27,13 +27,20 @@ namespace LightSouls.MapGeneration.Hazards
                 {
                     if (modifiable != null)
                     {
-                        modifiable.SetSpeedMultiplier(this, speedMultiplier);
+                        modifiable.SetSpeedMultiplier(this, EffectiveMultiplier(modifiable));
                     }
                 }
             }
         }
 
         public int ActiveSlowedCount => activeSlowed.Count;
+
+        /// <summary>Hệ số chậm sau kháng nước (Ủng Lội Nước: kháng 0 thì không bị chậm).</summary>
+        private float EffectiveMultiplier(ISpeedModifiable modifiable)
+        {
+            float resistance = HazardResistance.GetMultiplier(modifiable as Component, HazardKind.Water);
+            return 1f - (1f - speedMultiplier) * Mathf.Clamp01(resistance);
+        }
 
         protected override void OnEntityEntered(Collider other)
         {
@@ -45,7 +52,7 @@ namespace LightSouls.MapGeneration.Hazards
 
             if (activeSlowed.Add(modifiable))
             {
-                modifiable.SetSpeedMultiplier(this, speedMultiplier);
+                modifiable.SetSpeedMultiplier(this, EffectiveMultiplier(modifiable));
             }
         }
 

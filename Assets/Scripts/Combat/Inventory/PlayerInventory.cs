@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using LightSouls.Common;
+using LightSouls.Combat.Effects;
 using LightSouls.Combat.Items;
+using LightSouls.Combat.Stats;
 using LightSouls.Combat.Weapons;
 
 namespace LightSouls.Combat.Inventory
@@ -69,8 +71,11 @@ namespace LightSouls.Combat.Inventory
         private readonly Dictionary<string, InventorySlot> _allSlots = new Dictionary<string, InventorySlot>();
 
         private int _selectedHotbarIndex = 0;
-        private ISpeedModifiable _speedModifiable;
         private HealthComponent _healthComponent;
+        private PlayerStats _stats;
+        private PlayerMovement _movement;
+        private readonly Dictionary<string, ParticleSystem> _equipmentAuras = new Dictionary<string, ParticleSystem>();
+        private readonly Dictionary<string, EquipmentDataSO> _appliedEquipment = new Dictionary<string, EquipmentDataSO>();
 
         public int SelectedHotbarIndex => _selectedHotbarIndex;
         public ItemDefinitionSO SelectedItem => _hotbarSlots[_selectedHotbarIndex].Item;
@@ -89,13 +94,25 @@ namespace LightSouls.Combat.Inventory
         /// <summary>Phát sự kiện yêu cầu bật/tắt balo (phím Tab hoặc nút mở balo).</summary>
         public event Action OnToggleBackpackRequested;
 
-        // Chỉ số trang bị
-        public float CurrentDamageReduction { get; private set; } = 0f;
+        // Chỉ số trang bị (tính từ PlayerStats: gồm cả giáp và hiệu ứng tạm thời)
+        public float CurrentDamageReduction => _stats != null ? 1f - _stats.Get(StatType.DamageTaken) : 0f;
+
+        private static readonly string[] EquipmentKeys = { "equip/armor", "equip/boots" };
 
         private void Awake()
         {
-            _speedModifiable = GetComponent<ISpeedModifiable>();
             _healthComponent = GetComponent<HealthComponent>();
+            _stats = PlayerStats.GetOrAdd(gameObject);
+            _movement = GetComponent<PlayerMovement>();
+            if (_healthComponent != null)
+            {
+                _healthComponent.DeathPrevention += TryPreventDeath;
+            }
+
+            if (_movement != null)
+            {
+                _movement.OnDashExecuted += HandleDashExecuted;
+            }
 
             // 1. Khởi tạo danh sách ô
             for (int i = 0; i < HotbarSize; i++)
@@ -432,34 +449,96 @@ namespace LightSouls.Combat.Inventory
 
         private void ApplyEquipmentStats()
         {
-            // 1. Giáp
-            var armorSlot = GetSlot("equip/armor");
-            if (armorSlot != null && !armorSlot.IsEmpty && armorSlot.Item is EquipmentDataSO armor)
+            // Mỗi ô trang bị là một nguồn trong PlayerStats: mặc thì đăng ký chỉ số, tháo thì gỡ.
+            foreach (string key in EquipmentKeys)
             {
-                CurrentDamageReduction = armor.DamageReduction;
+                var slot = GetSlot(key);
+                var equipment = slot != null && !slot.IsEmpty ? slot.Item as EquipmentDataSO : null;
+
+                EquipmentDataSO previous;
+                _appliedEquipment.TryGetValue(key, out previous);
+                if (previous == equipment)
+                {
+                    continue;
+                }
+
+                _appliedEquipment[key] = equipment;
+                if (_stats != null)
+                {
+                    if (equipment != null) _stats.SetModifiers(key, equipment.GetModifiers());
+                    else _stats.RemoveSource(key);
+                }
+
+                UpdateEquipmentAura(key, equipment);
             }
-            else
+        }
+
+        private void UpdateEquipmentAura(string key, EquipmentDataSO equipment)
+        {
+            ParticleSystem aura;
+            if (_equipmentAuras.TryGetValue(key, out aura) && aura != null)
             {
-                CurrentDamageReduction = 0f;
+                Destroy(aura.gameObject);
             }
 
+            _equipmentAuras.Remove(key);
+            if (equipment == null || equipment.AuraColor.a <= 0f)
+            {
+                return;
+            }
+
+            // Giày: hạt ở chân; giáp: hạt quanh thân.
+            bool boots = equipment.SlotType == EquipmentSlotType.Boots;
+            Vector3 offset = boots ? new Vector3(0f, 0.15f, 0f) : new Vector3(0f, 1.0f, 0f);
+            _equipmentAuras[key] = VfxFactory.Aura(transform, equipment.AuraColor, boots ? 10f : 8f, boots ? 0.35f : 0.5f,
+                offset, boots ? 0.1f : 0.12f, boots ? 0.3f : 0.6f, "VFX_Equip_" + key.Replace('/', '_'));
+        }
+
+        private void HandleDashExecuted()
+        {
+            // Lướt bung hạt theo màu trang bị (Áo Choàng Bóng Đêm, Giày Lò Xo...).
+            foreach (EquipmentDataSO equipment in _appliedEquipment.Values)
+            {
+                if (equipment != null && equipment.AuraColor.a > 0f)
+                {
+                    VfxFactory.Burst(transform.position + Vector3.up * 0.6f, equipment.AuraColor, 14, 3f, 0.18f, 0.45f, 0f);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gọi bởi HealthComponent khi máu sắp về 0: tìm vật phẩm "tự kích hoạt khi gục ngã" (Lông Phượng Hoàng),
+        /// trừ một cái và kích hoạt. Trả true nếu đã cứu.
+        /// </summary>
+        private bool TryPreventDeath()
+        {
+            foreach (var slot in _allSlots.Values)
+            {
+                if (slot.IsEmpty || !(slot.Item is ConsumableDataSO consumable) || !consumable.TriggersOnDeath)
+                {
+                    continue;
+                }
+
+                if (TryRemoveFromSlot(slot.SlotKey, 1))
+                {
+                    consumable.TriggerOnDeath(gameObject);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void OnDestroy()
+        {
             if (_healthComponent != null)
             {
-                _healthComponent.DamageReduction = CurrentDamageReduction;
+                _healthComponent.DeathPrevention -= TryPreventDeath;
             }
 
-            // 2. Giày (tăng tốc độ chạy qua ISpeedModifiable)
-            var bootsSlot = GetSlot("equip/boots");
-            if (_speedModifiable != null)
+            if (_movement != null)
             {
-                if (bootsSlot != null && !bootsSlot.IsEmpty && bootsSlot.Item is EquipmentDataSO boots)
-                {
-                    _speedModifiable.SetSpeedMultiplier(this, boots.SpeedMultiplier);
-                }
-                else
-                {
-                    _speedModifiable.RemoveSpeedMultiplier(this);
-                }
+                _movement.OnDashExecuted -= HandleDashExecuted;
             }
         }
 

@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 917f5d6b77c9c4680a3359e2a563c23f, type: 3}
+  m_Name: Consumable_PhoenixFeather
+  m_EditorClassIdentifier: LightSouls.Combat::LightSouls.Combat.Items.ConsumableDataSO
+  itemId: consumable.phoenix_feather
+  displayName: "L\xF4ng Ph\u01B0\u1EE3ng Ho\xE0ng"
+  description: "Khi g\u1EE5c ng\xE3, t\u1EF1 h\u1ED3i sinh v\u1EDBi 30% m\xE1u (m\u1EA5t
+    l\xF4ng). Ch\u1EC9 t\xECm th\u1EA5y trong h\xF2m kho b\xE1u."
+  icon: {fileID: 21300000, guid: 2c213110546009647be0818c4a250b96, type: 3}
+  price: 500
+  maxStack: 1
+  rarity: 3
+  healAmount: 35
+  effects:
+  - {fileID: 11400000, guid: 051a1a8b307a68040aed7cda1cb83ac1, type: 2}
+  triggersOnDeath: 1

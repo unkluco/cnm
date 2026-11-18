@@ -299,7 +299,8 @@ namespace LightSouls.MapGeneration.Hazards
                 if (damageable != null && !damageable.IsDead && damagedEntitiesInCurrentCycle.Add(damageable))
                 {
                     Vector3 hitPoint = col.bounds.center;
-                    damageable.TakeDamage(new DamageInfo(spikeDamage, gameObject, hitPoint));
+                    float damage = spikeDamage * HazardResistance.GetMultiplier(col, HazardKind.Spike);
+                    if (damage > 0f) damageable.TakeDamage(new DamageInfo(damage, gameObject, hitPoint));
                 }
             }
         }
@@ -340,7 +341,8 @@ namespace LightSouls.MapGeneration.Hazards
                 if (damageable != null && !damageable.IsDead && damagedEntitiesInCurrentCycle.Add(damageable))
                 {
                     Vector3 hitPoint = other.bounds.center;
-                    damageable.TakeDamage(new DamageInfo(spikeDamage, gameObject, hitPoint));
+                    float damage = spikeDamage * HazardResistance.GetMultiplier(other, HazardKind.Spike);
+                    if (damage > 0f) damageable.TakeDamage(new DamageInfo(damage, gameObject, hitPoint));
                 }
             }
         }
