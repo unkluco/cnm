@@ -34,6 +34,12 @@ namespace LightSouls.Combat
         /// <summary>Phát sự kiện khi máu thay đổi (current, max).</summary>
         public event Action<float, float> OnHealthChanged;
 
+        /// <summary>
+        /// Gọi khi máu sắp về 0, trước khi chết. Trả true nếu đã cứu (ví dụ Lông Phượng Hoàng hồi máu);
+        /// khi đó nếu máu &gt; 0 thì nhân vật không chết.
+        /// </summary>
+        public Func<bool> DeathPrevention;
+
         /// <summary>Phát sự kiện chết đúng một lần duy nhất theo chuẩn IDamageable.</summary>
         public event Action<IDamageable> Died;
 
@@ -63,6 +69,11 @@ namespace LightSouls.Combat
 
             if (currentHealth <= 0f && !_isDead)
             {
+                if (DeathPrevention != null && DeathPrevention() && currentHealth > 0f)
+                {
+                    return;
+                }
+
                 _isDead = true;
                 Died?.Invoke(this);
             }

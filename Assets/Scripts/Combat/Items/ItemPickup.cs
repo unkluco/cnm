@@ -1,5 +1,7 @@
 using UnityEngine;
 using LightSouls.Common;
+using LightSouls.Combat.Effects;
+using LightSouls.Combat.UI;
 
 namespace LightSouls.Combat.Items
 {
@@ -22,6 +24,8 @@ namespace LightSouls.Combat.Items
 
         private Vector3 _startPosition;
         private SphereCollider _collider;
+        private ParticleSystem _rarityBeam;
+        private ItemDefinitionSO _beamItem;
 
         public ItemDefinitionSO Item => item;
         public int Count => count;
@@ -85,6 +89,19 @@ namespace LightSouls.Combat.Items
             {
                 iconRenderer.sprite = item.Icon;
             }
+
+            // Cột sáng màu độ hiếm: nhìn từ xa biết ngay vật phẩm quý hay thường.
+            if (_beamItem != item)
+            {
+                _beamItem = item;
+                if (_rarityBeam != null) Destroy(_rarityBeam.gameObject);
+                _rarityBeam = null;
+                if (item != null)
+                {
+                    float rate = item.Rarity >= ItemRarity.Epic ? 26f : item.Rarity == ItemRarity.Rare ? 16f : 8f;
+                    _rarityBeam = VfxFactory.Beam(transform, ItemRarityStyle.GetColor(item.Rarity), 1.4f, rate);
+                }
+            }
         }
 
         public bool CanInteract(GameObject interactor)
@@ -110,8 +127,7 @@ namespace LightSouls.Combat.Items
             }
             else
             {
-                Debug.LogWarning("[ItemPickup] Túi đồ đã đầy! Không thể nhặt thêm.");
-                // Có thể hiển thị text thông báo "Túi đầy" trên UI
+                CombatToast.Show("Túi đồ đã đầy");
             }
         }
 

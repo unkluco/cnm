@@ -15,7 +15,7 @@ namespace LightSouls.Combat.Enemies
     [RequireComponent(typeof(NavMeshAgent))]
     [RequireComponent(typeof(CapsuleCollider))]
     [RequireComponent(typeof(HealthComponent))]
-    public abstract class EnemyBase : MonoBehaviour, IDamageable, ISpeedModifiable
+    public abstract class EnemyBase : MonoBehaviour, IDamageable, ISpeedModifiable, IStunnable
     {
         [Header("Thông số cơ bản")]
         [SerializeField] protected string enemyName = "Quái Vật";
@@ -167,9 +167,26 @@ namespace LightSouls.Combat.Enemies
             }
         }
 
+        private float _stunnedUntil = -1f;
+
+        public bool IsStunned => Time.time < _stunnedUntil;
+
+        public void Stun(float duration)
+        {
+            if (_isDead || duration <= 0f) return;
+            _stunnedUntil = Mathf.Max(_stunnedUntil, Time.time + duration);
+        }
+
         protected virtual void Update()
         {
             if (_isDead) return;
+
+            // Bị choáng: đứng yên, không đuổi, không tấn công.
+            if (IsStunned)
+            {
+                if (_agent != null && _agent.isOnNavMesh) _agent.isStopped = true;
+                return;
+            }
 
             // Nếu chưa tìm thấy hoặc Player đã chết thì quét lại
             if (_playerTransform == null || (_playerController != null && _playerController.IsDead))

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using LightSouls.Common;
 
@@ -47,6 +49,33 @@ namespace LightSouls.Combat.Weapons
         [Tooltip("Độ mở góc tản đạn khi bắn nhiều tia (độ).")]
         [Range(0f, 90f)]
         [SerializeField] private float spreadAngle = 25f;
+        [Tooltip("Độ lệch ngẫu nhiên mỗi phát bắn (độ). Dùng cho súng bắn nhanh.")]
+        [Range(0f, 30f)]
+        [SerializeField] private float inaccuracy = 0f;
+        [Tooltip("Giữ nút tấn công để bắn liên tục.")]
+        [SerializeField] private bool autoFire = false;
+        [Tooltip("Số mục tiêu đạn xuyên qua thêm trước khi biến mất (0 = dừng ở mục tiêu đầu).")]
+        [Range(0, 10)]
+        [SerializeField] private int pierceCount = 0;
+
+        [Header("Đạn nổ (Ranged Only, bán kính > 0 thì đạn bay vòng cung và nổ)")]
+        [SerializeField, Min(0f)] private float explosionRadius = 0f;
+        [Tooltip("Vụ nổ có làm bị thương chính người bắn không.")]
+        [SerializeField] private bool explosionDamagesOwner = false;
+        [SerializeField, Min(0f)] private float arcHeight = 2.5f;
+
+        [Header("Đòn đánh nhiều nhát (Melee Only)")]
+        [Tooltip("Số nhát chém mỗi lần bấm (Song Dao = 2).")]
+        [Range(1, 5)]
+        [SerializeField] private int strikeCount = 1;
+        [SerializeField, Min(0f)] private float strikeInterval = 0.12f;
+
+        [Header("Hiệu ứng khi trúng đòn")]
+        [Tooltip("Các hiệu ứng chạy mỗi khi trúng mục tiêu (đốt, làm chậm, choáng, hút máu...).")]
+        [SerializeField] private List<WeaponHitEffectSO> hitEffects = new List<WeaponHitEffectSO>();
+
+        [Header("Hiệu ứng hình ảnh")]
+        [SerializeField] private WeaponVfxProfile vfx = new WeaponVfxProfile();
 
         // Tương thích ngược với code cũ
         public string WeaponId => ItemId;
@@ -69,5 +98,45 @@ namespace LightSouls.Combat.Weapons
         public float ProjectileLifetime => projectileLifetime;
         public int ProjectileCount => projectileCount;
         public float SpreadAngle => spreadAngle;
+        public float Inaccuracy => inaccuracy;
+        public bool AutoFire => autoFire;
+        public int PierceCount => pierceCount;
+        public float ExplosionRadius => explosionRadius;
+        public bool IsExplosive => explosionRadius > 0f;
+        public bool ExplosionDamagesOwner => explosionDamagesOwner;
+        public float ArcHeight => arcHeight;
+
+        // Đòn nhiều nhát
+        public int StrikeCount => Mathf.Max(1, strikeCount);
+        public float StrikeInterval => strikeInterval;
+
+        public IReadOnlyList<WeaponHitEffectSO> HitEffects => hitEffects;
+        public WeaponVfxProfile Vfx => vfx ?? (vfx = new WeaponVfxProfile());
+
+        public override string GetStatsText()
+        {
+            var sb = new StringBuilder();
+            bool melee = weaponType == WeaponType.Melee;
+            sb.Append(melee ? "Cận chiến" : "Tầm xa");
+            sb.Append("\nSát thương: ").Append(damage.ToString("0.#"));
+            if (melee && StrikeCount > 1) sb.Append(" x").Append(StrikeCount).Append(" nhát");
+            if (!melee && projectileCount > 1) sb.Append(" x").Append(projectileCount).Append(" tia");
+            sb.Append("\nTốc đánh: ").Append(attackRate.ToString("0.##")).Append(" giây/đòn");
+            sb.Append("\nTầm: ").Append(attackRange.ToString("0.#")).Append(" m");
+            if (melee && swingArcAngle >= 179f) sb.Append("\nQuét ").Append(Mathf.RoundToInt(swingArcAngle)).Append(" độ");
+            if (pierceCount > 0) sb.Append("\nXuyên ").Append(pierceCount).Append(" mục tiêu");
+            if (explosionRadius > 0f)
+            {
+                sb.Append("\nNổ bán kính ").Append(explosionRadius.ToString("0.#")).Append(" m");
+                if (explosionDamagesOwner) sb.Append(" (gây thương cả bản thân)");
+            }
+
+            foreach (WeaponHitEffectSO effect in hitEffects)
+            {
+                if (effect != null) sb.Append("\n• ").Append(effect.Describe());
+            }
+
+            return sb.ToString();
+        }
     }
 }

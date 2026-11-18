@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using LightSouls.Combat.Effects;
 using LightSouls.Common;
 using UnityEngine;
 
@@ -7,8 +8,9 @@ namespace LightSouls.Combat.Items
 {
     /// <summary>
     /// Hòm kho báu trong hầm ngục: 6 ô (lưới 3 x 2), mỗi ô có xác suất chứa một vật phẩm quay từ LootTableSO.
-    /// Người chơi bấm Tương tác (E) để mở; TreasureChestUI nghe sự kiện OpenRequested và hiện bảng các ô.
-    /// Chạm một ô để lấy vật phẩm vào túi đồ. Hòm đã lấy hết thì không mở được nữa.
+    /// Người chơi bấm Tương tác (E) để mở bao nhiêu lần cũng được; TreasureChestUI nghe sự kiện OpenRequested
+    /// và hiện bảng hai bên: túi đồ và các ô của hòm, chạm để chuyển đồ qua lại (lấy ra hoặc cất vào).
+    /// Dữ liệu ô nằm trong ItemContainer (Common) nên có thể tái dùng cho các loại kho khác.
     /// Collider trigger trên Layer Interactable (12) để PlayerInteraction quét thấy.
     /// </summary>
     public class TreasureChest : MonoBehaviour, IInteractable
@@ -16,14 +18,7 @@ namespace LightSouls.Combat.Items
         public const int SlotCount = 6;
         public const int Columns = 3;
 
-        [Serializable]
-        public struct ChestSlot
-        {
-            public ItemDefinitionSO Item;
-            public int Count;
-
-            public bool IsEmpty => Item == null || Count <= 0;
-        }
+        private static readonly Color OpenBurstColor = new Color(1f, 0.8f, 0.3f, 1f);
 
         [Header("Vật phẩm")]
         [SerializeField] private LootTableSO lootTable;
@@ -40,44 +35,44 @@ namespace LightSouls.Combat.Items
         [SerializeField] private float lidOpenAngle = 105f;
         [SerializeField] private float lidOpenSpeed = 360f;
 
-        private readonly ChestSlot[] slots = new ChestSlot[SlotCount];
+        private readonly ItemContainer container = new ItemContainer(SlotCount);
         private bool rolled;
-        private bool opened;
+        private bool hooked;
+        private bool isOpen;
+        private bool everOpened;
         private float lidAngle;
 
         /// <summary>Phát khi người chơi tương tác với một hòm; TreasureChestUI mở bảng cho hòm này.</summary>
         public static event Action<TreasureChest, GameObject> OpenRequested;
 
-        /// <summary>Phát khi đồ trong hòm thay đổi (đã lấy một ô).</summary>
+        /// <summary>Phát khi đồ trong hòm thay đổi (lấy ra hoặc cất vào).</summary>
         public event Action Changed;
 
         public string Prompt => "Mở hòm";
-        public bool IsOpened => opened;
-        public IReadOnlyList<ChestSlot> Slots
-        {
-            get
-            {
-                EnsureRolled();
-                return slots;
-            }
-        }
 
-        public bool IsEmpty
+        /// <summary>Đã từng được mở ít nhất một lần.</summary>
+        public bool IsOpened => everOpened;
+
+        /// <summary>Bảng của hòm đang mở (nắp đang nâng).</summary>
+        public bool IsOpen => isOpen;
+
+        public ItemContainer Container
         {
             get
             {
-                EnsureRolled();
-                foreach (ChestSlot slot in slots)
+                if (!hooked)
                 {
-                    if (!slot.IsEmpty)
-                    {
-                        return false;
-                    }
+                    hooked = true;
+                    container.Changed += () => Changed?.Invoke();
                 }
 
-                return true;
+                EnsureRolled();
+                return container;
             }
         }
+
+        public IReadOnlyList<ItemStack> Slots => Container.Slots;
+        public bool IsEmpty => Container.IsEmpty;
 
         public void SetLootTable(LootTableSO table)
         {
@@ -91,16 +86,22 @@ namespace LightSouls.Combat.Items
 
         private void Update()
         {
-            if (lid == null || !opened || Mathf.Approximately(lidAngle, lidOpenAngle))
+            if (lid == null)
             {
                 return;
             }
 
-            lidAngle = Mathf.MoveTowards(lidAngle, lidOpenAngle, lidOpenSpeed * Time.deltaTime);
+            float target = isOpen ? lidOpenAngle : 0f;
+            if (Mathf.Approximately(lidAngle, target))
+            {
+                return;
+            }
+
+            lidAngle = Mathf.MoveTowards(lidAngle, target, lidOpenSpeed * Time.deltaTime);
             lid.localRotation = Quaternion.Euler(lidAngle, 0f, 0f);
         }
 
-        /// <summary>Quay đồ cho hòm (chỉ một lần). Gọi lại Roll(seed) để quay lại có kiểm soát trong test.</summary>
+        /// <summary>Quay đồ cho hòm (chỉ một lần). Gọi Roll(seed) để quay lại có kiểm soát trong test.</summary>
         public void EnsureRolled()
         {
             if (!rolled)
@@ -112,10 +113,7 @@ namespace LightSouls.Combat.Items
         public void Roll(int seed)
         {
             rolled = true;
-            for (int i = 0; i < SlotCount; i++)
-            {
-                slots[i] = default;
-            }
+            container.Clear();
 
             if (lootTable == null)
             {
@@ -125,23 +123,23 @@ namespace LightSouls.Combat.Items
             UnityEngine.Random.State previous = UnityEngine.Random.state;
             UnityEngine.Random.InitState(seed);
 
-            var filledIndices = new List<int>();
+            int filled = 0;
             for (int i = 0; i < SlotCount; i++)
             {
                 if (UnityEngine.Random.value < slotFillChance && TryRollSlot(i))
                 {
-                    filledIndices.Add(i);
+                    filled++;
                 }
             }
 
             // Bảo đảm tối thiểu: lấp thêm vào các ô trống ngẫu nhiên.
             int guard = SlotCount * 4;
-            while (filledIndices.Count < minFilledSlots && guard-- > 0)
+            while (filled < minFilledSlots && guard-- > 0)
             {
                 int index = UnityEngine.Random.Range(0, SlotCount);
-                if (slots[index].IsEmpty && TryRollSlot(index))
+                if (container.Get(index).IsEmpty && TryRollSlot(index))
                 {
-                    filledIndices.Add(index);
+                    filled++;
                 }
             }
 
@@ -152,7 +150,7 @@ namespace LightSouls.Combat.Items
         {
             if (lootTable.RollDrop(out ItemDefinitionSO item, out int count) && item != null)
             {
-                slots[index] = new ChestSlot { Item = item, Count = Mathf.Clamp(count, 1, Mathf.Max(1, item.MaxStack)) };
+                container.Set(index, new ItemStack(item, Mathf.Clamp(count, 1, Mathf.Max(1, item.MaxStack))));
                 return true;
             }
 
@@ -161,7 +159,8 @@ namespace LightSouls.Combat.Items
 
         public bool CanInteract(GameObject interactor)
         {
-            return interactor != null && interactor.CompareTag("Player") && !IsEmpty;
+            // Mở lại được bất cứ lúc nào, kể cả hòm trống (để cất đồ vào).
+            return interactor != null && interactor.CompareTag("Player");
         }
 
         public void Interact(GameObject interactor)
@@ -171,45 +170,48 @@ namespace LightSouls.Combat.Items
                 return;
             }
 
-            opened = true;
+            EnsureRolled();
+            SetOpen(true);
             OpenRequested?.Invoke(this, interactor);
         }
 
-        /// <summary>
-        /// Lấy cả ô vào túi đồ. Thất bại (túi đầy) thì đồ giữ nguyên trong hòm.
-        /// </summary>
-        public bool TryTake(int index, IInventory inventory)
+        /// <summary>Nâng hoặc hạ nắp hòm. Bảng giao diện gọi SetOpen(false) khi đóng.</summary>
+        public void SetOpen(bool open)
         {
-            EnsureRolled();
-            if (inventory == null || index < 0 || index >= SlotCount || slots[index].IsEmpty)
+            if (open && !isOpen)
             {
-                return false;
+                VfxFactory.Burst(transform.position + Vector3.up * 0.9f, OpenBurstColor, everOpened ? 10 : 28, 3.5f, 0.16f, 0.6f, -0.4f);
+                everOpened = true;
             }
 
-            ChestSlot slot = slots[index];
-            if (!inventory.TryAdd(slot.Item, slot.Count))
-            {
-                return false;
-            }
-
-            slots[index] = default;
-            Changed?.Invoke();
-            return true;
+            isOpen = open;
         }
 
-        /// <summary>Lấy lần lượt mọi ô còn đồ. Trả về số ô đã lấy được.</summary>
+        /// <summary>Lấy ô index vào túi đồ (túi gần đầy thì lấy một phần). True nếu lấy được ít nhất một món.</summary>
+        public bool TryTake(int index, IInventory inventory)
+        {
+            return Container.TransferTo(index, inventory) > 0;
+        }
+
+        /// <summary>Lấy lần lượt mọi ô còn đồ. Trả về số ô có lấy được đồ.</summary>
         public int TakeAll(IInventory inventory)
         {
             int taken = 0;
             for (int i = 0; i < SlotCount; i++)
             {
-                if (!slots[i].IsEmpty && TryTake(i, inventory))
+                if (!container.Get(i).IsEmpty && TryTake(i, inventory))
                 {
                     taken++;
                 }
             }
 
             return taken;
+        }
+
+        /// <summary>Cất tối đa count món vào hòm. Trả về số món đã cất (người gọi tự bớt khỏi túi đồ).</summary>
+        public int Put(ItemDefinitionSO item, int count)
+        {
+            return Container.Put(item, count);
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]

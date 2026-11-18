@@ -19,6 +19,7 @@ MonoBehaviour:
   icon: {fileID: 21300000, guid: fe610fcd959fc4ae68e6dd30674849a2, type: 3}
   price: 150
   maxStack: 1
+  rarity: 0
   weaponType: 1
   damage: 20
   attackRate: 0.4
@@ -33,3 +34,20 @@ MonoBehaviour:
   projectileLifetime: 3
   projectileCount: 1
   spreadAngle: 0
+  inaccuracy: 0
+  autoFire: 0
+  pierceCount: 0
+  explosionRadius: 0
+  explosionDamagesOwner: 0
+  arcHeight: 2.5
+  strikeCount: 1
+  strikeInterval: 0.12
+  hitEffects: []
+  vfx:
+    slashColor: {r: 1, g: 1, b: 1, a: 0.9}
+    auraColor: {r: 1, g: 1, b: 1, a: 0}
+    auraRate: 14
+    hitColor: {r: 1, g: 0.95, b: 0.8, a: 1}
+    trailColor: {r: 0.4, g: 0.8, b: 1, a: 0.7}
+    muzzleColor: {r: 0.6, g: 0.9, b: 1, a: 1}
+    groundShockwave: 0

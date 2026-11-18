@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using LightSouls.Combat.Inventory;
 using LightSouls.Combat.Items;
 using LightSouls.Common;
 using UnityEngine;
@@ -7,34 +8,45 @@ using UnityEngine.UI;
 namespace LightSouls.Combat.UI
 {
     /// <summary>
-    /// Bảng hòm kho báu (Canvas sort order 8): lưới 3 x 2 ô, mỗi ô hiện ảnh và số lượng vật phẩm.
-    /// Chạm một ô để lấy vào túi đồ; nút "Lấy hết" lấy mọi ô. Túi đầy thì đồ ở lại trong hòm.
-    /// Giao diện tự dựng bằng mã khi chạy, nên chỉ cần một GameObject có component này trong Scene
-    /// (GameBootstrap tự tạo nếu Scene chưa có). Tích hợp BackButtonStack: nút Back đóng bảng,
-    /// và PlayerController tự khóa di chuyển khi bảng đang mở.
+    /// Bảng hòm kho báu (Canvas sort order 8) gồm hai bên:
+    ///   - Trái "TÚI ĐỒ": 5 ô thanh nhanh + 15 ô balo của PlayerInventory.
+    ///   - Phải "HÒM": 6 ô (3 x 2) của TreasureChest.
+    /// Chạm một ô bên túi để cất vào hòm, chạm một ô bên hòm để lấy vào túi. Nút "Lấy hết" lấy mọi ô.
+    /// Hòm mở lại được nhiều lần; bảng không tự đóng khi hòm trống.
+    /// Giao diện tự dựng bằng mã khi chạy (GameBootstrap tự tạo nếu Scene chưa có).
+    /// Tích hợp BackButtonStack: nút Back đóng bảng, và PlayerController tự khóa di chuyển khi bảng mở.
     /// </summary>
     public class TreasureChestUI : MonoBehaviour
     {
+        private const int InventoryColumns = 5;
+
         private static readonly Color PanelColor = new Color(0.16f, 0.12f, 0.08f, 0.97f);
+        private static readonly Color SectionColor = new Color(0.1f, 0.08f, 0.06f, 0.9f);
         private static readonly Color SlotColor = new Color(0.3f, 0.23f, 0.14f, 1f);
-        private static readonly Color EmptySlotColor = new Color(0.1f, 0.08f, 0.06f, 1f);
+        private static readonly Color HotbarSlotColor = new Color(0.24f, 0.26f, 0.32f, 1f);
+        private static readonly Color EmptySlotColor = new Color(0.13f, 0.1f, 0.08f, 1f);
         private static readonly Color GoldColor = new Color(1f, 0.82f, 0.3f);
 
+        /// <summary>Một ô hiển thị: nền, ảnh, số lượng và khung độ hiếm (RarityFrame).</summary>
         private class SlotView
         {
-            public Button Button;
             public Image Background;
             public Image Icon;
             public Text Count;
-            public Text Name;
+            public Color FilledColor;
         }
 
-        private readonly List<SlotView> slotViews = new List<SlotView>();
+        private readonly List<SlotView> chestViews = new List<SlotView>();
+        private readonly List<SlotView> inventoryViews = new List<SlotView>();
+        private readonly List<string> inventoryKeys = new List<string>();
+
         private GameObject root;
         private Text statusText;
+        private Text inventoryHint;
         private Button takeAllButton;
         private TreasureChest currentChest;
         private IInventory currentInventory;
+        private PlayerInventory playerInventory;
         private Font font;
 
         public bool IsOpen => root != null && root.activeSelf;
@@ -42,6 +54,9 @@ namespace LightSouls.Combat.UI
 
         private void Awake()
         {
+            for (int i = 0; i < PlayerInventory.HotbarSize; i++) inventoryKeys.Add("hotbar/" + i);
+            for (int i = 0; i < PlayerInventory.BackpackSize; i++) inventoryKeys.Add("backpack/" + i);
+
             BuildLayout();
             root.SetActive(false);
         }
@@ -78,17 +93,29 @@ namespace LightSouls.Combat.UI
             Detach();
             currentChest = chest;
             currentInventory = inventory;
+            playerInventory = inventory as PlayerInventory;
             currentChest.Changed += Refresh;
+            if (currentInventory != null)
+            {
+                currentInventory.Changed += Refresh;
+            }
 
             root.SetActive(true);
             BackButtonStack.Push(this, Close);
-            SetStatus(inventory != null ? "Chạm một ô để lấy vật phẩm." : "Không tìm thấy túi đồ của người chơi!");
+            SetStatus(inventory != null
+                ? "Chạm ô bên hòm để lấy, chạm ô bên túi để cất vào hòm."
+                : "Không tìm thấy túi đồ của người chơi!");
             Refresh();
         }
 
         public void Close()
         {
             BackButtonStack.Remove(this);
+            if (currentChest != null)
+            {
+                currentChest.SetOpen(false);
+            }
+
             Detach();
 
             if (root != null)
@@ -97,7 +124,7 @@ namespace LightSouls.Combat.UI
             }
         }
 
-        /// <summary>Lấy ô thứ index (0..5) của hòm đang mở.</summary>
+        /// <summary>Lấy ô thứ index (0..5) của hòm vào túi đồ.</summary>
         public void TakeSlot(int index)
         {
             if (currentChest == null || currentInventory == null)
@@ -105,22 +132,59 @@ namespace LightSouls.Combat.UI
                 return;
             }
 
-            IReadOnlyList<TreasureChest.ChestSlot> slots = currentChest.Slots;
+            IReadOnlyList<ItemStack> slots = currentChest.Slots;
             if (index < 0 || index >= slots.Count || slots[index].IsEmpty)
             {
                 return;
             }
 
-            TreasureChest.ChestSlot slot = slots[index];
-            if (currentChest.TryTake(index, currentInventory))
-            {
-                SetStatus($"Đã lấy: {slot.Item.DisplayName} x{slot.Count}");
-                CloseIfEmpty();
-            }
-            else
+            ItemStack stack = slots[index];
+            int moved = currentChest.Container.TransferTo(index, currentInventory);
+            if (moved <= 0)
             {
                 SetStatus("Túi đồ đã đầy!");
             }
+            else if (moved < stack.Count)
+            {
+                SetStatus($"Đã lấy: {stack.Item.DisplayName} x{moved} (túi đầy, phần còn lại ở trong hòm)");
+            }
+            else
+            {
+                SetStatus($"Đã lấy: {stack.Item.DisplayName} x{moved}");
+            }
+        }
+
+        /// <summary>Cất cả ô túi đồ slotKey ("hotbar/i" hoặc "backpack/i") vào hòm.</summary>
+        public void StoreSlot(string slotKey)
+        {
+            if (currentChest == null || playerInventory == null)
+            {
+                return;
+            }
+
+            InventorySlot slot = playerInventory.GetSlot(slotKey);
+            if (slot == null || slot.IsEmpty)
+            {
+                return;
+            }
+
+            ItemDefinitionSO item = slot.Item;
+            int stored = currentChest.Put(item, slot.Count);
+            if (stored <= 0)
+            {
+                SetStatus("Hòm đã đầy!");
+                return;
+            }
+
+            if (!playerInventory.TryRemoveFromSlot(slotKey, stored))
+            {
+                // Không bớt được khỏi túi (hiếm): hoàn tác để không nhân đôi vật phẩm.
+                RemoveFromChest(item, stored);
+                SetStatus("Không cất được vật phẩm này.");
+                return;
+            }
+
+            SetStatus($"Đã cất: {item.DisplayName} x{stored}");
         }
 
         public void TakeAll()
@@ -130,21 +194,25 @@ namespace LightSouls.Combat.UI
                 return;
             }
 
-            int taken = currentChest.TakeAll(currentInventory);
             if (currentChest.IsEmpty)
             {
-                Close();
+                SetStatus("Hòm trống.");
                 return;
             }
 
-            SetStatus(taken > 0 ? "Túi đồ đã đầy, còn đồ ở lại trong hòm." : "Túi đồ đã đầy!");
+            currentChest.TakeAll(currentInventory);
+            SetStatus(currentChest.IsEmpty ? "Đã lấy hết đồ trong hòm." : "Túi đồ đã đầy, còn đồ ở lại trong hòm.");
         }
 
-        private void CloseIfEmpty()
+        private void RemoveFromChest(ItemDefinitionSO item, int count)
         {
-            if (currentChest != null && currentChest.IsEmpty)
+            ItemContainer container = currentChest.Container;
+            for (int i = container.SlotCount - 1; i >= 0 && count > 0; i--)
             {
-                Close();
+                if (container.Get(i).Item == item)
+                {
+                    count -= container.RemoveAt(i, count);
+                }
             }
         }
 
@@ -155,8 +223,14 @@ namespace LightSouls.Combat.UI
                 currentChest.Changed -= Refresh;
             }
 
+            if (currentInventory != null)
+            {
+                currentInventory.Changed -= Refresh;
+            }
+
             currentChest = null;
             currentInventory = null;
+            playerInventory = null;
         }
 
         private void Refresh()
@@ -166,21 +240,32 @@ namespace LightSouls.Combat.UI
                 return;
             }
 
-            IReadOnlyList<TreasureChest.ChestSlot> slots = currentChest.Slots;
-            for (int i = 0; i < slotViews.Count; i++)
+            IReadOnlyList<ItemStack> slots = currentChest.Slots;
+            for (int i = 0; i < chestViews.Count; i++)
             {
-                SlotView view = slotViews[i];
-                bool hasItem = i < slots.Count && !slots[i].IsEmpty;
-
-                view.Background.color = hasItem ? SlotColor : EmptySlotColor;
-                view.Button.interactable = hasItem;
-                view.Icon.enabled = hasItem && slots[i].Item.Icon != null;
-                view.Icon.sprite = hasItem ? slots[i].Item.Icon : null;
-                view.Count.text = hasItem && slots[i].Count > 1 ? "x" + slots[i].Count : string.Empty;
-                view.Name.text = hasItem ? slots[i].Item.DisplayName : string.Empty;
+                ItemStack stack = i < slots.Count ? slots[i] : default;
+                ShowStack(chestViews[i], stack.IsEmpty ? null : stack.Item, stack.Count);
             }
 
-            takeAllButton.interactable = !currentChest.IsEmpty;
+            for (int i = 0; i < inventoryViews.Count; i++)
+            {
+                InventorySlot slot = playerInventory != null ? playerInventory.GetSlot(inventoryKeys[i]) : null;
+                bool has = slot != null && !slot.IsEmpty;
+                ShowStack(inventoryViews[i], has ? slot.Item : null, has ? slot.Count : 0);
+            }
+
+            inventoryHint.gameObject.SetActive(playerInventory == null);
+            takeAllButton.interactable = !currentChest.IsEmpty && currentInventory != null;
+        }
+
+        private static void ShowStack(SlotView view, ItemDefinitionSO item, int count)
+        {
+            bool has = item != null;
+            view.Background.color = has ? view.FilledColor : EmptySlotColor;
+            view.Icon.enabled = has && item.Icon != null;
+            view.Icon.sprite = has ? item.Icon : null;
+            view.Count.text = has && count > 1 ? "x" + count : string.Empty;
+            RarityFrame.Apply(view.Background.rectTransform, item);
         }
 
         private void SetStatus(string message)
@@ -214,63 +299,114 @@ namespace LightSouls.Combat.UI
             dim.gameObject.AddComponent<Button>().onClick.AddListener(Close);
 
             Image panel = CreateImage("Panel", canvasGo.transform, PanelColor);
-            panel.rectTransform.sizeDelta = new Vector2(860f, 700f);
+            panel.rectTransform.sizeDelta = new Vector2(1640f, 900f);
 
-            Text title = CreateText("Title", panel.transform, "HÒM KHO BÁU", 40, GoldColor, TextAnchor.MiddleCenter);
+            Text title = CreateText("Title", panel.transform, "HÒM KHO BÁU", 42, GoldColor, TextAnchor.MiddleCenter);
             title.fontStyle = FontStyle.Bold;
-            Place(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -60f), new Vector2(-120f, 80f));
+            Place(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -55f), new Vector2(-240f, 80f));
 
             Button closeButton = CreateButton("CloseButton", panel.transform, "X", new Color(0.75f, 0.2f, 0.2f), 36);
             Place((RectTransform)closeButton.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-60f, -60f), new Vector2(96f, 96f));
             closeButton.onClick.AddListener(Close);
 
-            var gridGo = new GameObject("SlotGrid", typeof(RectTransform), typeof(GridLayoutGroup));
-            gridGo.transform.SetParent(panel.transform, false);
-            var grid = gridGo.GetComponent<GridLayoutGroup>();
-            grid.cellSize = new Vector2(220f, 200f);
-            grid.spacing = new Vector2(24f, 24f);
-            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            grid.constraintCount = TreasureChest.Columns;
-            grid.childAlignment = TextAnchor.MiddleCenter;
-            Place((RectTransform)gridGo.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 20f), new Vector2(720f, 430f));
-
-            for (int i = 0; i < TreasureChest.SlotCount; i++)
+            // ---- Bên trái: túi đồ (thanh nhanh + balo)
+            RectTransform left = CreateSection(panel.transform, "InventorySection", "TÚI ĐỒ",
+                new Vector2(40f, 150f), new Vector2(900f, 640f));
+            Transform invGrid = CreateGrid(left, "InventoryGrid", InventoryColumns, new Vector2(140f, 110f), new Vector2(14f, 14f),
+                new Vector2(0f, -20f), new Vector2(InventoryColumns * 140f + 4 * 14f, 4 * 110f + 3 * 14f));
+            for (int i = 0; i < inventoryKeys.Count; i++)
             {
-                slotViews.Add(CreateSlot(gridGo.transform, i));
+                string key = inventoryKeys[i];
+                Color filled = i < PlayerInventory.HotbarSize ? HotbarSlotColor : SlotColor;
+                inventoryViews.Add(CreateSlot(invGrid, "Inv_" + key.Replace('/', '_'), filled, () => StoreSlot(key)));
             }
 
-            statusText = CreateText("Status", panel.transform, string.Empty, 26, new Color(1f, 0.95f, 0.75f), TextAnchor.MiddleLeft);
-            Place(statusText.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(-130f, 75f), new Vector2(-340f, 80f));
+            Text hotbarLabel = CreateText("HotbarLabel", left, "Hàng đầu: thanh nhanh", 20, new Color(0.75f, 0.8f, 0.9f), TextAnchor.MiddleLeft);
+            Place(hotbarLabel.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 26f), new Vector2(-40f, 36f));
 
-            takeAllButton = CreateButton("TakeAllButton", panel.transform, "Lấy hết", new Color(0.25f, 0.6f, 0.3f), 30);
-            Place((RectTransform)takeAllButton.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-150f, 75f), new Vector2(240f, 96f));
+            inventoryHint = CreateText("NoInventory", left, "Không có túi đồ để cất.", 26, new Color(1f, 0.6f, 0.5f), TextAnchor.MiddleCenter);
+            Stretch(inventoryHint.rectTransform);
+
+            // Mũi tên ở giữa gợi ý có thể chuyển qua lại.
+            Text arrows = CreateText("Arrows", panel.transform, "»«", 64, GoldColor, TextAnchor.MiddleCenter);
+            Place(arrows.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(1000f, 470f), new Vector2(120f, 120f));
+
+            // ---- Bên phải: các ô của hòm
+            RectTransform right = CreateSection(panel.transform, "ChestSection", "HÒM",
+                new Vector2(1070f, 150f), new Vector2(530f, 640f));
+            Transform chestGrid = CreateGrid(right, "ChestGrid", TreasureChest.Columns, new Vector2(140f, 140f), new Vector2(16f, 16f),
+                new Vector2(0f, 10f), new Vector2(TreasureChest.Columns * 140f + 2 * 16f, 2 * 140f + 16f));
+            for (int i = 0; i < TreasureChest.SlotCount; i++)
+            {
+                int captured = i;
+                chestViews.Add(CreateSlot(chestGrid, "Chest_" + i, SlotColor, () => TakeSlot(captured)));
+            }
+
+            takeAllButton = CreateButton("TakeAllButton", right, "Lấy hết", new Color(0.25f, 0.6f, 0.3f), 30);
+            Place((RectTransform)takeAllButton.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 70f), new Vector2(260f, 90f));
             takeAllButton.onClick.AddListener(TakeAll);
+
+            statusText = CreateText("Status", panel.transform, string.Empty, 26, new Color(1f, 0.95f, 0.75f), TextAnchor.MiddleCenter);
+            statusText.supportRichText = true;
+            Place(statusText.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 75f), new Vector2(-80f, 80f));
         }
 
-        private SlotView CreateSlot(Transform parent, int index)
+        private RectTransform CreateSection(Transform parent, string name, string label, Vector2 bottomLeft, Vector2 size)
         {
-            Image background = CreateImage("Slot_" + index, parent, SlotColor);
+            Image bg = CreateImage(name, parent, SectionColor);
+            RectTransform rt = bg.rectTransform;
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.zero;
+            rt.pivot = Vector2.zero;
+            rt.anchoredPosition = bottomLeft;
+            rt.sizeDelta = size;
+
+            Text header = CreateText("Header", rt, label, 32, GoldColor, TextAnchor.MiddleCenter);
+            header.fontStyle = FontStyle.Bold;
+            Place(header.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -36f), new Vector2(0f, 60f));
+            return rt;
+        }
+
+        private static Transform CreateGrid(Transform parent, string name, int columns, Vector2 cell, Vector2 spacing, Vector2 position, Vector2 size)
+        {
+            var gridGo = new GameObject(name, typeof(RectTransform), typeof(GridLayoutGroup));
+            gridGo.transform.SetParent(parent, false);
+            var grid = gridGo.GetComponent<GridLayoutGroup>();
+            grid.cellSize = cell;
+            grid.spacing = spacing;
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = columns;
+            grid.childAlignment = TextAnchor.MiddleCenter;
+            Place((RectTransform)gridGo.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), position, size);
+            return gridGo.transform;
+        }
+
+        private SlotView CreateSlot(Transform parent, string name, Color filledColor, UnityEngine.Events.UnityAction onClick)
+        {
+            Image background = CreateImage(name, parent, EmptySlotColor);
             var button = background.gameObject.AddComponent<Button>();
-            // Ô trống bị tắt Button nhưng vẫn phải thấy khung ô: không làm tối khi disabled.
-            ColorBlock colors = button.colors;
-            colors.disabledColor = Color.white;
-            button.colors = colors;
-            int captured = index;
-            button.onClick.AddListener(() => TakeSlot(captured));
+            button.onClick.AddListener(onClick);
 
             Image icon = CreateImage("Icon", background.transform, Color.white);
             icon.preserveAspect = true;
             icon.raycastTarget = false;
-            Place(icon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 18f), new Vector2(130f, 130f));
+            RectTransform iconRt = icon.rectTransform;
+            iconRt.anchorMin = new Vector2(0.12f, 0.12f);
+            iconRt.anchorMax = new Vector2(0.88f, 0.88f);
+            iconRt.offsetMin = Vector2.zero;
+            iconRt.offsetMax = Vector2.zero;
 
-            Text count = CreateText("Count", background.transform, string.Empty, 28, Color.white, TextAnchor.UpperRight);
+            Text count = CreateText("Count", background.transform, string.Empty, 24, Color.white, TextAnchor.LowerRight);
             count.fontStyle = FontStyle.Bold;
-            Place(count.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-50f, -26f), new Vector2(90f, 44f));
+            var shadow = count.gameObject.AddComponent<Outline>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.8f);
+            RectTransform countRt = count.rectTransform;
+            countRt.anchorMin = Vector2.zero;
+            countRt.anchorMax = Vector2.one;
+            countRt.offsetMin = new Vector2(6f, 4f);
+            countRt.offsetMax = new Vector2(-8f, -4f);
 
-            Text name = CreateText("Name", background.transform, string.Empty, 20, new Color(0.95f, 0.9f, 0.8f), TextAnchor.MiddleCenter);
-            Place(name.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 24f), new Vector2(-12f, 40f));
-
-            return new SlotView { Button = button, Background = background, Icon = icon, Count = count, Name = name };
+            return new SlotView { Background = background, Icon = icon, Count = count, FilledColor = filledColor };
         }
 
         private Image CreateImage(string name, Transform parent, Color color)

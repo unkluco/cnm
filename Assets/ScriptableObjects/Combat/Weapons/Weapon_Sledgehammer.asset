@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca5bee58beea4d31af7ec6c5613c970e, type: 3}
+  m_Name: Weapon_Sledgehammer
+  m_EditorClassIdentifier: LightSouls.Combat::LightSouls.Combat.Weapons.WeaponDataSO
+  itemId: weapon.sledgehammer
+  displayName: "B\xFAa T\u1EA1"
+  description: "N\u1EC7n xu\u1ED1ng \u0111\u1EA5t t\u1EA1o s\xF3ng ch\u1EA5n \u0111\u1ED9ng,
+    l\xE0m cho\xE1ng m\u1ECDi k\u1EBB \u0111\u1ECBch xung quanh trong 1 gi\xE2y."
+  icon: {fileID: 21300000, guid: fd650f5a1a1ed304799c7228da8bee1c, type: 3}
+  price: 280
+  maxStack: 1
+  rarity: 2
+  weaponType: 0
+  damage: 45
+  attackRate: 1.2
+  attackRange: 1.6
+  weaponPrefab: {fileID: 0}
+  weaponColor: {r: 0.4, g: 0.42, b: 0.48, a: 1}
+  swingArcAngle: 360
+  hitRadius: 2.4
+  knockbackForce: 6
+  projectilePrefab: {fileID: 0}
+  projectileSpeed: 18
+  projectileLifetime: 3
+  projectileCount: 1
+  spreadAngle: 25
+  inaccuracy: 0
+  autoFire: 0
+  pierceCount: 0
+  explosionRadius: 0
+  explosionDamagesOwner: 0
+  arcHeight: 2.5
+  strikeCount: 1
+  strikeInterval: 0.12
+  hitEffects:
+  - {fileID: 11400000, guid: 672de6aac0ca70144b93e9587ba67a5c, type: 2}
+  vfx:
+    slashColor: {r: 0.95, g: 0.85, b: 0.55, a: 0.9}
+    auraColor: {r: 0.75, g: 0.6, b: 1, a: 0.8}
+    auraRate: 14
+    hitColor: {r: 1, g: 0.95, b: 0.5, a: 1}
+    trailColor: {r: 1, g: 1, b: 1, a: 0}
+    muzzleColor: {r: 1, g: 1, b: 1, a: 0}
+    groundShockwave: 1

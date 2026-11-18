@@ -245,8 +245,12 @@ namespace LightSouls.Lobby
                 detailIcon.sprite = item.Icon;
                 detailIcon.enabled = item.Icon != null;
                 detailName.text = item.DisplayName;
-                detailPrice.text = $"Giá: {item.Price} xu";
-                detailDescription.text = item.Description;
+                detailName.color = ItemRarityStyle.GetColor(item.Rarity);
+                detailPrice.supportRichText = true;
+                detailPrice.text = $"Giá: {item.Price} xu   •   {ItemRarityStyle.ColoredName(item.Rarity)}";
+                string stats = item.GetStatsText();
+                detailDescription.text = string.IsNullOrEmpty(stats) ? item.Description : item.Description + "\n\n" + stats;
+                RarityFrame.Apply(detailIcon.rectTransform, item);
             }
 
             RefreshBuyButton();
@@ -421,6 +425,9 @@ namespace LightSouls.Lobby
             AnchorStretchX(detailPrice.rectTransform, 1f, -280f, 40f);
 
             detailDescription = CreateText("Description", body.transform, string.Empty, 22, new Color(0.85f, 0.87f, 0.92f), TextAnchor.UpperLeft);
+            detailDescription.resizeTextForBestFit = true;
+            detailDescription.resizeTextMinSize = 14;
+            detailDescription.resizeTextMaxSize = 22;
             var descRt = detailDescription.rectTransform;
             descRt.anchorMin = new Vector2(0f, 0f);
             descRt.anchorMax = new Vector2(1f, 1f);
@@ -466,6 +473,7 @@ namespace LightSouls.Lobby
             price.fontStyle = FontStyle.Bold;
             AnchorBox(price.rectTransform, new Vector2(0.04f, 0.02f), new Vector2(0.96f, 0.18f));
 
+            RarityFrame.Apply(background.rectTransform, item);
             return new CellView { Item = item, Background = background };
         }
 

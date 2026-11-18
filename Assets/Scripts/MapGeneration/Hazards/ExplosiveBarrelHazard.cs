@@ -164,8 +164,12 @@ namespace LightSouls.MapGeneration.Hazards
                     float distance = Vector3.Distance(explosionCenter, col.bounds.center);
                     float damageMultiplier = Mathf.Clamp01(1f - (distance / explosionRadius));
                     float finalDamage = Mathf.Max(5f, explosionDamage * damageMultiplier);
+                    finalDamage *= HazardResistance.GetMultiplier(col, HazardKind.Explosion);
 
-                    damageable.TakeDamage(new DamageInfo(finalDamage, gameObject, col.bounds.center));
+                    if (finalDamage > 0f)
+                    {
+                        damageable.TakeDamage(new DamageInfo(finalDamage, gameObject, col.bounds.center));
+                    }
                 }
 
                 // 2. Tác động lực đẩy knockback lên Rigidbody

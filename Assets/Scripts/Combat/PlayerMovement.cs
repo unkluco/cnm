@@ -85,8 +85,22 @@ namespace LightSouls.Combat
         public bool IsMoving => _inputVector.sqrMagnitude > 0.01f;
         public bool IsDashing => _isDashing;
         public Vector3 FacingDirection => transform.forward;
-        public float DashCooldownRemaining => Mathf.Max(0f, (_lastDashTime + dashCooldown) - Time.time);
-        public float DashCooldownRatio => Mathf.Clamp01(DashCooldownRemaining / dashCooldown);
+        public float DashCooldownRemaining => Mathf.Max(0f, (_lastDashTime + EffectiveDashCooldown) - Time.time);
+        public float DashCooldownRatio => Mathf.Clamp01(DashCooldownRemaining / Mathf.Max(0.01f, EffectiveDashCooldown));
+
+        /// <summary>Thời gian hồi lướt sau hệ số trang bị (Áo Choàng Bóng Đêm...).</summary>
+        public float EffectiveDashCooldown => dashCooldown * StatOr1(LightSouls.Combat.Stats.StatType.DashCooldown);
+
+        /// <summary>Tốc độ lướt sau hệ số trang bị (Giày Lò Xo lướt xa hơn trong cùng thời gian).</summary>
+        public float EffectiveDashSpeed => dashSpeed * StatOr1(LightSouls.Combat.Stats.StatType.DashDistance);
+
+        private LightSouls.Combat.Stats.PlayerStats _stats;
+
+        private float StatOr1(LightSouls.Combat.Stats.StatType stat)
+        {
+            if (_stats == null) _stats = GetComponent<LightSouls.Combat.Stats.PlayerStats>();
+            return _stats != null ? _stats.Get(stat) : 1f;
+        }
 
         public event Action OnDashExecuted;
 
@@ -149,7 +163,7 @@ namespace LightSouls.Combat
             if (_isDashing)
             {
                 // Khi đang dash: di chuyển tốc độ cao theo hướng dash
-                _controller.Move(_dashDirection * (dashSpeed * Time.deltaTime));
+                _controller.Move(_dashDirection * (EffectiveDashSpeed * Time.deltaTime));
             }
             else
             {
@@ -174,7 +188,7 @@ namespace LightSouls.Combat
         public void PerformDash()
         {
             if (_isDashing || !_isInputActive) return;
-            if (Time.time < _lastDashTime + dashCooldown) return;
+            if (Time.time < _lastDashTime + EffectiveDashCooldown) return;
 
             _lastDashTime = Time.time;
 

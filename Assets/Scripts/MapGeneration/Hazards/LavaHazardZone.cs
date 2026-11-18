@@ -65,7 +65,12 @@ namespace LightSouls.MapGeneration.Hazards
                 if (currentTime >= record.NextTickTime)
                 {
                     Vector3 hitPoint = record.Collider.bounds.center;
-                    damageable.TakeDamage(new DamageInfo(damagePerTick, gameObject, hitPoint));
+                    // Kháng dung nham (Giáp Chịu Nhiệt) giảm hoặc miễn sát thương.
+                    float lavaDamage = damagePerTick * HazardResistance.GetMultiplier(record.Collider, HazardKind.Lava);
+                    if (lavaDamage > 0f)
+                    {
+                        damageable.TakeDamage(new DamageInfo(lavaDamage, gameObject, hitPoint));
+                    }
                     record.NextTickTime = currentTime + tickInterval;
 
                     if (damageable.IsDead)
@@ -93,7 +98,11 @@ namespace LightSouls.MapGeneration.Hazards
             {
                 // Gây sát thương ngay tick đầu tiên khi bước vào
                 Vector3 hitPoint = other.bounds.center;
-                damageable.TakeDamage(new DamageInfo(damagePerTick, gameObject, hitPoint));
+                float lavaDamage = damagePerTick * HazardResistance.GetMultiplier(other, HazardKind.Lava);
+                if (lavaDamage > 0f)
+                {
+                    damageable.TakeDamage(new DamageInfo(lavaDamage, gameObject, hitPoint));
+                }
 
                 activeVictims[damageable] = new VictimRecord
                 {

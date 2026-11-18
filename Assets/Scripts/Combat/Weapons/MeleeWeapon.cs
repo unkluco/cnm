@@ -20,6 +20,7 @@ namespace LightSouls.Combat.Weapons
 
         private Quaternion _defaultLocalRot = Quaternion.identity;
         private Coroutine _swingCoroutine;
+        private ParticleSystem _aura;
 
         public override void OnEquipped()
         {
@@ -36,6 +37,14 @@ namespace LightSouls.Combat.Weapons
                 slashTrail.time = 0.5f; // Vệt kéo dài 0.5 giây theo yêu cầu
                 slashTrail.emitting = false;
             }
+
+            _aura = WeaponAura.Attach(this, weaponData, _aura);
+        }
+
+        public override void OnUnequipped()
+        {
+            base.OnUnequipped();
+            WeaponAura.Detach(ref _aura);
         }
 
         public override bool ExecuteAttack(Transform attackOrigin, Vector3 aimDirection, LayerMask targetLayer, GameObject attacker)
@@ -43,68 +52,89 @@ namespace LightSouls.Combat.Weapons
             if (!CanAttack || weaponData == null) return false;
 
             lastAttackTime = Time.time;
+            Vector3 direction = aimDirection.sqrMagnitude > 0.0001f ? aimDirection.normalized : attackOrigin.forward;
 
-            // 1. Kích hoạt vệt kiếm trắng (Slash Wave & Trail)
-            SpawnSlashWave(attackOrigin, aimDirection);
+            // Nhát đầu đánh ngay; các nhát sau (Song Dao...) đánh tiếp theo nhịp strikeInterval.
+            PerformStrike(attackOrigin, direction, targetLayer, attacker, 0);
+            if (weaponData.StrikeCount > 1)
+            {
+                StartCoroutine(ExtraStrikesRoutine(attackOrigin, direction, targetLayer, attacker));
+            }
 
-            // 2. Diễn hoạt nhát chém vung kiếm
+            return true;
+        }
+
+        private IEnumerator ExtraStrikesRoutine(Transform attackOrigin, Vector3 direction, LayerMask targetLayer, GameObject attacker)
+        {
+            for (int i = 1; i < weaponData.StrikeCount; i++)
+            {
+                yield return new WaitForSeconds(weaponData.StrikeInterval);
+                if (attackOrigin == null || weaponData == null) yield break;
+                PerformStrike(attackOrigin, direction, targetLayer, attacker, i);
+            }
+        }
+
+        private void PerformStrike(Transform attackOrigin, Vector3 aimDirection, LayerMask targetLayer, GameObject attacker, int strikeIndex)
+        {
+            // 1. Vệt chém (nhát lẻ lật ngược để hai nhát liên tiếp nhìn như chém chéo).
+            SpawnSlashWave(attackOrigin, aimDirection, strikeIndex % 2 == 1);
+
+            // 2. Diễn hoạt vung vũ khí
             if (_swingCoroutine != null) StopCoroutine(_swingCoroutine);
             _swingCoroutine = StartCoroutine(SwingRoutine());
 
             // 3. Quét sát thương hình quạt phía trước
-            Vector3 center = attackOrigin.position + aimDirection.normalized * (weaponData.AttackRange * 0.5f);
+            Vector3 center = attackOrigin.position + aimDirection * (weaponData.AttackRange * 0.5f);
             float radius = weaponData.HitRadius + (weaponData.AttackRange * 0.5f);
+
+            WeaponVfxProfile vfx = weaponData.Vfx;
+            if (vfx.groundShockwave)
+            {
+                Vector3 ground = new Vector3(center.x, attacker != null ? attacker.transform.position.y : center.y, center.z);
+                Color ringColor = vfx.slashColor.a > 0f ? vfx.slashColor : Color.white;
+                VfxFactory.Ring(ground, ringColor, radius, 0.35f, 56);
+                VfxFactory.Burst(ground + Vector3.up * 0.2f, new Color(0.55f, 0.48f, 0.4f, 0.9f), 14, 3f, 0.3f, 0.5f, 1f);
+            }
 
             Collider[] hits = Physics.OverlapSphere(center, radius, targetLayer);
             HashSet<IDamageable> damagedEntities = new HashSet<IDamageable>();
 
             foreach (var col in hits)
             {
-                if (col.gameObject == attacker) continue;
+                if (attacker != null && col.transform.root == attacker.transform.root) continue;
 
                 Vector3 dirToTarget = (col.bounds.center - attackOrigin.position);
                 dirToTarget.y = 0;
 
                 // Kiểm tra góc quét nhát chém (Swing Arc)
-                float angle = Vector3.Angle(aimDirection, dirToTarget.normalized);
-                if (angle <= weaponData.SwingArcAngle * 0.5f)
+                float angle = dirToTarget.sqrMagnitude < 0.01f ? 0f : Vector3.Angle(aimDirection, dirToTarget.normalized);
+                if (angle > weaponData.SwingArcAngle * 0.5f) continue;
+
+                IDamageable damageable = WeaponHitResolver.FindDamageable(col);
+                if (damageable == null || damageable.IsDead || !damagedEntities.Add(damageable)) continue;
+
+                WeaponHitResolver.Apply(weaponData, weaponData.Damage, attacker, damageable, col.ClosestPoint(attackOrigin.position));
+
+                // Đẩy lùi đối thủ nếu có Rigidbody
+                Rigidbody rb = col.attachedRigidbody;
+                if (rb != null && !rb.isKinematic)
                 {
-                    IDamageable damageable = col.GetComponent<IDamageable>();
-                    if (damageable == null)
-                    {
-                        damageable = col.GetComponentInParent<IDamageable>();
-                    }
-
-                    if (damageable != null && !damageable.IsDead && !damagedEntities.Contains(damageable))
-                    {
-                        damagedEntities.Add(damageable);
-
-                        DamageInfo info = new DamageInfo
-                        {
-                            Amount = weaponData.Damage,
-                            Source = attacker,
-                            HitPoint = col.ClosestPoint(attackOrigin.position)
-                        };
-
-                        damageable.TakeDamage(info);
-
-                        // Đẩy lùi đối thủ nếu có Rigidbody
-                        Rigidbody rb = col.attachedRigidbody;
-                        if (rb != null && !rb.isKinematic)
-                        {
-                            rb.AddForce(aimDirection.normalized * weaponData.KnockbackForce, ForceMode.Impulse);
-                        }
-                    }
+                    rb.AddForce(aimDirection * weaponData.KnockbackForce, ForceMode.Impulse);
                 }
             }
-
-            return true;
         }
 
-        private void SpawnSlashWave(Transform attackOrigin, Vector3 aimDirection)
+        private void SpawnSlashWave(Transform attackOrigin, Vector3 aimDirection, bool mirrored)
         {
             Vector3 spawnPos = attackOrigin.position + aimDirection.normalized * 0.9f + Vector3.up * 0.1f;
             Quaternion spawnRot = Quaternion.LookRotation(aimDirection, Vector3.up);
+            if (mirrored)
+            {
+                // Nhát thứ hai lệch góc một chút để nhìn rõ là hai nhát riêng.
+                spawnRot *= Quaternion.Euler(0f, 18f, 0f);
+            }
+
+            Color slashColor = weaponData != null ? weaponData.Vfx.slashColor : new Color(1f, 1f, 1f, 0.9f);
 
             if (slashWavePrefab != null)
             {
@@ -118,13 +148,15 @@ namespace LightSouls.Combat.Weapons
                 waveObj.transform.rotation = spawnRot;
 
                 MeshFilter mf = waveObj.AddComponent<MeshFilter>();
-                mf.sharedMesh = SwordSlashWave.CreateSlashArcMesh(0.7f, 1.8f, 110f, 20);
+                float arc = weaponData != null ? Mathf.Clamp(weaponData.SwingArcAngle, 60f, 300f) : 110f;
+                float outer = weaponData != null ? Mathf.Max(1.4f, weaponData.AttackRange * 0.9f) : 1.8f;
+                mf.sharedMesh = SwordSlashWave.CreateSlashArcMesh(outer * 0.4f, outer, arc, 24);
 
                 MeshRenderer mr = waveObj.AddComponent<MeshRenderer>();
                 Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
                 if (shader == null) shader = Shader.Find("Sprites/Default");
                 Material waveMat = new Material(shader);
-                waveMat.color = new Color(1f, 1f, 1f, 0.9f);
+                waveMat.color = slashColor;
                 mr.material = waveMat;
 
                 waveObj.AddComponent<SwordSlashWave>();
