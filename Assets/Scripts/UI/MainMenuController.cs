@@ -22,7 +22,7 @@ namespace LightSouls.UI
                 settingsScreen = FindAnyObjectByType<SettingsScreen>(FindObjectsInactive.Include);
             }
 
-            playButton.onClick.AddListener(SceneLoader.LoadGame);
+            playButton.onClick.AddListener(SceneLoader.StartNewRun);
             quitButton.onClick.AddListener(SceneLoader.QuitGame);
             settingsButton.onClick.AddListener(OpenSettings);
             settingsButton.gameObject.SetActive(settingsScreen != null);

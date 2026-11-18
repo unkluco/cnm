@@ -23,6 +23,12 @@ namespace LightSouls.Combat
         private PlayerInventory _inventory;
         private PlayerInteraction _interaction;
 
+        // Điều khiển chỉ bật khi được yêu cầu bật (SetInputActive) VÀ không có bảng giao diện nào đang mở
+        // trên BackButtonStack (cửa hàng, chọn ngục, balo...). Nhờ vậy các bảng ở assembly khác (Lobby)
+        // khóa được di chuyển mà không cần tham chiếu tới PlayerController.
+        private bool _inputRequested = true;
+        private bool _lockedByPanel;
+
         // Dữ liệu cho HUD của Kiệt và các hệ thống khác
         public float CurrentHealth => _health != null ? _health.CurrentHealth : 100f;
         public float MaxHealth => _health != null ? _health.MaxHealth : 100f;
@@ -85,6 +91,23 @@ namespace LightSouls.Combat
         /// </summary>
         public void SetInputActive(bool active)
         {
+            _inputRequested = active;
+            ApplyInputState();
+        }
+
+        private void Update()
+        {
+            bool locked = BackButtonStack.HasOpenPanel;
+            if (locked != _lockedByPanel)
+            {
+                _lockedByPanel = locked;
+                ApplyInputState();
+            }
+        }
+
+        private void ApplyInputState()
+        {
+            bool active = _inputRequested && !_lockedByPanel && !IsDead;
             if (_movement != null) _movement.SetInputActive(active);
             if (_combat != null) _combat.SetInputActive(active);
             if (_interaction != null) _interaction.SetInputActive(active);

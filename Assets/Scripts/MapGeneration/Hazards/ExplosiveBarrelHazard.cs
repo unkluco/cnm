@@ -207,7 +207,11 @@ namespace LightSouls.MapGeneration.Hazards
                 myCol.enabled = false;
             }
 
-            Destroy(gameObject, 0.8f);
+            // Destroy không được gọi ngoài Play Mode (test EditMode, công cụ Editor); khi đó để người gọi tự dọn.
+            if (Application.isPlaying)
+            {
+                Destroy(gameObject, 0.8f);
+            }
         }
 
         private void OnDrawGizmosSelected()

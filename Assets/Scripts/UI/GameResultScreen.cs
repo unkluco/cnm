@@ -26,8 +26,8 @@ namespace LightSouls.UI
         {
             defeatPanel.SetActive(false);
             victoryPanel.SetActive(false);
-            defeatRetryButton.onClick.AddListener(SceneLoader.LoadGame);
-            victoryRetryButton.onClick.AddListener(SceneLoader.LoadGame);
+            defeatRetryButton.onClick.AddListener(SceneLoader.StartNewRun);
+            victoryRetryButton.onClick.AddListener(SceneLoader.StartNewRun);
             defeatMainMenuButton.onClick.AddListener(SceneLoader.LoadMainMenu);
             victoryMainMenuButton.onClick.AddListener(SceneLoader.LoadMainMenu);
         }

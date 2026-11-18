@@ -14,6 +14,16 @@ namespace LightSouls.UI
 
         public static void LoadGame() => Load(SceneNames.Game);
 
+        /// <summary>
+        /// Bắt đầu lượt chơi mới từ đầu: xóa xu, túi đồ và ngục đã chọn trong RunState rồi vào Scene Game.
+        /// Dùng cho nút Chơi ở menu chính và nút Chơi lại ở màn kết quả.
+        /// </summary>
+        public static void StartNewRun()
+        {
+            RunState.Reset();
+            LoadGame();
+        }
+
         public static void QuitGame()
         {
             Time.timeScale = 1f;

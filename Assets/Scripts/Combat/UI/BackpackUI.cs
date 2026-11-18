@@ -102,11 +102,17 @@ namespace LightSouls.Combat.UI
 
             if (inventory != null)
             {
+                // Gỡ trước khi gắn: SetPlayer có thể đã chạy trước Start.
+                inventory.Changed -= Refresh;
                 inventory.Changed += Refresh;
             }
 
-            // Mặc định ẩn lúc bắt đầu
-            gameObject.SetActive(false);
+            // Mặc định ẩn lúc bắt đầu, trừ khi đã được Open() trước khi Start chạy
+            // (bảng được đặt ẩn sẵn trong Scene thì Start chỉ chạy ở lần mở đầu tiên).
+            if (!_isOpen)
+            {
+                gameObject.SetActive(false);
+            }
         }
 
         private void OnDestroy()
