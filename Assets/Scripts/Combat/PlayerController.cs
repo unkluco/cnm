@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using LightSouls.Common;
 using LightSouls.Combat.Weapons;
+using LightSouls.Combat.Inventory;
 
 namespace LightSouls.Combat
 {
@@ -19,8 +20,10 @@ namespace LightSouls.Combat
         private PlayerMovement _movement;
         private PlayerCombat _combat;
         private HealthComponent _health;
+        private PlayerInventory _inventory;
+        private PlayerInteraction _interaction;
 
-        // Dữ liệu cho HUD của Kiệt
+        // Dữ liệu cho HUD của Kiệt và các hệ thống khác
         public float CurrentHealth => _health != null ? _health.CurrentHealth : 100f;
         public float MaxHealth => _health != null ? _health.MaxHealth : 100f;
         public bool IsDead => _health != null && _health.IsDead;
@@ -28,6 +31,9 @@ namespace LightSouls.Combat
         public WeaponDataSO NextWeapon => _combat != null ? _combat.NextWeaponData : null;
         public PlayerMovement Movement => _movement;
         public PlayerCombat Combat => _combat;
+        public PlayerInventory Inventory => _inventory;
+        public PlayerInteraction Interaction => _interaction;
+        public float DamageReduction => _inventory != null ? _inventory.CurrentDamageReduction : 0f;
 
         public event Action<float, float> OnHealthChanged
         {
@@ -52,6 +58,8 @@ namespace LightSouls.Combat
             _movement = GetComponent<PlayerMovement>();
             _combat = GetComponent<PlayerCombat>();
             _health = GetComponent<HealthComponent>();
+            _inventory = GetComponent<PlayerInventory>();
+            _interaction = GetComponent<PlayerInteraction>();
 
             // Đảm bảo đúng Tag và Layer theo hợp đồng với Đạt và Kiệt
             gameObject.tag = "Player";
@@ -73,12 +81,13 @@ namespace LightSouls.Combat
 
         /// <summary>
         /// Hàm công khai bật/tắt toàn bộ điều khiển của người chơi.
-        /// GameBootstrap gọi hàm này khi mở hoặc đóng menu tạm dừng (Pause).
+        /// GameBootstrap gọi hàm này khi mở hoặc đóng menu tạm dừng (Pause), balo, v.v.
         /// </summary>
         public void SetInputActive(bool active)
         {
             if (_movement != null) _movement.SetInputActive(active);
             if (_combat != null) _combat.SetInputActive(active);
+            if (_interaction != null) _interaction.SetInputActive(active);
         }
 
         private void HandlePlayerDied(IDamageable damageable)

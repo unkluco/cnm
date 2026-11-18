@@ -15,7 +15,7 @@ namespace LightSouls.Combat.Enemies
     [RequireComponent(typeof(NavMeshAgent))]
     [RequireComponent(typeof(CapsuleCollider))]
     [RequireComponent(typeof(HealthComponent))]
-    public abstract class EnemyBase : MonoBehaviour, IDamageable
+    public abstract class EnemyBase : MonoBehaviour, IDamageable, ISpeedModifiable
     {
         [Header("Thông số cơ bản")]
         [SerializeField] protected string enemyName = "Quái Vật";
@@ -64,6 +64,33 @@ namespace LightSouls.Combat.Enemies
         {
             add { if (_health != null) _health.Died += value; }
             remove { if (_health != null) _health.Died -= value; }
+        }
+
+        protected readonly System.Collections.Generic.Dictionary<object, float> _speedMultipliers = new System.Collections.Generic.Dictionary<object, float>();
+
+        public void SetSpeedMultiplier(object source, float multiplier)
+        {
+            if (source == null) return;
+            _speedMultipliers[source] = Mathf.Max(0f, multiplier);
+            UpdateEffectiveSpeed();
+        }
+
+        public void RemoveSpeedMultiplier(object source)
+        {
+            if (source == null) return;
+            _speedMultipliers.Remove(source);
+            UpdateEffectiveSpeed();
+        }
+
+        protected void UpdateEffectiveSpeed()
+        {
+            if (_agent == null) return;
+            float total = 1f;
+            foreach (var kvp in _speedMultipliers)
+            {
+                total *= kvp.Value;
+            }
+            _agent.speed = moveSpeed * Mathf.Max(0f, total);
         }
 
         public void TakeDamage(DamageInfo info)

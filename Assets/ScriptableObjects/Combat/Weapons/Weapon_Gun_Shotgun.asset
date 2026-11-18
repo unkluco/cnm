@@ -12,21 +12,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ca5bee58beea4d31af7ec6c5613c970e, type: 3}
   m_Name: Weapon_Gun_Shotgun
   m_EditorClassIdentifier: LightSouls.Combat.Weapons::WeaponDataSO
-  weaponId: gun_shotgun
-  weaponName: "S\xFAng T\xE1n X\u1EA1 (Shotgun)"
-  description: "B\u1EAFn ra ch\xF9m 5 vi\xEAn \u0111\u1EA1n t\u1ECFa h\xECnh qu\u1EA1t,
-    s\xE1t th\u01B0\u01A1ng c\u1EF1c cao \u1EDF c\u1EF1 ly g\u1EA7n."
+  itemId: weapon.shotgun
+  displayName: "S\xFAng S\u0103n"
+  description: "Kh\u1EA9u s\xFAng s\u0103n b\u1EAFn ra nhi\u1EC1u tia \u0111\u1EA1n
+    c\xF9ng l\xFAc, c\u1EF1c m\u1EA1nh \u1EDF c\u1EF1 ly g\u1EA7n."
+  icon: {fileID: 21300000, guid: add22eeb21d0c494c9c6e44fd428df49, type: 3}
+  price: 250
+  maxStack: 1
   weaponType: 1
-  damage: 16
-  attackRate: 0.65
-  attackRange: 11
+  damage: 12
+  attackRate: 0.7
+  attackRange: 8
   weaponPrefab: {fileID: 0}
   weaponColor: {r: 1, g: 0.65, b: 0.1, a: 1}
-  swingArcAngle: 90
-  hitRadius: 1.5
-  knockbackForce: 4
+  swingArcAngle: 0
+  hitRadius: 0
+  knockbackForce: 0
   projectilePrefab: {fileID: 6081238883670587671, guid: 1da134f1b388c433b974c52a1c410881, type: 3}
-  projectileSpeed: 18
-  projectileLifetime: 1.8
+  projectileSpeed: 16
+  projectileLifetime: 2.5
   projectileCount: 5
-  spreadAngle: 32
+  spreadAngle: 25

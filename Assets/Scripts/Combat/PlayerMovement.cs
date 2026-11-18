@@ -13,12 +13,41 @@ namespace LightSouls.Combat
     /// và diễn hoạt mượt mà các chi (chân, tay, thân người nghiêng nhấp nhô về trước-sau khi chạy).
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
-    public class PlayerMovement : MonoBehaviour
+    public class PlayerMovement : MonoBehaviour, ISpeedModifiable
     {
         [Header("Thông số di chuyển")]
         [SerializeField] private float moveSpeed = 5.5f;
         [SerializeField] private float rotationSpeed = 14f;
         [SerializeField] private float gravity = 20f;
+
+        private readonly System.Collections.Generic.Dictionary<object, float> _speedMultipliers = new System.Collections.Generic.Dictionary<object, float>();
+
+        public void SetSpeedMultiplier(object source, float multiplier)
+        {
+            if (source == null) return;
+            _speedMultipliers[source] = Mathf.Max(0f, multiplier);
+        }
+
+        public void RemoveSpeedMultiplier(object source)
+        {
+            if (source == null) return;
+            _speedMultipliers.Remove(source);
+        }
+
+        public float CurrentSpeedMultiplier
+        {
+            get
+            {
+                float total = 1f;
+                foreach (var kvp in _speedMultipliers)
+                {
+                    total *= kvp.Value;
+                }
+                return Mathf.Max(0f, total);
+            }
+        }
+
+        public float EffectiveMoveSpeed => moveSpeed * CurrentSpeedMultiplier;
 
         [Header("Kỹ năng Lướt (Dash Skill)")]
         [SerializeField] private float dashSpeed = 18f;
@@ -276,7 +305,7 @@ namespace LightSouls.Combat
         {
             // Chuyển đổi input 2D sang không gian 3D thế giới (X và Z)
             Vector3 moveDirection = new Vector3(_inputVector.x, 0f, _inputVector.y);
-            Vector3 motion = moveDirection * (moveSpeed * Time.deltaTime);
+            Vector3 motion = moveDirection * (EffectiveMoveSpeed * Time.deltaTime);
 
             // Xử lý trọng lực để chân luôn chạm sàn Y=0
             if (_controller.isGrounded)

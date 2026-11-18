@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2636518a6eaa3451e8adc38b1a365a1a, type: 3}
+  m_Name: LootTable
+  m_EditorClassIdentifier: LightSouls.Combat::LightSouls.Combat.Items.LootTableSO
+  dropEntries:
+  - Item: {fileID: 11400000, guid: cd8f66707622b48cc83209b340d84939, type: 2}
+    MinCount: 1
+    MaxCount: 3
+    Weight: 35
+  - Item: {fileID: 11400000, guid: 9c7a55a8b93a400bb24390d46b13257f, type: 2}
+    MinCount: 1
+    MaxCount: 1
+    Weight: 15
+  - Item: {fileID: 11400000, guid: 56a300afd664746db94aa5907ca19cd7, type: 2}
+    MinCount: 1
+    MaxCount: 1
+    Weight: 12
+  - Item: {fileID: 11400000, guid: 77f876d0c1ac84b9f99c5f5054a89e75, type: 2}
+    MinCount: 1
+    MaxCount: 1
+    Weight: 12
+  - Item: {fileID: 11400000, guid: e5a26e3556e842bf91aba7498c6a5e3a, type: 2}
+    MinCount: 1
+    MaxCount: 1
+    Weight: 10
+  - Item: {fileID: 11400000, guid: 7dc5c08a8b7c4eafa075cc46b734cf1c, type: 2}
+    MinCount: 1
+    MaxCount: 1
+    Weight: 8
+  - Item: {fileID: 11400000, guid: fb65649154534be4a3bb9f6a29b1139c, type: 2}
+    MinCount: 1
+    MaxCount: 1
+    Weight: 6
+  - Item: {fileID: 11400000, guid: 046fbc8756c374ef6a3fb6ec264dc11d, type: 2}
+    MinCount: 1
+    MaxCount: 1
+    Weight: 10
+  - Item: {fileID: 11400000, guid: a262e4a36ede04ed1b0ae32d1920bd1c, type: 2}
+    MinCount: 1
+    MaxCount: 1
+    Weight: 10

@@ -13,6 +13,7 @@ namespace LightSouls.Combat
         [Header("Chỉ số máu")]
         [SerializeField] private float maxHealth = 100f;
         [SerializeField] private float currentHealth = 100f;
+        [SerializeField] private float damageReduction = 0f;
 
         [Header("Hiệu ứng phản hồi")]
         [SerializeField] private bool invincibleAfterHit = false;
@@ -24,6 +25,11 @@ namespace LightSouls.Combat
         public bool IsDead => _isDead;
         public float CurrentHealth => currentHealth;
         public float MaxHealth => maxHealth;
+        public float DamageReduction
+        {
+            get => damageReduction;
+            set => damageReduction = Mathf.Clamp(value, 0f, 0.95f);
+        }
 
         /// <summary>Phát sự kiện khi máu thay đổi (current, max).</summary>
         public event Action<float, float> OnHealthChanged;
@@ -51,7 +57,8 @@ namespace LightSouls.Combat
             }
 
             _lastHitTime = Time.time;
-            currentHealth = Mathf.Max(0f, currentHealth - info.Amount);
+            float effectiveAmount = info.Amount * (1f - damageReduction);
+            currentHealth = Mathf.Max(0f, currentHealth - effectiveAmount);
             OnHealthChanged?.Invoke(currentHealth, maxHealth);
 
             if (currentHealth <= 0f && !_isDead)

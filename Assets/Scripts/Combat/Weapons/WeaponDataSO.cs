@@ -1,15 +1,14 @@
 using UnityEngine;
+using LightSouls.Common;
 
 namespace LightSouls.Combat.Weapons
 {
     [CreateAssetMenu(fileName = "WeaponData_", menuName = "LightSouls/Combat/Weapon Data")]
-    public class WeaponDataSO : ScriptableObject
+    public class WeaponDataSO : ItemDefinitionSO
     {
-        [Header("Thông tin cơ bản")]
-        [SerializeField] private string weaponId = "weapon_default";
-        [SerializeField] private string weaponName = "Vũ Khí Mặc Định";
-        [TextArea(2, 4)]
-        [SerializeField] private string description = "Mô tả vũ khí";
+        public override ItemCategory Category => ItemCategory.Weapon;
+
+        [Header("Loại vũ khí")]
         [SerializeField] private WeaponType weaponType = WeaponType.Melee;
 
         [Header("Chỉ số chiến đấu chung")]
@@ -49,10 +48,9 @@ namespace LightSouls.Combat.Weapons
         [Range(0f, 90f)]
         [SerializeField] private float spreadAngle = 25f;
 
-        // Public Getters
-        public string WeaponId => weaponId;
-        public string WeaponName => weaponName;
-        public string Description => description;
+        // Tương thích ngược với code cũ
+        public string WeaponId => ItemId;
+        public string WeaponName => DisplayName;
         public WeaponType Type => weaponType;
         public float Damage => damage;
         public float AttackRate => attackRate;

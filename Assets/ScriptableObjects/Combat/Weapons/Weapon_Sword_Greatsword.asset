@@ -12,20 +12,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ca5bee58beea4d31af7ec6c5613c970e, type: 3}
   m_Name: Weapon_Sword_Greatsword
   m_EditorClassIdentifier: LightSouls.Combat.Weapons::WeaponDataSO
-  weaponId: sword_greatsword
-  weaponName: "\u0110\u1EA1i Ki\u1EBFm C\u1EF1 L\u1EF1c"
-  description: "\u0110\u1EA1i ki\u1EBFm hai tay n\u1EB7ng n\u1EC1, vung ch\u1EADm nh\u01B0ng s\u00E1t th\u01B0\u01A1ng v\u00E0 l\u1EF1c \u0111\u1EA9y c\u1EF1c l\u1EDBn."
+  itemId: weapon.greatsword
+  displayName: "\u0110\u1EA1i Ki\u1EBFm"
+  description: "Thanh \u0111\u1EA1i ki\u1EBFm uy l\u1EF1c kh\u1ED5ng l\u1ED3, s\xE1t
+    th\u01B0\u01A1ng kh\u1EE7ng khi\u1EBFp nh\u01B0ng vung ch\u1EADm."
+  icon: {fileID: 21300000, guid: 0f754a448dfcb4f639d29641ca5c9673, type: 3}
+  price: 200
+  maxStack: 1
   weaponType: 0
-  damage: 65
-  attackRate: 0.85
-  attackRange: 3
+  damage: 50
+  attackRate: 0.8
+  attackRange: 2.8
   weaponPrefab: {fileID: 0}
   weaponColor: {r: 0.95, g: 0.25, b: 0.2, a: 1}
-  swingArcAngle: 150
-  hitRadius: 2.2
-  knockbackForce: 8
+  swingArcAngle: 120
+  hitRadius: 2
+  knockbackForce: 6
   projectilePrefab: {fileID: 0}
   projectileSpeed: 18
   projectileLifetime: 3
   projectileCount: 1
-  spreadAngle: 25
+  spreadAngle: 0

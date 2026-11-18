@@ -4,16 +4,18 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using LightSouls.Common;
 using LightSouls.Combat.Weapons;
+using LightSouls.Combat.Inventory;
+using LightSouls.Combat.Items;
 
 namespace LightSouls.Combat
 {
     /// <summary>
-    /// Quản lý chiến đấu của Player: trang bị, đổi vũ khí một nút bấm,
+    /// Quản lý chiến đấu của Player: trang bị từ túi đồ / thanh nhanh,
     /// tấn công có hỗ trợ Auto-target quái gần nhất và phản hồi xúc giác.
     /// </summary>
     public class PlayerCombat : MonoBehaviour
     {
-        [Header("Kho vũ khí trang bị")]
+        [Header("Kho vũ khí trang bị (Fallback)")]
         [SerializeField] private List<WeaponDataSO> weaponInventory = new List<WeaponDataSO>();
         [SerializeField] private int currentWeaponIndex = 0;
 
@@ -35,23 +37,16 @@ namespace LightSouls.Combat
         private WeaponBase _activeWeapon;
         private GameObject _activeWeaponInstance;
         private PlayerMovement _movement;
+        private PlayerInventory _inventory;
         private bool _isInputActive = true;
 
         public WeaponDataSO CurrentWeaponData => (_activeWeapon != null) ? _activeWeapon.Data : null;
         public IReadOnlyList<WeaponDataSO> Inventory => weaponInventory;
 
         /// <summary>
-        /// Trả về thông tin vũ khí tiếp theo trong danh sách nếu đổi vũ khí (để cập nhật Icon nút bấm).
+        /// Trả về thông tin vũ khí tiếp theo trong danh sách nếu đổi vũ khí (để tương thích ngược).
         /// </summary>
-        public WeaponDataSO NextWeaponData
-        {
-            get
-            {
-                if (weaponInventory == null || weaponInventory.Count <= 1) return null;
-                int nextIndex = (currentWeaponIndex + 1) % weaponInventory.Count;
-                return weaponInventory[nextIndex];
-            }
-        }
+        public WeaponDataSO NextWeaponData => null;
 
         /// <summary>Phát sự kiện khi đổi vũ khí mới (dùng cập nhật UI HUD/Nút bấm).</summary>
         public event Action<WeaponDataSO> OnWeaponChanged;
@@ -62,6 +57,7 @@ namespace LightSouls.Combat
         private void Awake()
         {
             _movement = GetComponent<PlayerMovement>();
+            _inventory = GetComponent<PlayerInventory>();
 
             if (attackOrigin == null)
             {
@@ -71,9 +67,35 @@ namespace LightSouls.Combat
 
         private void Start()
         {
-            if (weaponInventory.Count > 0)
+            if (_inventory != null)
+            {
+                _inventory.OnHotbarSelectionChanged += HandleHotbarSelectionChanged;
+                HandleHotbarSelectionChanged(_inventory.SelectedHotbarIndex, _inventory.SelectedItem);
+            }
+            else if (weaponInventory.Count > 0)
             {
                 EquipWeapon(currentWeaponIndex);
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (_inventory != null)
+            {
+                _inventory.OnHotbarSelectionChanged -= HandleHotbarSelectionChanged;
+            }
+        }
+
+        private void HandleHotbarSelectionChanged(int slotIndex, ItemDefinitionSO item)
+        {
+            if (item is WeaponDataSO weapon)
+            {
+                EquipWeapon(weapon);
+            }
+            else
+            {
+                UnequipCurrentWeapon();
+                OnWeaponChanged?.Invoke(null);
             }
         }
 
@@ -141,27 +163,23 @@ namespace LightSouls.Combat
         public void EquipWeapon(int index)
         {
             if (index < 0 || index >= weaponInventory.Count) return;
-
             WeaponDataSO data = weaponInventory[index];
             if (data == null) return;
-
             currentWeaponIndex = index;
+            EquipWeapon(data);
+        }
+
+        public void EquipWeapon(WeaponDataSO data)
+        {
+            if (data == null)
+            {
+                UnequipCurrentWeapon();
+                OnWeaponChanged?.Invoke(null);
+                return;
+            }
 
             // Xóa vũ khí cũ trên tay
-            if (_activeWeaponInstance != null)
-            {
-                Destroy(_activeWeaponInstance);
-                _activeWeaponInstance = null;
-                _activeWeapon = null;
-            }
-
-            if (weaponSocket != null)
-            {
-                for (int i = weaponSocket.childCount - 1; i >= 0; i--)
-                {
-                    Destroy(weaponSocket.GetChild(i).gameObject);
-                }
-            }
+            UnequipCurrentWeapon();
 
             Transform parent = weaponSocket != null ? weaponSocket : transform;
 
@@ -219,8 +237,37 @@ namespace LightSouls.Combat
             OnWeaponChanged?.Invoke(data);
         }
 
+        public void UnequipCurrentWeapon()
+        {
+            if (_activeWeaponInstance != null)
+            {
+                Destroy(_activeWeaponInstance);
+                _activeWeaponInstance = null;
+                _activeWeapon = null;
+            }
+
+            if (weaponSocket != null)
+            {
+                for (int i = weaponSocket.childCount - 1; i >= 0; i--)
+                {
+                    Destroy(weaponSocket.GetChild(i).gameObject);
+                }
+            }
+        }
+
         public void PerformAttack()
         {
+            // Nếu ô đang chọn trên thanh nhanh là đồ dùng (ví dụ: Bình máu) -> uống hồi máu
+            if (_inventory != null && _inventory.SelectedItem is ConsumableDataSO consumable)
+            {
+                if (consumable.Use(gameObject))
+                {
+                    _inventory.TryRemoveFromSlot(_inventory.SelectedSlotKey, 1);
+                    OnAttackExecuted?.Invoke();
+                }
+                return;
+            }
+
             if (_activeWeapon == null || !_activeWeapon.CanAttack) return;
 
             Vector3 aimDirection = transform.forward;
