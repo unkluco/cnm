@@ -1070,6 +1070,50 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f17951647bf00f5499b286d321067a31, type: 3}
+--- !u!1 &238918645
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 238918647}
+  - component: {fileID: 238918646}
+  m_Layer: 0
+  m_Name: Combat_TreasureChestUI
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &238918646
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 238918645}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e1bd08e5e327868459c36d4298c4f9a3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LightSouls.Combat::LightSouls.Combat.UI.TreasureChestUI
+--- !u!4 &238918647
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 238918645}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &281154419
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1220,6 +1264,8 @@ MonoBehaviour:
   interactButton: {fileID: 573384757}
   backpack: {fileID: 838858860}
   coinsPerClearedRoom: 20
+  treasureChestPrefab: {fileID: 4686626137835454384, guid: 2c1d6deb60b133e40bd67fae10b7eac1, type: 3}
+  treasureChestUI: {fileID: 238918646}
   cameraFollow: {fileID: 1571660453}
   pauseMenu: {fileID: 1672815430}
   resultScreen: {fileID: 281154420}
@@ -2463,3 +2509,4 @@ SceneRoots:
   - {fileID: 2000984067}
   - {fileID: 838858859}
   - {fileID: 536096931}
+  - {fileID: 238918647}

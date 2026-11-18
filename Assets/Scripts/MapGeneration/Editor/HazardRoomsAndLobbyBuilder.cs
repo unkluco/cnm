@@ -927,6 +927,10 @@ namespace LightSouls.MapGeneration.Editor
             var canvas = canvasGo.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 8; // Sort Order 8: bảng mở đè lên màn chơi (quy ước 4.9)
+            var lobbyScaler = canvasGo.GetComponent<CanvasScaler>();
+            lobbyScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            lobbyScaler.referenceResolution = new Vector2(1920f, 1080f);
+            lobbyScaler.matchWidthOrHeight = 0.5f;
 
             var safeAreaGo = new GameObject("SafeArea", typeof(RectTransform), typeof(SafeAreaFitter));
             safeAreaGo.transform.SetParent(canvasGo.transform, false);
@@ -1047,15 +1051,9 @@ namespace LightSouls.MapGeneration.Editor
             notifRt.offsetMin = Vector2.zero;
             notifRt.offsetMax = Vector2.zero;
 
-            // Scroll container / list container
-            var containerGo = new GameObject("ItemsContainer", typeof(RectTransform), typeof(VerticalLayoutGroup));
+            // Vùng nội dung: LobbyShopUI tự dựng lưới cuộn được và bảng chi tiết bên trong khi chạy.
+            var containerGo = new GameObject("ItemsContainer", typeof(RectTransform));
             containerGo.transform.SetParent(panel.transform, false);
-            var vlg = containerGo.GetComponent<VerticalLayoutGroup>();
-            vlg.spacing = 10f;
-            vlg.childControlHeight = false;
-            vlg.childControlWidth = true;
-            vlg.childForceExpandHeight = false;
-            vlg.childForceExpandWidth = true;
             var cRt = (RectTransform)containerGo.transform;
             cRt.anchorMin = new Vector2(0.05f, 0.12f);
             cRt.anchorMax = new Vector2(0.95f, 0.86f);

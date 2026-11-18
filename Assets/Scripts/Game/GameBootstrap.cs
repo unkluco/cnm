@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using LightSouls.Combat;
+using LightSouls.Combat.Items;
 using LightSouls.Combat.UI;
 using LightSouls.Common;
 using LightSouls.MapGeneration;
@@ -47,6 +48,13 @@ namespace LightSouls.Game
         [Header("Phần thưởng")]
         [Tooltip("Số xu cộng vào RunState mỗi khi dọn sạch một phòng chiến đấu.")]
         [SerializeField, Min(0)] private int coinsPerClearedRoom = 20;
+
+        [Header("Hòm kho báu")]
+        [Tooltip("Hòm đặt tại mỗi điểm loot của phòng (trừ phòng cuối, nơi có phần thưởng boss riêng). Bỏ trống thì không đặt hòm.")]
+        [SerializeField] private TreasureChest treasureChestPrefab;
+
+        [Tooltip("Bảng mở hòm. Bỏ trống thì tự tìm trong Scene, không có thì tự tạo.")]
+        [SerializeField] private TreasureChestUI treasureChestUI;
 
         [Header("Camera")]
         [SerializeField] private GameCameraFollow cameraFollow;
@@ -165,9 +173,63 @@ namespace LightSouls.Game
                 }
             }
 
+            SpawnTreasureChests(context);
+
             if (minimap != null)
             {
                 minimap.Show(context, player.transform);
+            }
+        }
+
+        /// <summary>
+        /// Thay mỗi điểm loot (khối đánh dấu) bằng một hòm kho báu đặt trên sàn phòng.
+        /// Phòng cuối (Exit) giữ điểm loot cho phần thưởng boss nên bỏ qua.
+        /// </summary>
+        private void SpawnTreasureChests(DungeonRuntimeContext context)
+        {
+            if (treasureChestPrefab == null)
+            {
+                return;
+            }
+
+            if (treasureChestUI == null)
+            {
+                treasureChestUI = FindAnyObjectByType<TreasureChestUI>(FindObjectsInactive.Include);
+            }
+
+            if (treasureChestUI == null)
+            {
+                treasureChestUI = new GameObject("Combat_TreasureChestUI").AddComponent<TreasureChestUI>();
+            }
+
+            foreach (var room in context.SpawnedRooms)
+            {
+                if (room == null || room.RoomType == RoomType.Exit || room.LootSpawnPoints == null)
+                {
+                    continue;
+                }
+
+                foreach (var point in room.LootSpawnPoints)
+                {
+                    if (point == null)
+                    {
+                        continue;
+                    }
+
+                    // Điểm loot là khối đánh dấu đặt trên sàn: hòm đặt ở đáy khối rồi ẩn khối đi.
+                    // (Không dò sàn bằng tia: bộ sinh phòng thủ tục có thể còn khối cũ chờ hủy cuối khung hình.)
+                    Vector3 position = point.position;
+                    var marker = point.GetComponent<Renderer>();
+                    if (marker != null)
+                    {
+                        position.y = marker.bounds.min.y;
+                    }
+
+                    point.gameObject.SetActive(false);
+
+                    var rotation = Quaternion.Euler(0f, point.eulerAngles.y, 0f);
+                    Instantiate(treasureChestPrefab, position, rotation, point.parent);
+                }
             }
         }
 
@@ -275,6 +337,11 @@ namespace LightSouls.Game
             if (backpack != null && backpack.IsOpen)
             {
                 backpack.Close();
+            }
+
+            if (treasureChestUI != null && treasureChestUI.IsOpen)
+            {
+                treasureChestUI.Close();
             }
 
             if (player != null)
