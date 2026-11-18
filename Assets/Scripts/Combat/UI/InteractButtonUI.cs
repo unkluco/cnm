@@ -47,6 +47,9 @@ namespace LightSouls.Combat.UI
 
             if (interaction != null)
             {
+                // Gỡ trước khi gắn: SetPlayer có thể đã chạy trước Start.
+                interaction.OnInteractableFound -= HandleInteractableFound;
+                interaction.OnInteractableLost -= HandleInteractableLost;
                 interaction.OnInteractableFound += HandleInteractableFound;
                 interaction.OnInteractableLost += HandleInteractableLost;
 

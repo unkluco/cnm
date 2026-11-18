@@ -34,6 +34,20 @@ namespace LightSouls.Game
         [Tooltip("Gốc của điều khiển cảm ứng và HUD; ẩn đi khi hết game.")]
         [SerializeField] private GameObject touchControlsRoot;
 
+        [Header("Túi đồ")]
+        [Tooltip("Thanh nhanh 5 ô. Bỏ trống thì tự tìm trong Scene.")]
+        [SerializeField] private HotbarUI hotbar;
+
+        [Tooltip("Nút Tương tác cảm ứng. Bỏ trống thì tự tìm trong Scene.")]
+        [SerializeField] private InteractButtonUI interactButton;
+
+        [Tooltip("Bảng balo. Bỏ trống thì tự tìm trong Scene (kể cả khi đang ẩn).")]
+        [SerializeField] private BackpackUI backpack;
+
+        [Header("Phần thưởng")]
+        [Tooltip("Số xu cộng vào RunState mỗi khi dọn sạch một phòng chiến đấu.")]
+        [SerializeField, Min(0)] private int coinsPerClearedRoom = 20;
+
         [Header("Camera")]
         [SerializeField] private GameCameraFollow cameraFollow;
 
@@ -172,6 +186,38 @@ namespace LightSouls.Game
             {
                 combatHUD.SetPlayer(player);
             }
+
+            // Các giao diện túi đồ tìm người chơi trong Start(), lúc đó người chơi chưa được sinh ra
+            // (phải đợi bộ sinh màn xong), nên phải gán lại ở đây.
+            if (hotbar == null)
+            {
+                hotbar = FindAnyObjectByType<HotbarUI>(FindObjectsInactive.Include);
+            }
+
+            if (interactButton == null)
+            {
+                interactButton = FindAnyObjectByType<InteractButtonUI>(FindObjectsInactive.Include);
+            }
+
+            if (backpack == null)
+            {
+                backpack = FindAnyObjectByType<BackpackUI>(FindObjectsInactive.Include);
+            }
+
+            if (hotbar != null)
+            {
+                hotbar.SetPlayer(player);
+            }
+
+            if (interactButton != null)
+            {
+                interactButton.SetPlayer(player);
+            }
+
+            if (backpack != null)
+            {
+                backpack.SetPlayer(player);
+            }
         }
 
         private void HandleRoomEnteredCombat(RoomModule room)
@@ -199,6 +245,8 @@ namespace LightSouls.Game
             {
                 room.LifecycleController.ClearRoom();
             }
+
+            RunState.AddCoins(coinsPerClearedRoom);
         }
 
         private void HandlePlayerDied(IDamageable _)
@@ -208,7 +256,8 @@ namespace LightSouls.Game
 
         private void HandlePausedChanged(bool paused)
         {
-            if (player != null && !isFinished && !player.IsDead)
+            // Balo đang mở thì giữ khóa di chuyển sau khi bỏ tạm dừng; balo tự mở lại khi đóng.
+            if (player != null && !isFinished && !player.IsDead && !(backpack != null && backpack.IsOpen))
             {
                 player.SetInputActive(!paused);
             }
@@ -222,6 +271,11 @@ namespace LightSouls.Game
             }
 
             isFinished = true;
+
+            if (backpack != null && backpack.IsOpen)
+            {
+                backpack.Close();
+            }
 
             if (player != null)
             {

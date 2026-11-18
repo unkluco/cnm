@@ -68,6 +68,11 @@ namespace LightSouls.Combat.UI
 
             if (inventory != null)
             {
+                // Gỡ trước khi gắn: SetPlayer có thể đã chạy trước Start (GameBootstrap sinh người chơi sớm),
+                // gắn hai lần sẽ khiến phím Tab bật rồi tắt balo ngay lập tức.
+                inventory.OnHotbarSelectionChanged -= HandleSelectionChanged;
+                inventory.Changed -= Refresh;
+                inventory.OnToggleBackpackRequested -= OnBackpackButtonClicked;
                 inventory.OnHotbarSelectionChanged += HandleSelectionChanged;
                 inventory.Changed += Refresh;
                 inventory.OnToggleBackpackRequested += OnBackpackButtonClicked;
