@@ -14,14 +14,17 @@ namespace LightSouls.UI
 
         public static void LoadGame() => Load(SceneNames.Game);
 
+        /// <summary>Về sảnh, giữ nguyên lượt chơi (xu, túi đồ). Dùng sau khi qua màn.</summary>
+        public static void LoadLobby() => Load(SceneNames.Lobby);
+
         /// <summary>
-        /// Bắt đầu lượt chơi mới từ đầu: xóa xu, túi đồ và ngục đã chọn trong RunState rồi vào Scene Game.
-        /// Dùng cho nút Chơi ở menu chính và nút Chơi lại ở màn kết quả.
+        /// Bắt đầu lượt chơi mới từ đầu: xóa xu, túi đồ và ngục đã chọn trong RunState rồi vào sảnh.
+        /// Dùng cho nút Chơi ở menu chính và nút Chơi lại ở màn Thua.
         /// </summary>
         public static void StartNewRun()
         {
             RunState.Reset();
-            LoadGame();
+            LoadLobby();
         }
 
         public static void QuitGame()

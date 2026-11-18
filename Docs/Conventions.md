@@ -127,15 +127,25 @@ Mỗi hệ thống chỉ giữ phần của mình; `GameBootstrap` nối hai bê
 
 Sinh màn không biết gì về quái; chiến đấu không biết gì về cửa.
 
-### 4.4. Menu và Game
+### 4.4. Menu, Sảnh và Game
 
-`MainMenu` chỉ nạp Scene `Game` (và ngược lại khi thoát). Hai Scene không giữ tham chiếu đến đối tượng của nhau.
+Luồng một lượt chơi (chuyển Scene qua `SceneLoader`, các Scene không giữ tham chiếu đến đối tượng của nhau):
+
+```
+MainMenu --Chơi (RunState.Reset)--> Lobby --chọn ngục ở cổng--> Game
+   ^                                  ^                           |
+   |                                  +------ Qua màn: Về sảnh ----+  (giữ xu, túi đồ)
+   |                                  +------ Thua: Chơi lại ------+  (RunState.Reset, lượt mới)
+   +------------------- Về menu chính ----------------------------+
+```
+
+Trong Scene `Lobby`, `LobbyBootstrap` (assembly `Game`) nghe `LobbyController.DungeonChosen` rồi nạp Scene `Game`; `DungeonGenerator` đọc `RunState.SelectedDungeonId` qua `DungeonCatalog`.
 
 Luồng trong Scene `Game` (cài đặt trong `GameBootstrap`):
 
 1. `DungeonGenerator` sinh màn, `GameBootstrap` sinh `Player_Character` tại `ctx.PlayerSpawnPoint`, gán cho `GameCameraFollow` và `CombatHUD.SetPlayer()`.
 2. Mỗi phòng chiến đấu đi theo mục 4.3, quái do `EnemySpawner` trong Scene sinh ra.
-3. Người chơi chết → `GameResultScreen.ShowDefeat()`. Người chơi tới trong bán kính 2.5 m quanh `ctx.LevelExitPoint` khi phòng cuối đã sạch quái → `ShowVictory()`. Cả hai màn có nút chơi lại và về menu chính.
+3. Người chơi chết → `GameResultScreen.ShowDefeat()`. Người chơi tới trong bán kính 2.5 m quanh `ctx.LevelExitPoint` khi phòng cuối đã sạch quái → `ShowVictory()`. Màn Thua có nút Chơi lại (lượt mới ở sảnh), màn Qua màn có nút Về sảnh; cả hai có nút về menu chính.
 4. `PauseMenuController.PausedChanged` bật/tắt điều khiển của người chơi (`PlayerController.SetInputActive`).
 
 **Tên đang được phần lắp ráp gọi, không đổi tên hay xóa** (thêm hàm, thêm sự kiện thì thoải mái):
@@ -253,7 +263,7 @@ Quy định:
 
 ## 6. Sở hữu Scene và file
 
-- Scene chơi thật `MainMenu`, `Game` và `Lobby` (sẽ tạo khi ghép phần sảnh): chỉ nhóm trưởng (Kiệt) sửa. Thành viên bàn giao bằng prefab và script, không bằng Scene. `SceneNames` và danh sách Scene trong Build Settings cũng do nhóm trưởng sửa.
+- Scene chơi thật `MainMenu`, `Lobby` và `Game`: chỉ nhóm trưởng (Kiệt) sửa. Thành viên bàn giao bằng prefab và script, không bằng Scene. `SceneNames` và danh sách Scene trong Build Settings cũng do nhóm trưởng sửa.
 - Mọi thử nghiệm làm trong Scene thử riêng của mình. Mỗi người chỉ sửa Scene thử của mình:
 
   | Scene thử | Người phụ trách |
