@@ -107,7 +107,8 @@ Shader "LightSouls/VFX/Arcane Glyph"
                     float y=i.uv.y;
                     edge=band(x,0.94,0.065)+band(y,0.965,0.022)*0.7+band(y,0.035,0.022)*0.45;
                     float stepY=frac(y*5.0-p*0.7);
-                    float chevron=band(stepY,0.34+x*0.26,0.083)*(1.0-smoothstep(0.69,0.85,x));
+                    // V increases along the actual attack direction; the chevron tip points to the destination.
+                    float chevron=band(stepY,0.60-x*0.26,0.083)*(1.0-smoothstep(0.69,0.85,x));
                     ornament=chevron*0.68+band(x,0.69,0.045)*smoothstep(0.25,0.46,frac(y*9.0))*0.45;
                     charge=band(y,lerp(0.04,0.96,p),0.05)*(1.0-smoothstep(0.86,1.0,x));
                     fill=(0.09+0.12*p)*(0.72+0.28*x);

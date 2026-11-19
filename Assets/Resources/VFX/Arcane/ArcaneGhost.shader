@@ -21,7 +21,8 @@ Shader "LightSouls/VFX/Arcane Ghost"
             Varyings vert(Attributes i){Varyings o;o.positionWS=TransformObjectToWorld(i.positionOS.xyz);o.positionCS=TransformWorldToHClip(o.positionWS);o.normalWS=TransformObjectToWorldNormal(i.normalOS);return o;}
             half4 frag(Varyings i):SV_Target
             {
-                float rim=pow(1.0-saturate(abs(dot(normalize(i.normalWS),normalize(GetWorldSpaceViewDir(i.positionWS)))))),2.0);
+                float grazing=1.0-saturate(abs(dot(normalize(i.normalWS),normalize(GetWorldSpaceViewDir(i.positionWS)))));
+                float rim=grazing*grazing;
                 return half4(_Tint.rgb*(0.60+rim*0.9),_Tint.a*(0.50+rim*0.50));
             }
             ENDHLSL

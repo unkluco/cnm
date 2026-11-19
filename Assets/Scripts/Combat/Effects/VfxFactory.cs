@@ -75,7 +75,7 @@ namespace LightSouls.Combat.Effects
                     if (CombatVfxBudget.AllowSecondaryDetail) SmokeBurst(point + Vector3.up * .25f, radius);
                     break;
                 case CombatVfxElement.Frost:
-                    BurstPattern("VFX_IceShards", point, color, 22, 4.2f, .37f, .57f, .35f, ArcaneParticlePattern.Crystal, Vector3.up);
+                    IceShatter(ground, radius, color);
                     if (CombatVfxBudget.AllowSecondaryDetail)
                         BurstPattern("VFX_FrostMist", point, new Color(.50f, .81f, 1f, .55f), 9, 1.8f, .55f, .54f, -.05f, ArcaneParticlePattern.Glow);
                     break;
@@ -107,11 +107,21 @@ namespace LightSouls.Combat.Effects
         private static void FlameArea(Vector3 ground, float radius, Color color)
         {
             var ps = Create("VFX_FlameEruption", null, ground + Vector3.up * .12f, ArcaneParticlePattern.Flame, true);
-            ConfigureBurst(ps, color, Mathf.Clamp(Mathf.RoundToInt(radius * 5f), 9, 20), 1.1f, Mathf.Clamp(radius * .35f, .49f, 1.05f), .65f, -.4f);
+            ConfigureBurst(ps, color, Mathf.Clamp(Mathf.RoundToInt(radius * 6f), 12, 22), 1.85f, Mathf.Clamp(radius * .49f, .64f, 1.25f), .65f, -.48f);
             var shape = ps.shape; shape.enabled = true; shape.shapeType = ParticleSystemShapeType.Cone;
             shape.angle = 9f; shape.radius = radius * .58f; shape.rotation = new Vector3(-90f, 0f, 0f);
             var main = ps.main; main.startRotation = new ParticleSystem.MinMaxCurve(-.17f, .17f);
             var size = ps.sizeOverLifetime; size.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, .45f), new Keyframe(.18f, 1f), new Keyframe(1f, .08f)));
+            ps.Play();
+        }
+
+        private static void IceShatter(Vector3 ground, float radius, Color color)
+        {
+            var ps = Create("VFX_IceShards", null, ground + Vector3.up * .12f, ArcaneParticlePattern.Crystal, true);
+            // Spread the shards around the whole seal so the recipient's model does not hide the shatter.
+            ConfigureBurst(ps, color, 22, 3.3f, Mathf.Clamp(radius * .37f, .48f, .89f), .64f, .42f);
+            UpwardCone(ps, radius * .66f, 24f);
+            var main = ps.main; main.startRotation = new ParticleSystem.MinMaxCurve(-.45f, .45f);
             ps.Play();
         }
 
@@ -165,9 +175,9 @@ namespace LightSouls.Combat.Effects
 
         public static ParticleSystem FrostAura(Transform parent, Color color)
         {
-            var ps = Persistent("VFX_Slow", parent, Vector3.up * .17f, color, 16f, .24f, .84f, .15f, .46f,
-                ArcaneParticlePattern.Crystal, 20, .5f, ParticleSystemSimulationSpace.Local);
-            UpwardCone(ps, .47f, 10f); ps.Play(); return ps;
+            var ps = Persistent("VFX_Slow", parent, Vector3.up * .25f, color, 18f, .36f, .84f, .24f, .63f,
+                ArcaneParticlePattern.Crystal, 20, .64f, ParticleSystemSimulationSpace.Local);
+            UpwardCone(ps, .61f, 13f); ps.Play(); return ps;
         }
 
         public static ParticleSystem StunAura(Transform parent, Color color)
