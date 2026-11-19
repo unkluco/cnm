@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using LightSouls.Combat;
 using LightSouls.Combat.Items;
 using LightSouls.Combat.UI;
+using LightSouls.Combat.Effects;
 using LightSouls.Common;
 using LightSouls.MapGeneration;
 using LightSouls.UI;
@@ -19,8 +20,8 @@ namespace LightSouls.Game
     ///   3. Người chơi bước vào phòng chiến đấu: phòng khóa cửa và phát OnRoomEnteredCombat,
     ///      EnemySpawner sinh quái tại room.EnemySpawnPoints.
     ///   4. Hết quái (AllEnemiesDefeated): gọi room.LifecycleController.ClearRoom() để mở cửa.
-    ///   5. Người chơi tới ctx.LevelExitPoint khi phòng cuối đã sạch quái: hiện màn Chiến thắng.
-    ///      Người chơi chết: hiện màn Thất bại. Cả hai màn đều có nút về menu chính.
+    ///   5. Dọn phòng cuối: nhận hòm thưởng và mở cổng bí ẩn. Bước vào cổng mới biết sẽ
+    ///      về sảnh mua đồ hay vào ngục khác. Người chơi chết: hiện màn Thất bại.
     /// </summary>
     public class GameBootstrap : MonoBehaviour
     {
@@ -64,9 +65,11 @@ namespace LightSouls.Game
         [SerializeField] private GameResultScreen resultScreen;
         [SerializeField] private GameMinimap minimap;
 
-        [Header("Đích")]
-        [Tooltip("Người chơi đứng trong bán kính này (mét, mặt phẳng XZ) quanh điểm đích thì thắng.")]
-        [SerializeField] private float exitReachRadius = 2.5f;
+        [Header("Cổng bí ẩn sau boss")]
+        [Tooltip("Bán kính (mét, XZ) bên trong cổng mà người chơi cần bước vào.")]
+        [SerializeField, Min(0.5f)] private float exitReachRadius = 1.5f;
+        [Tooltip("Xác suất về sảnh mua đồ. Phần còn lại sẽ đưa người chơi vào một loại ngục khác.")]
+        [SerializeField, Range(0f, 1f)] private float returnToShopChance = 0.5f;
 
         private PlayerController player;
         private Transform levelExitPoint;
@@ -75,6 +78,15 @@ namespace LightSouls.Game
         private readonly List<RoomLifecycleController> subscribedRooms = new List<RoomLifecycleController>();
         private bool isFinished;
         private bool mustLeaveExitArea;
+        private bool exitPortalOpen;
+        private GameObject exitPortalVisual;
+
+        public bool IsExitPortalOpen => exitPortalOpen;
+        public float ReturnToShopChance
+        {
+            get => returnToShopChance;
+            set => returnToShopChance = Mathf.Clamp01(value);
+        }
 
         private void Awake()
         {
@@ -129,12 +141,13 @@ namespace LightSouls.Game
 
         private void Update()
         {
-            if (isFinished || player == null || levelExitPoint == null || roomInCombat != null)
+            if (isFinished || player == null || player.IsDead || levelExitPoint == null || roomInCombat != null ||
+                !exitPortalOpen || Time.timeScale <= 0f || BackButtonStack.HasOpenPanel)
             {
                 return;
             }
 
-            // Phòng cuối cũng khóa cửa khi vào: phải dọn sạch quái rồi mới được tính là tới đích.
+            // Chỉ đi qua cổng khi phòng cuối đã sạch quái.
             if (exitRoom != null && exitRoom.RequiresCombatLock && exitRoom.State != RoomLifecycleState.Cleared)
             {
                 return;
@@ -152,7 +165,7 @@ namespace LightSouls.Game
             }
             if (insideExitArea)
             {
-                FinishGame(victory: true);
+                EnterMysteryPortal();
             }
         }
 
@@ -184,12 +197,78 @@ namespace LightSouls.Game
                 }
             }
 
+            if (exitRoom == null)
+            {
+                HandleGenerationFailed("Bản đồ thiếu phòng cuối hợp lệ.");
+                return;
+            }
+
+            PrepareExitPortal();
+
             SpawnTreasureChests(context);
 
             if (minimap != null)
             {
                 minimap.Show(context, player.transform);
             }
+
+            // Tên ngục được công bố sau khi đã bước vào cổng và tới ngục mới.
+            CombatToast.Show(RunState.ConsumePortalArrivalMessage());
+        }
+
+        private void PrepareExitPortal()
+        {
+            exitPortalOpen = false;
+            exitPortalVisual = levelExitPoint.gameObject;
+            if (levelExitPoint == exitRoom.transform)
+            {
+                // Trường hợp prefab thiếu marker riêng: tạo một hình cổng tạm, không ẩn cả phòng.
+                exitPortalVisual = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                exitPortalVisual.name = "MysteryExitPlaceholder";
+                exitPortalVisual.transform.SetParent(levelExitPoint, false);
+                exitPortalVisual.transform.localPosition = Vector3.up * 0.08f;
+                exitPortalVisual.transform.localScale = new Vector3(3f, 0.08f, 3f);
+                var collider = exitPortalVisual.GetComponent<Collider>();
+                if (collider != null) { collider.enabled = false; Destroy(collider); }
+                exitPortalVisual.GetComponent<Renderer>().material.color = new Color(0.65f, 0.32f, 0.9f);
+            }
+            exitPortalVisual.SetActive(false);
+        }
+
+        private void OpenMysteryPortal()
+        {
+            if (exitPortalOpen || exitPortalVisual == null || player == null || player.IsDead || isFinished) return;
+            exitPortalOpen = true;
+            exitPortalVisual.SetActive(true);
+            // Identical appearance for either outcome: no route is rolled or displayed yet.
+            VfxFactory.Aura(exitPortalVisual.transform, new Color(0.65f, 0.35f, 1f, 0.8f), 22f, 0.85f,
+                Vector3.up * 0.65f, 0.17f, 1.1f, "VFX_MysteryExit");
+            var offset = player.transform.position - levelExitPoint.position;
+            offset.y = 0f;
+            mustLeaveExitArea = offset.sqrMagnitude <= exitReachRadius * exitReachRadius;
+            CombatToast.Show("Cổng bí ẩn đã mở. Bước vào để biết điểm đến.");
+        }
+
+        private void EnterMysteryPortal()
+        {
+            if (isFinished) return;
+            isFinished = true; // Prevent another route roll while SceneManager is loading.
+            player.SetInputActive(false);
+
+            DungeonEntry destination = BossPortalRouter.ChooseDestination(dungeonGenerator.Catalog,
+                RunState.SelectedDungeonId, dungeonGenerator.ActiveConfig, returnToShopChance,
+                Random.value, Random.value);
+
+            if (destination == null)
+            {
+                RunState.SetPortalArrivalMessage("Cổng bí ẩn đưa bạn về sảnh mua đồ.");
+                SceneLoader.LoadLobby();
+                return;
+            }
+
+            RunState.SelectedDungeonId = destination.dungeonId;
+            RunState.SetPortalArrivalMessage("Cổng bí ẩn đưa bạn đến: " + destination.displayName);
+            SceneLoader.LoadGame();
         }
 
         private void HandleGenerationFailed(string error)
@@ -349,19 +428,14 @@ namespace LightSouls.Game
 
             SpawnBossRewardChests(room);
 
-            if (room.RoomType == RoomType.Exit && levelExitPoint != null && player != null)
-            {
-                var offset = player.transform.position - levelExitPoint.position;
-                offset.y = 0f;
-                mustLeaveExitArea = offset.sqrMagnitude <= exitReachRadius * exitReachRadius;
-            }
+            if (room.RoomType == RoomType.Exit) OpenMysteryPortal();
 
             RunState.AddCoins(coinsPerClearedRoom);
         }
 
         private void HandlePlayerDied(IDamageable _)
         {
-            FinishGame(victory: false);
+            FinishGameDefeat();
         }
 
         private void HandlePausedChanged(bool paused)
@@ -373,7 +447,7 @@ namespace LightSouls.Game
             }
         }
 
-        private void FinishGame(bool victory)
+        private void FinishGameDefeat()
         {
             if (isFinished)
             {
@@ -412,14 +486,7 @@ namespace LightSouls.Game
                 return;
             }
 
-            if (victory)
-            {
-                resultScreen.ShowVictory();
-            }
-            else
-            {
-                resultScreen.ShowDefeat();
-            }
+            resultScreen.ShowDefeat();
         }
     }
 }

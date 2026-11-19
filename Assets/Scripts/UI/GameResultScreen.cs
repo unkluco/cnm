@@ -4,8 +4,8 @@ using UnityEngine.UI;
 namespace LightSouls.UI
 {
     /// <summary>
-    /// Màn Thua và màn Qua màn trong Scene Game. Không tự bật: GameBootstrap gọi ShowDefeat()
-    /// khi người chơi chết và ShowVictory() khi tới đích.
+    /// Màn Thua trong Scene Game. GameBootstrap gọi ShowDefeat() khi người chơi chết.
+    /// Màn Qua màn cũ vẫn giữ để thử UI; luồng vượt ngục hiện chuyển qua cổng bí ẩn.
     /// Thua: "Chơi lại" bắt đầu lượt mới ở sảnh (mất xu và đồ). Qua màn: "Về sảnh" giữ nguyên lượt chơi. Có thể thử từ menu chuột phải của component trong Inspector.
     /// </summary>
     public class GameResultScreen : MonoBehaviour

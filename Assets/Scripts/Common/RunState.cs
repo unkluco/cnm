@@ -43,6 +43,21 @@ namespace LightSouls.Common
 
         public static bool DungeonGenerationFailed { get; set; }
 
+        /// <summary>Chỉ được đặt sau khi người chơi bước vào cổng bí ẩn; Scene đích hiện thông báo một lần.</summary>
+        public static string PendingPortalArrivalMessage { get; private set; } = string.Empty;
+
+        public static void SetPortalArrivalMessage(string message)
+        {
+            PendingPortalArrivalMessage = message ?? string.Empty;
+        }
+
+        public static string ConsumePortalArrivalMessage()
+        {
+            string message = PendingPortalArrivalMessage;
+            PendingPortalArrivalMessage = string.Empty;
+            return message;
+        }
+
         /// <summary>Phát số xu mới mỗi khi số xu thay đổi.</summary>
         public static event Action<int> CoinsChanged;
 
@@ -98,6 +113,7 @@ namespace LightSouls.Common
             HasInventorySnapshot = false;
             SelectedDungeonId = string.Empty;
             DungeonGenerationFailed = false;
+            PendingPortalArrivalMessage = string.Empty;
             var hadCoins = Coins != 0;
             Coins = 0;
             if (hadCoins)

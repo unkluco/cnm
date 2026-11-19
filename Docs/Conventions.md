@@ -133,10 +133,11 @@ Luồng một lượt chơi (chuyển Scene qua `SceneLoader`, các Scene không
 
 ```
 MainMenu --Chơi (RunState.Reset)--> Lobby --chọn ngục ở cổng--> Game
-   ^                                  ^                           |
-   |                                  +------ Qua màn: Về sảnh ----+  (giữ xu, túi đồ)
-   |                                  +------ Thua: Chơi lại ------+  (RunState.Reset, lượt mới)
-   +------------------- Về menu chính ----------------------------+
+                                      ^                           |
+                                      |    Dọn boss: cổng bí ẩn --+
+                                      +--- Về sảnh (50%) <---------+ (giữ xu, túi đồ)
+                                           Ngục khác (50%) ------> Game mới
+                                      +--- Thua: Chơi lại <---------+ (RunState.Reset, lượt mới)
 ```
 
 Trong Scene `Lobby`, `LobbyBootstrap` (assembly `Game`) nghe `LobbyController.DungeonChosen` rồi nạp Scene `Game`; `DungeonGenerator` đọc `RunState.SelectedDungeonId` qua `DungeonCatalog`.
@@ -145,7 +146,7 @@ Luồng trong Scene `Game` (cài đặt trong `GameBootstrap`):
 
 1. `DungeonGenerator` sinh màn, `GameBootstrap` sinh `Player_Character` tại `ctx.PlayerSpawnPoint`, gán cho `GameCameraFollow` và `CombatHUD.SetPlayer()`.
 2. Mỗi phòng chiến đấu đi theo mục 4.3, quái do `EnemySpawner` trong Scene sinh ra.
-3. Người chơi chết → `GameResultScreen.ShowDefeat()`. Người chơi tới trong bán kính 2.5 m quanh `ctx.LevelExitPoint` khi phòng cuối đã sạch quái → `ShowVictory()`. Màn Thua có nút Chơi lại (lượt mới ở sảnh), màn Qua màn có nút Về sảnh; cả hai có nút về menu chính.
+3. Người chơi chết → `GameResultScreen.ShowDefeat()` (Chơi lại bắt đầu lượt mới ở sảnh). Sau khi dọn phòng cuối, hòm thưởng thật xuất hiện và cổng bí ẩn tại `ctx.LevelExitPoint` mở. Chỉ khi bước vào bán kính cổng, `BossPortalRouter` mới chọn đường về sảnh hoặc ngục khác; xem [`BossMysteryPortal.md`](BossMysteryPortal.md). Hai đường đều giữ xu và túi đồ.
 4. `PauseMenuController.PausedChanged` bật/tắt điều khiển của người chơi (`PlayerController.SetInputActive`).
 
 **Tên đang được phần lắp ráp gọi, không đổi tên hay xóa** (thêm hàm, thêm sự kiện thì thoải mái):
