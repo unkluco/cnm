@@ -41,11 +41,16 @@ namespace LightSouls.Common
         /// <summary>Mã ngục người chơi chọn ở sảnh. Rỗng khi vào thẳng Scene Game (ví dụ lúc thử trong Editor).</summary>
         public static string SelectedDungeonId { get; set; } = string.Empty;
 
+        public static bool DungeonGenerationFailed { get; set; }
+
         /// <summary>Phát số xu mới mỗi khi số xu thay đổi.</summary>
         public static event Action<int> CoinsChanged;
 
         /// <summary>Ảnh chụp túi đồ gần nhất do túi đồ của người chơi ghi lại.</summary>
         public static IReadOnlyList<ItemSlotRecord> InventorySlots => inventorySlots;
+
+        /// <summary>True even when the saved inventory contains no items.</summary>
+        public static bool HasInventorySnapshot { get; private set; }
 
         public static void AddCoins(int amount)
         {
@@ -83,13 +88,16 @@ namespace LightSouls.Common
             {
                 inventorySlots.AddRange(slots);
             }
+            HasInventorySnapshot = true;
         }
 
         /// <summary>Bắt đầu lượt chơi mới: xóa xu, túi đồ và ngục đã chọn.</summary>
         public static void Reset()
         {
             inventorySlots.Clear();
+            HasInventorySnapshot = false;
             SelectedDungeonId = string.Empty;
+            DungeonGenerationFailed = false;
             var hadCoins = Coins != 0;
             Coins = 0;
             if (hadCoins)

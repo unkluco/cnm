@@ -86,10 +86,13 @@ namespace LightSouls.Combat
             {
                 _health.Died += HandlePlayerDied;
             }
+            BackButtonStack.Changed += RefreshPanelLock;
+            RefreshPanelLock();
         }
 
         private void OnDestroy()
         {
+            BackButtonStack.Changed -= RefreshPanelLock;
             if (_health != null)
             {
                 _health.Died -= HandlePlayerDied;
@@ -123,7 +126,9 @@ namespace LightSouls.Combat
             ApplyInputState();
         }
 
-        private void Update()
+        private void Update() => RefreshPanelLock();
+
+        private void RefreshPanelLock()
         {
             bool locked = BackButtonStack.HasOpenPanel;
             if (locked != _lockedByPanel)

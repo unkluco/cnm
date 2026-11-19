@@ -21,6 +21,8 @@ namespace LightSouls.Common
 
         private static readonly List<Entry> entries = new List<Entry>();
 
+        public static event Action Changed;
+
         public static bool HasOpenPanel
         {
             get
@@ -38,13 +40,17 @@ namespace LightSouls.Common
                 return;
             }
 
-            Remove(owner);
+            entries.RemoveAll(entry => entry.Owner == owner);
             entries.Add(new Entry { Owner = owner, Close = close });
+            Changed?.Invoke();
         }
 
         public static void Remove(UnityEngine.Object owner)
         {
-            entries.RemoveAll(entry => entry.Owner == owner);
+            if (entries.RemoveAll(entry => entry.Owner == owner) > 0)
+            {
+                Changed?.Invoke();
+            }
         }
 
         /// <summary>Đóng bảng trên cùng. Trả về false khi không có bảng nào mở.</summary>
@@ -59,6 +65,7 @@ namespace LightSouls.Common
             var top = entries[entries.Count - 1];
             entries.RemoveAt(entries.Count - 1);
             top.Close();
+            Changed?.Invoke();
             return true;
         }
 
@@ -72,6 +79,7 @@ namespace LightSouls.Common
         private static void ResetOnPlay()
         {
             entries.Clear();
+            Changed = null;
         }
     }
 }
