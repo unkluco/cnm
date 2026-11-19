@@ -89,7 +89,10 @@ Shader "LightSouls/VFX/Arcane Glyph"
                     }
                     if(aim)
                     {
-                        fill=0.012;edge*=0.55;ornament*=0.52;charge=0;
+                        // Aim is intentionally a delicate range guide, even for the longest ranged weapons.
+                        fill=0.006;edge=band(r,0.987,0.012)*0.66;
+                        ornament=band(r,0.956,0.008)*arcDash*0.55+tick*band(r,0.965,0.015)*0.42;
+                        charge=0;
                     }
                     if(impact)
                     {

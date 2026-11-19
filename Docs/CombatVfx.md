@@ -5,7 +5,7 @@ Tiếp nối Dark Fantasy Low-Poly: bề mặt đá tối làm nền để vệt
 - Cận chiến: vệt cung có mép sáng và đầu thon, bóng lưỡi kiếm theo đúng đường chuyển động của mô hình, tia va chạm định hướng. Búa và đại kiếm có vòng xung kích riêng. Đòn trúng tạo phản hồi camera rất ngắn, không dừng thời gian.
 - Nguyên tố: lửa có ngọn lửa, tàn lửa và khói nhẹ; băng có mảnh tinh thể, hạt lạnh; đá có bụi/mảnh văng; phép hư không, hút máu và hồi phục mang bảng màu riêng. Trạng thái đang bỏng/chậm/choáng dùng hạt liên tục đến khi hết trạng thái.
 - Báo chiêu: viền ngoài chính xác, hoa văn rune bên trong và vệt tiến độ tụ chiêu. Vùng nguy hiểm có viền đỏ ấm; vùng hồi phục của tư tế có biểu tượng hỗ trợ, vòng tự ngắm của người chơi là xanh ngọc mờ. Các đường lao/bắn có mũi tên hướng về đích. Luôn dọn dấu báo chiêu khi giải chiêu, bị ngắt hoặc đối tượng bị hủy.
-- Đạn có lõi màu và đuôi sáng thuôn, đuôi tan trong thời gian ngắn sau khi đạn biến mất. Lướt dùng bóng mờ hợp nhất thay vì hàng chục đối tượng/material cho mỗi bóng.
+- Đạn có lõi màu và đuôi sáng thuôn, đuôi tan trong thời gian ngắn sau khi đạn biến mất. Kiểm tra va chạm dọc quãng đường di chuyển mỗi khung hình để tránh đạn xuyên mục tiêu/tường khi FPS thấp, vẫn giữ độ dày collider và quy tắc xuyên mục tiêu cũ. Lướt dùng bóng mờ hợp nhất thay vì hàng chục đối tượng/material cho mỗi bóng.
 
 ## Mở rộng
 

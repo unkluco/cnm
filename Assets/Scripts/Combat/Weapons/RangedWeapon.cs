@@ -105,7 +105,7 @@ namespace LightSouls.Combat.Weapons
                 projectile.Initialize(weaponData.Damage, weaponData.ProjectileSpeed, weaponData.ProjectileLifetime, targetLayer, attacker);
                 projectile.SetWeapon(weaponData, weaponData.PierceCount);
                 projectile.SetVisualStyle(trailColor, weaponData.Vfx.element,
-                    weaponData.Vfx.element == CombatVfxElement.Frost ? .24f : .14f);
+                    weaponData.Vfx.element == CombatVfxElement.Frost ? .30f : .14f);
             }
         }
 

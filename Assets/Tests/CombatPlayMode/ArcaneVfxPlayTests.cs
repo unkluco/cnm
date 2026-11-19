@@ -35,12 +35,13 @@ namespace LightSouls.Combat.Tests
             var spawner=Object.FindAnyObjectByType<EnemySpawner>();Assert.NotNull(spawner);
             var database=Resources.FindObjectsOfTypeAll<ItemDatabaseSO>().FirstOrDefault(d=>d.GetItem("weapon.fire_sword")!=null);
             Assert.NotNull(database);var fire=database.GetItem("weapon.fire_sword") as WeaponDataSO;Assert.NotNull(fire);
-            var enemy=SpawnEnemy(spawner,SpecialEnemyKind.StoneGolem,player.transform.position+Vector3.forward*1.7f);
-            yield return null;enemy.enabled=false;
+            var enemy=SpawnEnemy(spawner,SpecialEnemyKind.StoneGolem,ClearPosition(player,1.65f));
+            yield return null;StopTarget(enemy);
             var health=enemy.GetComponent<HealthComponent>();float before=health.CurrentHealth;
             Assert.IsTrue(player.Inventory.TryAdd(fire));
             int fireSlot=player.Inventory.HotbarSlots.ToList().FindIndex(s=>s.Item==fire);Assert.GreaterOrEqual(fireSlot,0);
-            player.Inventory.SelectHotbarSlot(fireSlot);player.SetInputActive(true);Physics.SyncTransforms();
+            player.Inventory.SelectHotbarSlot(fireSlot);player.SetInputActive(true);yield return null;
+            FaceTarget(player,enemy);Physics.SyncTransforms();Assert.AreSame(fire,player.Combat.CurrentWeaponData);
             player.Combat.PerformAttack();
             yield return WaitFor(()=>enemy.GetComponent<StatusEffectReceiver>()?.IsBurning==true,"Fire sword's actual burn effect did not apply.");
             Assert.Less(health.CurrentHealth,before);
@@ -81,10 +82,11 @@ namespace LightSouls.Combat.Tests
             var player=Object.FindAnyObjectByType<PlayerController>();var spawner=Object.FindAnyObjectByType<EnemySpawner>();
             var db=Resources.FindObjectsOfTypeAll<ItemDatabaseSO>().First(d=>d.GetItem("weapon.ice_staff")!=null);
             var ice=db.GetItem("weapon.ice_staff") as WeaponDataSO;Assert.NotNull(ice);
-            var enemy=SpawnEnemy(spawner,SpecialEnemyKind.StoneGolem,player.transform.position+Vector3.forward*3.35f);
-            yield return null;enemy.enabled=false;
+            var enemy=SpawnEnemy(spawner,SpecialEnemyKind.StoneGolem,ClearPosition(player,3.35f));
+            yield return null;StopTarget(enemy);
             Assert.IsTrue(player.Inventory.TryAdd(ice));int slot=player.Inventory.HotbarSlots.ToList().FindIndex(s=>s.Item==ice);Assert.GreaterOrEqual(slot,0);
-            player.Inventory.SelectHotbarSlot(slot);player.SetInputActive(true);Physics.SyncTransforms();player.Combat.PerformAttack();
+            player.Inventory.SelectHotbarSlot(slot);player.SetInputActive(true);yield return null;
+            FaceTarget(player,enemy);Physics.SyncTransforms();Assert.AreSame(ice,player.Combat.CurrentWeaponData);player.Combat.PerformAttack();
             var projectile=Object.FindAnyObjectByType<Projectile>();Assert.NotNull(projectile);
             var trail=projectile.GetComponentInChildren<TrailRenderer>();Assert.NotNull(trail);Assert.AreSame(ArcaneVfxMaterials.Ribbon,trail.sharedMaterial);
             yield return new WaitForSeconds(.065f);yield return Capture("09-ice-staff-flight.png");
@@ -106,6 +108,28 @@ namespace LightSouls.Combat.Tests
             var prefab=spawner.SpecialEnemyPrefabs.First(p=>p.GetComponent<SpecialEnemy>().Kind==kind);
             if(NavMesh.SamplePosition(position,out var hit,2f,NavMesh.AllAreas))position=hit.position;
             return Object.Instantiate(prefab,position,Quaternion.identity).GetComponent<SpecialEnemy>();
+        }
+
+        private static Vector3 ClearPosition(PlayerController player,float distance)
+        {
+            Vector3 origin=player.transform.position;
+            foreach(Vector3 dir in new[]{Vector3.forward,Vector3.right,Vector3.left,Vector3.back})
+                if(NavMesh.SamplePosition(origin+dir*distance,out var hit,.65f,NavMesh.AllAreas)&&
+                    !Physics.Linecast(origin+Vector3.up,hit.position+Vector3.up,1<<8,QueryTriggerInteraction.Ignore)) return hit.position;
+            return origin+Vector3.forward*distance;
+        }
+
+        private static void StopTarget(SpecialEnemy enemy)
+        {
+            enemy.enabled=false;
+            var agent=enemy.GetComponent<NavMeshAgent>();
+            if(agent!=null&&agent.isOnNavMesh){agent.isStopped=true;agent.ResetPath();}
+        }
+
+        private static void FaceTarget(PlayerController player,SpecialEnemy enemy)
+        {
+            Vector3 d=enemy.transform.position-player.transform.position;d.y=0;
+            if(d.sqrMagnitude>.01f)player.transform.rotation=Quaternion.LookRotation(d.normalized,Vector3.up);
         }
 
         private static IEnumerator Showcase(SpecialEnemyKind kind,EnemySpawner spawner,PlayerController player,string warningFile,string impactFile)

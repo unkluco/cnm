@@ -189,6 +189,15 @@ namespace LightSouls.Combat.Effects
             ps.Play(); return ps;
         }
 
+        public static ParticleSystem ProjectileAccent(Transform projectile, Color color, CombatVfxElement element)
+        {
+            if (color.a <= 0f || (element != CombatVfxElement.Frost && element != CombatVfxElement.Void)) return null;
+            var ps = Persistent("VFX_ProjectileAura", projectile, Vector3.zero, color, 15f, .19f, .32f, .06f, .23f,
+                element == CombatVfxElement.Frost ? ArcaneParticlePattern.Crystal : ArcaneParticlePattern.Glow,
+                12, .25f, ParticleSystemSimulationSpace.World);
+            ps.Play(); return ps;
+        }
+
         public static ParticleSystem Aura(Transform parent, Color color, float rate = 14f, float radius = .35f,
             Vector3 localOffset = default, float size = .14f, float riseSpeed = .8f, string name = "VFX_Aura")
         {
