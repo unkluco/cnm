@@ -1,170 +1,107 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace LightSouls.Combat.Effects
 {
-    /// <summary>
-    /// Hiệu ứng vệt lướt trắng (White Dash Trail & Ghost Afterimages).
-    /// Kích hoạt dải vệt trắng TrailRenderer và phát sinh các bóng mờ trắng (Afterimages)
-    /// dọc theo quãng đường lướt của người chơi.
-    /// </summary>
+    /// <summary>Cool soul-light afterimages. Each ghost uses a single mesh and a shared material.</summary>
     public class DashTrailEffect : MonoBehaviour
     {
-        [Header("Cấu hình dải vệt trắng (Trail)")]
         [SerializeField] private TrailRenderer ribbonTrail;
+        [SerializeField] private Material ghostMaterial; // Retained for compatibility with older prototype prefabs.
+        [SerializeField] private float ghostLifetime = .35f;
+        [SerializeField] private float spawnInterval = .075f;
+        private static readonly Color SoulTrail = new Color(.46f, .88f, .88f, .64f);
+        private Transform modelRoot;
+        private Transform trailHost;
+        private Coroutine routine;
 
-        [Header("Cấu hình bóng mờ (Ghost Afterimage)")]
-        [SerializeField] private Material ghostMaterial;
-        [SerializeField] private float ghostLifetime = 0.35f;
-        [SerializeField] private float spawnInterval = 0.04f;
-
-        private Transform _modelRoot;
-        private Coroutine _dashEffectCoroutine;
-
-        public void Initialize(Transform modelRoot, Material matGhost, TrailRenderer trail = null)
-        {
-            _modelRoot = modelRoot;
-            ghostMaterial = matGhost;
-            ribbonTrail = trail;
-        }
+        public void Initialize(Transform model, Material matGhost, TrailRenderer trail = null)
+        { modelRoot = model; ghostMaterial = matGhost; ribbonTrail = trail; }
 
         public void StartDashTrail(float duration)
         {
-            if (_dashEffectCoroutine != null)
+            StopDashTrail();
+            if (modelRoot == null) modelRoot = transform.Find("HumanoidFigure") ?? transform;
+            VfxFactory.Burst(transform.position + Vector3.up * .15f, SoulTrail, 10, 2.5f, .17f, .34f, .35f);
+            if (ribbonTrail != null) { ribbonTrail.Clear(); ribbonTrail.emitting = true; }
+            else
             {
-                StopCoroutine(_dashEffectCoroutine);
+                trailHost = new GameObject("VFX_DashRibbonAnchor").transform;
+                trailHost.SetParent(transform, false); trailHost.localPosition = Vector3.up * .76f;
+                VfxFactory.AttachTrail(trailHost.gameObject, SoulTrail, .49f, .24f);
             }
-
-            _dashEffectCoroutine = StartCoroutine(DashTrailRoutine(duration));
+            routine = StartCoroutine(DashRoutine(duration));
         }
 
         public void StopDashTrail()
         {
-            if (_dashEffectCoroutine != null)
+            if (routine != null) StopCoroutine(routine);
+            routine = null;
+            if (ribbonTrail != null) ribbonTrail.emitting = false;
+            if (trailHost != null)
             {
-                StopCoroutine(_dashEffectCoroutine);
-                _dashEffectCoroutine = null;
-            }
-
-            if (ribbonTrail != null)
-            {
-                ribbonTrail.emitting = false;
+                if (gameObject.activeInHierarchy) VfxFactory.ReleaseTrail(trailHost.gameObject);
+                Destroy(trailHost.gameObject); trailHost = null;
             }
         }
 
-        private IEnumerator DashTrailRoutine(float duration)
+        private IEnumerator DashRoutine(float duration)
         {
-            if (ribbonTrail != null)
+            float interval = Mathf.Max(.075f, spawnInterval);
+            float end = Time.time + duration;
+            int ghosts = 0;
+            while (Time.time < end && ghosts < 4)
             {
-                ribbonTrail.Clear();
-                ribbonTrail.emitting = true;
+                SpawnGhostAfterimage(); ghosts++;
+                yield return new WaitForSeconds(interval);
             }
-
-            float elapsed = 0f;
-            while (elapsed < duration)
-            {
-                SpawnGhostAfterimage();
-                yield return new WaitForSeconds(spawnInterval);
-                elapsed += spawnInterval;
-            }
-
-            if (ribbonTrail != null)
-            {
-                ribbonTrail.emitting = false;
-            }
-            _dashEffectCoroutine = null;
+            routine = null;
         }
 
         private void SpawnGhostAfterimage()
         {
-            if (_modelRoot == null) _modelRoot = transform;
-
-            GameObject ghostObj = new GameObject("DashGhost_Afterimage");
-            ghostObj.transform.position = _modelRoot.position;
-            ghostObj.transform.rotation = _modelRoot.rotation;
-
-            // Thu thập các MeshFilter / Renderer từ mô hình nhân vật để tạo bóng mờ
-            MeshFilter[] meshFilters = _modelRoot.GetComponentsInChildren<MeshFilter>();
-            Material sharedGhostMat = ghostMaterial;
-
-            if (sharedGhostMat == null)
+            if (modelRoot == null) return;
+            var ghost = new GameObject("DashGhost_Afterimage");
+            ghost.transform.SetPositionAndRotation(modelRoot.position, modelRoot.rotation);
+            var local = ghost.transform.worldToLocalMatrix;
+            var parts = new List<CombineInstance>();
+            int vertexCount = 0;
+            foreach (var mf in modelRoot.GetComponentsInChildren<MeshFilter>())
             {
-                Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
-                if (shader == null) shader = Shader.Find("Sprites/Default");
-                sharedGhostMat = new Material(shader);
-                sharedGhostMat.color = new Color(1f, 1f, 1f, 0.65f);
+                var r = mf.GetComponent<MeshRenderer>();
+                if (r == null || !r.enabled || mf.sharedMesh == null || !mf.sharedMesh.isReadable || mf.name.StartsWith("VFX_")) continue;
+                parts.Add(new CombineInstance { mesh = mf.sharedMesh, transform = local * mf.transform.localToWorldMatrix });
+                vertexCount += mf.sharedMesh.vertexCount;
             }
-
-            List<Material> instancedMats = new List<Material>();
-
-            foreach (var mf in meshFilters)
-            {
-                if (mf.sharedMesh == null) continue;
-
-                GameObject subGhost = new GameObject(mf.name + "_Ghost");
-                subGhost.transform.SetParent(ghostObj.transform, false);
-                subGhost.transform.position = mf.transform.position;
-                subGhost.transform.rotation = mf.transform.rotation;
-                subGhost.transform.localScale = mf.transform.lossyScale;
-
-                MeshFilter newMf = subGhost.AddComponent<MeshFilter>();
-                newMf.sharedMesh = mf.sharedMesh;
-
-                MeshRenderer mr = subGhost.AddComponent<MeshRenderer>();
-                Material instMat = new Material(sharedGhostMat);
-                mr.material = instMat;
-                instancedMats.Add(instMat);
-            }
-
-            // Gắn component tự hủy và fade out
-            GhostFadeDestroyer fader = ghostObj.AddComponent<GhostFadeDestroyer>();
-            fader.Initialize(instancedMats, ghostLifetime);
+            if (parts.Count == 0) { Destroy(ghost); return; }
+            var mesh = new Mesh { name = "Arcane Dash Snapshot", indexFormat = vertexCount > 65535 ? IndexFormat.UInt32 : IndexFormat.UInt16 };
+            mesh.CombineMeshes(parts.ToArray(), true, true);
+            var renderer = ArcaneVfxMaterials.AddSurface(ghost, mesh, ArcaneVfxMaterials.Ghost);
+            ghost.AddComponent<GhostFadeDestroyer>().Initialize(mesh, renderer, Mathf.Clamp(ghostLifetime, .15f, .42f));
         }
 
-        private class GhostFadeDestroyer : MonoBehaviour
+        private void OnDisable() => StopDashTrail();
+
+        private sealed class GhostFadeDestroyer : MonoBehaviour
         {
-            private List<Material> _materials;
-            private float _lifetime;
-            private float _elapsed = 0f;
-
-            public void Initialize(List<Material> materials, float lifetime)
-            {
-                _materials = materials;
-                _lifetime = lifetime;
-            }
-
+            private Mesh mesh; private MeshRenderer surface; private MaterialPropertyBlock properties;
+            private float lifetime, elapsed;
+            public void Initialize(Mesh snapshot, MeshRenderer renderer, float seconds)
+            { mesh = snapshot; surface = renderer; lifetime = seconds; properties = new MaterialPropertyBlock(); Apply(0f); }
             private void Update()
             {
-                _elapsed += Time.deltaTime;
-                float progress = Mathf.Clamp01(_elapsed / _lifetime);
-                float alpha = Mathf.SmoothStep(0.7f, 0f, progress);
-
-                if (_materials != null)
-                {
-                    for (int i = 0; i < _materials.Count; i++)
-                    {
-                        if (_materials[i] != null)
-                        {
-                            Color c = _materials[i].color;
-                            c.a = alpha;
-                            _materials[i].color = c;
-                        }
-                    }
-                }
-
-                if (_elapsed >= _lifetime)
-                {
-                    if (_materials != null)
-                    {
-                        for (int i = 0; i < _materials.Count; i++)
-                        {
-                            if (_materials[i] != null) Destroy(_materials[i]);
-                        }
-                    }
-                    Destroy(gameObject);
-                }
+                elapsed += Time.deltaTime;
+                float p = Mathf.Clamp01(elapsed / lifetime); Apply(p);
+                if (p >= 1f) Destroy(gameObject);
             }
+            private void Apply(float p)
+            {
+                var tint = SoulTrail; tint.a *= .63f * (1f - p) * (1f - p);
+                properties.SetColor("_Tint", tint); surface.SetPropertyBlock(properties);
+            }
+            private void OnDestroy() { if (mesh != null) Destroy(mesh); }
         }
     }
 }

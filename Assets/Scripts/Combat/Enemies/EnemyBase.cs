@@ -332,21 +332,11 @@ namespace LightSouls.Combat.Enemies
         private IEnumerator FlashRedRoutine()
         {
             var block = new MaterialPropertyBlock();
-            if (meshRenderers != null)
-            {
-                foreach (var r in meshRenderers)
-                {
-                    if (r != null && r.sharedMaterial != null)
-                    {
-                        r.GetPropertyBlock(block);
-                        block.SetColor("_BaseColor", hitFlashColor);
-                        block.SetColor("_Color", hitFlashColor);
-                        r.SetPropertyBlock(block);
-                    }
-                }
-            }
-
-            yield return new WaitForSeconds(flashDuration);
+            float snap = Mathf.Min(.045f, flashDuration * .4f);
+            SetFlashColor(block, Color.Lerp(hitFlashColor, Color.white, .72f));
+            yield return new WaitForSeconds(snap);
+            SetFlashColor(block, hitFlashColor);
+            yield return new WaitForSeconds(Mathf.Max(0f, flashDuration - snap));
 
             if (meshRenderers != null && _originalColors != null)
             {
@@ -358,6 +348,24 @@ namespace LightSouls.Combat.Enemies
                         block.SetColor("_BaseColor", _originalColors[i]);
                         block.SetColor("_Color", _originalColors[i]);
                         meshRenderers[i].SetPropertyBlock(block);
+                    }
+                }
+            }
+            _flashCoroutine = null;
+        }
+
+        private void SetFlashColor(MaterialPropertyBlock block, Color tint)
+        {
+            if (meshRenderers != null)
+            {
+                foreach (var r in meshRenderers)
+                {
+                    if (r != null && r.sharedMaterial != null)
+                    {
+                        r.GetPropertyBlock(block);
+                        block.SetColor("_BaseColor", tint);
+                        block.SetColor("_Color", tint);
+                        r.SetPropertyBlock(block);
                     }
                 }
             }

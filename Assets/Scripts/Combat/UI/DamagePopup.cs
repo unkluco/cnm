@@ -17,6 +17,7 @@ namespace LightSouls.Combat.UI
         private float _spawnTime;
         private Color _initialColor;
         private Camera _mainCamera;
+        private Vector3 _baseScale;
 
         public static DamagePopup Create(GameObject popupPrefab, Vector3 worldPosition, float damageAmount)
         {
@@ -89,7 +90,11 @@ namespace LightSouls.Combat.UI
                 }
 
                 _initialColor = damageText.color;
+                var outline = damageText.GetComponent<Outline>() ?? damageText.gameObject.AddComponent<Outline>();
+                outline.effectColor = new Color(.055f, .04f, .08f, .94f);
+                outline.effectDistance = new Vector2(1.6f, -1.6f);
             }
+            _baseScale = transform.localScale;
         }
 
         private void LateUpdate()
@@ -105,6 +110,8 @@ namespace LightSouls.Combat.UI
 
             // Mờ dần theo thời gian
             float elapsed = Time.time - _spawnTime;
+            float punch = Mathf.Lerp(1.25f, 1f, Mathf.SmoothStep(0f, 1f, elapsed / .17f));
+            transform.localScale = _baseScale * punch;
             if (damageText != null && fadeDuration > 0f)
             {
                 float alpha = Mathf.Clamp01(1f - (elapsed / fadeDuration));

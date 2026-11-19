@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using LightSouls.Common;
+using LightSouls.Combat.Effects;
 
 namespace LightSouls.Combat.Enemies
 {
@@ -16,6 +17,8 @@ namespace LightSouls.Combat.Enemies
         [SerializeField] private Transform visualArm;
 
         private bool _isAttacking = false;
+        private static readonly Color WarningColor = new Color(1f, .44f, .13f, .9f);
+        private ArcaneTelegraph warning;
 
         protected override void HandleBehavior(float distanceToPlayer)
         {
@@ -69,7 +72,18 @@ namespace LightSouls.Combat.Enemies
                 visualArm.localRotation = initialArmRot * Quaternion.Euler(-45f, 0f, 0f);
             }
 
-            yield return new WaitForSeconds(0.2f);
+            float resolveAt = Time.time + .2f;
+            Vector3 ground = AttackCenter(); ground.y = transform.position.y;
+            warning = ArcaneTelegraph.Circle("EnemyWarning_Melee", ground, hitRadius, WarningColor, .2f,
+                CombatVfxElement.Steel, TelegraphStyle.Danger, transform);
+            while (Time.time < resolveAt && !IsDead && isActiveAndEnabled)
+            {
+                ground = AttackCenter(); ground.y = transform.position.y;
+                if (warning != null) warning.SetCircle(ground, hitRadius);
+                yield return null;
+            }
+            ClearWarning();
+            if (IsDead || !isActiveAndEnabled) { _isAttacking = _isAttackingLimbAnim = false; yield break; }
 
             // Bổ mạnh cánh tay về phía trước (Strike)
             if (visualArm != null)
@@ -78,9 +92,9 @@ namespace LightSouls.Combat.Enemies
             }
 
             // Điểm kiểm tra sát thương (Attack Point)
-            Vector3 center = attackPoint != null 
-                ? attackPoint.position 
-                : transform.position + transform.forward * (attackRange * 0.7f) + Vector3.up * 0.9f;
+            Vector3 center = AttackCenter();
+            SwordSlashWave.Spawn(transform.position + Vector3.up * .85f, transform.forward,
+                Mathf.Max(1f, attackRange * .82f), 85f, WarningColor, CombatVfxElement.Steel);
 
             // Layer 6: Player theo quy ước dự án
             int playerLayerMask = 1 << 6;
@@ -104,6 +118,8 @@ namespace LightSouls.Combat.Enemies
                     };
 
                     damageable.TakeDamage(info);
+                    VfxFactory.HitImpact(info.HitPoint, transform.forward, WarningColor, CombatVfxElement.Steel, .36f);
+                    CombatImpactFeedback.Emit(info.HitPoint, .32f);
                     break;
                 }
             }
@@ -119,6 +135,17 @@ namespace LightSouls.Combat.Enemies
             _isAttacking = false;
             _isAttackingLimbAnim = false;
         }
+
+        private Vector3 AttackCenter() => attackPoint != null ? attackPoint.position :
+            transform.position + transform.forward * (attackRange * .7f) + Vector3.up * .9f;
+
+        private void ClearWarning()
+        {
+            if (warning != null) warning.Remove(); warning = null;
+        }
+
+        protected override void HandleDied(IDamageable damageable) { ClearWarning(); base.HandleDied(damageable); }
+        protected override void OnDestroy() { ClearWarning(); base.OnDestroy(); }
 
         private void OnDrawGizmosSelected()
         {

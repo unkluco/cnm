@@ -1,4 +1,5 @@
 using UnityEngine;
+using LightSouls.Combat.Effects;
 
 namespace LightSouls.Game
 {
@@ -23,10 +24,25 @@ namespace LightSouls.Game
         [SerializeField] private float smoothTime = 0.12f;
 
         private Vector3 velocity;
+        private Vector3 followPosition;
+        private float impulse, impulseTime;
 
         private void Awake()
         {
             transform.rotation = Quaternion.Euler(pitch, 0f, 0f);
+            followPosition = transform.position;
+        }
+
+        private void OnEnable() => CombatImpactFeedback.Impact += OnImpact;
+        private void OnDisable() => CombatImpactFeedback.Impact -= OnImpact;
+
+        private void OnImpact(Vector3 point, float strength)
+        {
+            if (target == null) return;
+            float distanceToImpact = Vector3.Distance(target.position, point);
+            float attenuation = 1f - Mathf.Clamp01(distanceToImpact / 10f);
+            impulse = Mathf.Max(impulse, .15f * strength * attenuation);
+            impulseTime = Mathf.Max(impulseTime, .15f);
         }
 
         /// <summary>Đổi đối tượng bám theo. snap = true thì nhảy ngay tới vị trí mới, không trượt.</summary>
@@ -36,7 +52,9 @@ namespace LightSouls.Game
             if (snap && target != null)
             {
                 velocity = Vector3.zero;
-                transform.position = DesiredPosition();
+                followPosition = DesiredPosition();
+                impulse = impulseTime = 0f;
+                transform.position = followPosition;
             }
         }
 
@@ -48,7 +66,16 @@ namespace LightSouls.Game
             }
 
             transform.rotation = Quaternion.Euler(pitch, 0f, 0f);
-            transform.position = Vector3.SmoothDamp(transform.position, DesiredPosition(), ref velocity, smoothTime);
+            followPosition = Vector3.SmoothDamp(followPosition, DesiredPosition(), ref velocity, smoothTime);
+            Vector3 shake = Vector3.zero;
+            if (impulseTime > 0f)
+            {
+                impulseTime = Mathf.Max(0f, impulseTime - Time.deltaTime);
+                float weight = impulseTime / .15f;
+                shake = (transform.right * Mathf.Sin(Time.time * 64f) + transform.up * Mathf.Cos(Time.time * 51f) * .6f) * (impulse * weight * weight);
+                if (impulseTime <= 0f) impulse = 0f;
+            }
+            transform.position = followPosition + shake;
         }
 
         private Vector3 DesiredPosition()

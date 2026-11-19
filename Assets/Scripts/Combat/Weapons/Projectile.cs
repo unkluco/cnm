@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using LightSouls.Common;
+using LightSouls.Combat.Effects;
 
 namespace LightSouls.Combat.Weapons
 {
@@ -22,6 +23,8 @@ namespace LightSouls.Combat.Weapons
         private bool _finished;
         private WeaponDataSO _weapon;
         private int _pierceRemaining;
+        private Color _visualColor = Color.white;
+        private CombatVfxElement _visualElement;
         private readonly HashSet<IDamageable> _alreadyHit = new HashSet<IDamageable>();
 
         public void Initialize(float damageAmount, float projectileSpeed, float lifetime, LayerMask targets, GameObject source)
@@ -41,6 +44,14 @@ namespace LightSouls.Combat.Weapons
             _pierceRemaining = Mathf.Max(0, pierceCount);
         }
 
+        public void SetVisualStyle(Color color, CombatVfxElement element, float trailWidth = .16f)
+        {
+            _visualColor = color;
+            _visualElement = element;
+            VfxFactory.TintProjectile(gameObject, color);
+            VfxFactory.AttachTrail(gameObject, color, trailWidth, .23f);
+        }
+
         private void Start()
         {
             _spawnTime = Time.time;
@@ -57,7 +68,7 @@ namespace LightSouls.Combat.Weapons
 
             if (Time.time - _spawnTime >= maxLifetime)
             {
-                Destroy(gameObject);
+                Finish();
             }
         }
 
@@ -77,7 +88,8 @@ namespace LightSouls.Combat.Weapons
                 IDamageable damageable = WeaponHitResolver.FindDamageable(other);
                 if (damageable != null && !damageable.IsDead && _alreadyHit.Add(damageable))
                 {
-                    WeaponHitResolver.Apply(_weapon, damage, _source, damageable, other.ClosestPoint(transform.position));
+                    WeaponHitResolver.Apply(_weapon, damage, _source, damageable, other.ClosestPoint(transform.position),
+                        true, transform.forward, _visualElement, _visualColor);
 
                     if (_pierceRemaining > 0)
                     {
@@ -85,17 +97,24 @@ namespace LightSouls.Combat.Weapons
                         return;
                     }
 
-                    _finished = true;
-                    Destroy(gameObject);
+                    Finish();
                     return;
                 }
             }
 
             if (isEnvironment)
             {
-                _finished = true;
-                Destroy(gameObject);
+                VfxFactory.HitImpact(other.ClosestPoint(transform.position), -transform.forward, _visualColor, _visualElement, .18f);
+                Finish();
             }
+        }
+
+        private void Finish()
+        {
+            if (_finished) return;
+            _finished = true;
+            VfxFactory.ReleaseTrail(gameObject);
+            Destroy(gameObject);
         }
     }
 }

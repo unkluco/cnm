@@ -147,9 +147,14 @@ namespace LightSouls.Combat.Tests
                 yield return WaitFor(() => enemy != null && enemy.IsCasting, type + " never cast.");
                 Assert.IsTrue(Object.FindObjectsByType<LineRenderer>(FindObjectsSortMode.None)
                     .Any(line => line.name == "EnemyWarning_" + type), type + " had no visual warning.");
+                var glyphs = Object.FindObjectsByType<ArcaneTelegraph>().Where(g => g.name == "EnemyWarning_" + type && g.IsVisible).ToArray();
+                Assert.IsNotEmpty(glyphs, type + " must display the styled, animated warning.");
+                Assert.IsTrue(glyphs.All(g => g.GetComponentInChildren<MeshRenderer>().sharedMaterial == ArcaneVfxMaterials.Glyph));
+                if (type == SpecialEnemyKind.LightPriest) Assert.AreEqual(TelegraphStyle.Blessing, glyphs[0].Style);
                 if (type == SpecialEnemyKind.ShieldGuard)
                     Assert.Less(enemy.GetComponent<HealthComponent>().DamageReduction, 0.1f, "Guard must lower its shield while casting.");
                 yield return WaitFor(() => enemy == null || !enemy.IsCasting, type + " never resolved.");
+                Assert.IsFalse(Object.FindObjectsByType<ArcaneTelegraph>().Any(g => g.name == "EnemyWarning_" + type && g.IsVisible), type + " left a stale telegraph.");
                 if (type == SpecialEnemyKind.StormArcher) yield return new WaitForSeconds(0.65f);
 
                 if (type == SpecialEnemyKind.LightPriest)

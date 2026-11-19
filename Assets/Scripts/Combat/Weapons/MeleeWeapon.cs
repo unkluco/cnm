@@ -21,6 +21,7 @@ namespace LightSouls.Combat.Weapons
         private Quaternion _defaultLocalRot = Quaternion.identity;
         private Coroutine _swingCoroutine;
         private ParticleSystem _aura;
+        private BladeRibbonTrail _bladeRibbon;
 
         public override void OnEquipped()
         {
@@ -34,9 +35,12 @@ namespace LightSouls.Combat.Weapons
 
             if (slashTrail != null)
             {
-                slashTrail.time = 0.5f; // Vệt kéo dài 0.5 giây theo yêu cầu
+                slashTrail.time = 0.23f;
                 slashTrail.emitting = false;
             }
+
+            _bladeRibbon = GetComponent<BladeRibbonTrail>() ?? gameObject.AddComponent<BladeRibbonTrail>();
+            _bladeRibbon.Configure(visualBlade != null ? visualBlade : transform);
 
             _aura = WeaponAura.Attach(this, weaponData, _aura);
         }
@@ -45,6 +49,7 @@ namespace LightSouls.Combat.Weapons
         {
             base.OnUnequipped();
             WeaponAura.Detach(ref _aura);
+            if (_bladeRibbon != null) _bladeRibbon.Clear();
         }
 
         public override bool ExecuteAttack(Transform attackOrigin, Vector3 aimDirection, LayerMask targetLayer, GameObject attacker)
@@ -81,7 +86,7 @@ namespace LightSouls.Combat.Weapons
 
             // 2. Diễn hoạt vung vũ khí
             if (_swingCoroutine != null) StopCoroutine(_swingCoroutine);
-            _swingCoroutine = StartCoroutine(SwingRoutine());
+            _swingCoroutine = StartCoroutine(SwingRoutine(strikeIndex % 2 == 1));
 
             // 3. Quét sát thương hình quạt phía trước
             Vector3 center = attackOrigin.position + aimDirection * (weaponData.AttackRange * 0.5f);
@@ -92,8 +97,7 @@ namespace LightSouls.Combat.Weapons
             {
                 Vector3 ground = new Vector3(center.x, attacker != null ? attacker.transform.position.y : center.y, center.z);
                 Color ringColor = vfx.slashColor.a > 0f ? vfx.slashColor : Color.white;
-                VfxFactory.Ring(ground, ringColor, radius, 0.35f, 56);
-                VfxFactory.Burst(ground + Vector3.up * 0.2f, new Color(0.55f, 0.48f, 0.4f, 0.9f), 14, 3f, 0.3f, 0.5f, 1f);
+                VfxFactory.SpellImpact(ground, radius, ringColor, vfx.element == CombatVfxElement.Steel ? CombatVfxElement.Stone : vfx.element);
             }
 
             Collider[] hits = Physics.OverlapSphere(center, radius, targetLayer);
@@ -126,7 +130,7 @@ namespace LightSouls.Combat.Weapons
 
         private void SpawnSlashWave(Transform attackOrigin, Vector3 aimDirection, bool mirrored)
         {
-            Vector3 spawnPos = attackOrigin.position + aimDirection.normalized * 0.9f + Vector3.up * 0.1f;
+            Vector3 spawnPos = attackOrigin.position + Vector3.up * 0.08f;
             Quaternion spawnRot = Quaternion.LookRotation(aimDirection, Vector3.up);
             if (mirrored)
             {
@@ -135,32 +139,24 @@ namespace LightSouls.Combat.Weapons
             }
 
             Color slashColor = weaponData != null ? weaponData.Vfx.slashColor : new Color(1f, 1f, 1f, 0.9f);
+            CombatVfxElement element = weaponData != null ? weaponData.Vfx.element : CombatVfxElement.Steel;
+            float arc = weaponData != null ? weaponData.SwingArcAngle : 110f;
+            float outer = weaponData != null ? Mathf.Max(1.0f, weaponData.AttackRange * .89f) : 1.8f;
 
             if (slashWavePrefab != null)
             {
-                Instantiate(slashWavePrefab, spawnPos, spawnRot);
+                var instance = Instantiate(slashWavePrefab, spawnPos, spawnRot);
+                var wave = instance.GetComponent<SwordSlashWave>();
+                if (wave != null) wave.Configure(1f, slashColor, element);
             }
             else
             {
-                // Khởi tạo vệt sóng kiếm trắng theo chuẩn nếu chưa gắn Prefab
-                GameObject waveObj = new GameObject("SwordSlashWave_Instance");
-                waveObj.transform.position = spawnPos;
-                waveObj.transform.rotation = spawnRot;
-
-                MeshFilter mf = waveObj.AddComponent<MeshFilter>();
-                float arc = weaponData != null ? Mathf.Clamp(weaponData.SwingArcAngle, 60f, 300f) : 110f;
-                float outer = weaponData != null ? Mathf.Max(1.4f, weaponData.AttackRange * 0.9f) : 1.8f;
-                mf.sharedMesh = SwordSlashWave.CreateSlashArcMesh(outer * 0.4f, outer, arc, 24);
-
-                MeshRenderer mr = waveObj.AddComponent<MeshRenderer>();
-                Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
-                if (shader == null) shader = Shader.Find("Sprites/Default");
-                Material waveMat = new Material(shader);
-                waveMat.color = slashColor;
-                mr.material = waveMat;
-
-                waveObj.AddComponent<SwordSlashWave>();
+                SwordSlashWave.Spawn(spawnPos, aimDirection, outer, arc, slashColor, element, mirrored);
             }
+
+            if (_bladeRibbon != null) _bladeRibbon.Begin(slashColor, element, .15f);
+            if (element == CombatVfxElement.Ember && CombatVfxBudget.AllowSecondaryDetail)
+                VfxFactory.Burst(spawnPos + aimDirection.normalized * .65f, slashColor, 6, 2.9f, .13f, .34f, .25f);
 
             if (slashTrail != null)
             {
@@ -179,7 +175,7 @@ namespace LightSouls.Combat.Weapons
             }
         }
 
-        private IEnumerator SwingRoutine()
+        private IEnumerator SwingRoutine(bool mirrored)
         {
             Transform targetTransform = visualBlade != null ? visualBlade : transform;
             Quaternion startRot = _defaultLocalRot;
@@ -187,13 +183,13 @@ namespace LightSouls.Combat.Weapons
             // Giai đoạn 1: Vung mạnh kiếm từ phải qua trái (0.12s)
             float elapsed = 0f;
             float swingTime = 0.12f;
-            Quaternion swingRot = startRot * Quaternion.Euler(60f, -75f, 20f);
+            Quaternion swingRot = startRot * Quaternion.Euler(60f, mirrored ? 68f : -75f, mirrored ? -20f : 20f);
 
             while (elapsed < swingTime)
             {
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / swingTime);
-                targetTransform.localRotation = Quaternion.Slerp(startRot, swingRot, t);
+                targetTransform.localRotation = Quaternion.Slerp(startRot, swingRot, 1f - (1f - t) * (1f - t));
                 yield return null;
             }
 

@@ -73,7 +73,7 @@ namespace LightSouls.Combat.Effects
             burnSource = source;
             if (burnAura == null)
             {
-                burnAura = VfxFactory.Aura(transform, BurnColor, 26f, 0.45f, Vector3.up * 1f, 0.22f, 2f, "VFX_Burn");
+                burnAura = VfxFactory.BurningAura(transform);
             }
         }
 
@@ -89,7 +89,7 @@ namespace LightSouls.Combat.Effects
             speedModifiable.SetSpeedMultiplier(this, slowMultiplier);
             if (slowAura == null)
             {
-                slowAura = VfxFactory.Aura(transform, SlowColor, 16f, 0.5f, Vector3.up * 0.9f, 0.16f, -0.5f, "VFX_Slow");
+                slowAura = VfxFactory.FrostAura(transform, SlowColor);
             }
         }
 
@@ -104,7 +104,7 @@ namespace LightSouls.Combat.Effects
             stunUntil = Mathf.Max(stunUntil, Time.time + duration);
             if (stunAura == null)
             {
-                stunAura = VfxFactory.Aura(transform, StunColor, 12f, 0.3f, Vector3.up * 2.1f, 0.18f, 0f, "VFX_Stun");
+                stunAura = VfxFactory.StunAura(transform, StunColor);
             }
         }
 
@@ -125,6 +125,8 @@ namespace LightSouls.Combat.Effects
                     {
                         nextBurnTick = now + BurnTickInterval;
                         damageable.TakeDamage(new DamageInfo(burnDps * BurnTickInterval, burnSource, transform.position + Vector3.up));
+                        if (CombatVfxBudget.AllowSecondaryDetail)
+                            VfxFactory.Burst(transform.position + Vector3.up * .8f, BurnColor, 4, 1.7f, .13f, .27f, -.35f);
                     }
                 }
                 else
