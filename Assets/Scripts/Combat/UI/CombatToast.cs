@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using LightSouls.Common;
 
 namespace LightSouls.Combat.UI
 {
@@ -72,7 +73,7 @@ namespace LightSouls.Combat.UI
             bgRect.anchorMin = bgRect.anchorMax = new Vector2(0.5f, 0.72f);
             bgRect.sizeDelta = new Vector2(900f, 90f);
             var bg = background.GetComponent<Image>();
-            bg.color = new Color(0f, 0f, 0f, 0.65f);
+            DarkFantasyTheme.FramePanel(bg, new Color(1f, 1f, 1f, 0.94f));
             bg.raycastTarget = false;
 
             var textGo = new GameObject("Text", typeof(RectTransform), typeof(Text));
@@ -86,7 +87,7 @@ namespace LightSouls.Combat.UI
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.fontSize = 40;
             text.alignment = TextAnchor.MiddleCenter;
-            text.color = Color.white;
+            text.color = DarkFantasyTheme.Ivory;
             text.raycastTarget = false;
 
             var toast = root.AddComponent<CombatToast>();

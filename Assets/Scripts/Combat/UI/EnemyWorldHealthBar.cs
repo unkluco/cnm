@@ -91,7 +91,7 @@ namespace LightSouls.Combat.UI
             {
                 float ratio = current / max;
                 // Chuyển màu từ xanh lá sang cam sang đỏ khi máu giảm
-                fillImage.color = Color.Lerp(Color.red, Color.green, ratio);
+                fillImage.color = Color.Lerp(new Color32(200, 65, 61, 255), new Color32(123, 193, 125, 255), ratio);
             }
 
             if (_worldCanvas != null && hideWhenFull)

@@ -331,13 +331,17 @@ namespace LightSouls.Combat.Enemies
 
         private IEnumerator FlashRedRoutine()
         {
+            var block = new MaterialPropertyBlock();
             if (meshRenderers != null)
             {
                 foreach (var r in meshRenderers)
                 {
-                    if (r != null && r.material != null)
+                    if (r != null && r.sharedMaterial != null)
                     {
-                        r.material.color = hitFlashColor;
+                        r.GetPropertyBlock(block);
+                        block.SetColor("_BaseColor", hitFlashColor);
+                        block.SetColor("_Color", hitFlashColor);
+                        r.SetPropertyBlock(block);
                     }
                 }
             }
@@ -348,9 +352,12 @@ namespace LightSouls.Combat.Enemies
             {
                 for (int i = 0; i < meshRenderers.Length; i++)
                 {
-                    if (meshRenderers[i] != null && meshRenderers[i].material != null && i < _originalColors.Length)
+                    if (meshRenderers[i] != null && meshRenderers[i].sharedMaterial != null && i < _originalColors.Length)
                     {
-                        meshRenderers[i].material.color = _originalColors[i];
+                        meshRenderers[i].GetPropertyBlock(block);
+                        block.SetColor("_BaseColor", _originalColors[i]);
+                        block.SetColor("_Color", _originalColors[i]);
+                        meshRenderers[i].SetPropertyBlock(block);
                     }
                 }
             }

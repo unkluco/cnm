@@ -16,10 +16,10 @@ namespace LightSouls.Lobby
     /// </summary>
     public class LobbyShopUI : MonoBehaviour
     {
-        private static readonly Color CellColor = new Color(0.2f, 0.22f, 0.28f, 1f);
-        private static readonly Color CellSelectedColor = new Color(0.32f, 0.42f, 0.62f, 1f);
-        private static readonly Color DetailColor = new Color(0.15f, 0.17f, 0.22f, 1f);
-        private static readonly Color PriceColor = new Color(1f, 0.85f, 0.2f);
+        private static readonly Color CellColor = DarkFantasyTheme.Slot;
+        private static readonly Color CellSelectedColor = DarkFantasyTheme.Selected;
+        private static readonly Color DetailColor = DarkFantasyTheme.Panel;
+        private static readonly Color PriceColor = DarkFantasyTheme.Gold;
 
         [Header("Catalog & References")]
         [SerializeField] private ShopCatalogSO catalog;
@@ -96,15 +96,21 @@ namespace LightSouls.Lobby
             }
 
             float width = gridScroll.viewport.rect.width;
-            if (width <= 0f || Mathf.Approximately(width, lastViewportWidth))
+            // While the canvas is resizing (safe area, device aspect, camera change), the
+            // content and viewport may briefly disagree. Fit the narrower actual rect.
+            if (gridContent != null && gridContent.rect.width > 0f)
+                width = Mathf.Min(width, gridContent.rect.width);
+            if (width <= 0f)
             {
                 return;
             }
 
-            lastViewportWidth = width;
             float usable = width - gridLayout.padding.left - gridLayout.padding.right - cellSpacing * (columns - 1);
-            float cellWidth = Mathf.Max(80f, usable / columns);
+            float cellWidth = Mathf.Max(1f, usable / Mathf.Max(1, columns));
+            if (Mathf.Approximately(width, lastViewportWidth) && Mathf.Approximately(gridLayout.cellSize.x, cellWidth)) return;
+            lastViewportWidth = width;
             gridLayout.cellSize = new Vector2(cellWidth, cellWidth * cellAspect);
+            if (gridContent != null) LayoutRebuilder.ForceRebuildLayoutImmediate(gridContent);
         }
 
         private void OnEnable()
@@ -197,7 +203,9 @@ namespace LightSouls.Lobby
 
             for (int i = gridContent.childCount - 1; i >= 0; i--)
             {
-                Destroy(gridContent.GetChild(i).gameObject);
+                var oldCell = gridContent.GetChild(i).gameObject;
+                oldCell.SetActive(false); // Do not include deferred destruction in this frame's layout.
+                Destroy(oldCell);
             }
             cells.Clear();
 
@@ -217,6 +225,9 @@ namespace LightSouls.Lobby
             if (gridScroll != null)
             {
                 gridScroll.StopMovement();
+                Canvas.ForceUpdateCanvases();
+                FitCellsToViewport();
+                gridScroll.verticalNormalizedPosition = 1f;
             }
 
             SelectItem(null);
@@ -396,6 +407,7 @@ namespace LightSouls.Lobby
         private void BuildDetailPanel()
         {
             Image panel = CreateImage("DetailPanel", itemsContainer, DetailColor);
+            DarkFantasyTheme.FramePanel(panel, Color.white);
             var panelRt = panel.rectTransform;
             panelRt.anchorMin = new Vector2(0.6f, 0f);
             panelRt.anchorMax = new Vector2(1f, 1f);
@@ -434,8 +446,9 @@ namespace LightSouls.Lobby
             descRt.offsetMin = new Vector2(24f, 130f);
             descRt.offsetMax = new Vector2(-24f, -310f);
 
-            Image buyImage = CreateImage("BuyButton", body.transform, new Color(0.2f, 0.65f, 0.3f, 1f));
+            Image buyImage = CreateImage("BuyButton", body.transform, DarkFantasyTheme.Success);
             buyButton = buyImage.gameObject.AddComponent<Button>();
+            DarkFantasyTheme.FrameButton(buyButton, DarkFantasyTheme.Success);
             buyButton.onClick.AddListener(BuySelected);
             var buyColors = buyButton.colors;
             buyColors.disabledColor = new Color(0.45f, 0.45f, 0.45f, 0.6f);
@@ -452,6 +465,7 @@ namespace LightSouls.Lobby
         private CellView CreateCell(ItemDefinitionSO item)
         {
             Image background = CreateImage("Cell_" + item.ItemId, gridContent, CellColor);
+            DarkFantasyTheme.FrameSlot(background, CellColor);
             var button = background.gameObject.AddComponent<Button>();
             button.onClick.AddListener(() => SelectItem(item));
 
