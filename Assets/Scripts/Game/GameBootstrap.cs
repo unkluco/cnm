@@ -74,6 +74,7 @@ namespace LightSouls.Game
         private RoomModule roomInCombat;
         private readonly List<RoomLifecycleController> subscribedRooms = new List<RoomLifecycleController>();
         private bool isFinished;
+        private bool mustLeaveExitArea;
 
         private void Awake()
         {
@@ -85,6 +86,7 @@ namespace LightSouls.Game
             }
 
             dungeonGenerator.OnDungeonGenerated += HandleDungeonGenerated;
+            dungeonGenerator.OnGenerationFailed += HandleGenerationFailed;
             enemySpawner.AllEnemiesDefeated += HandleWaveDefeated;
 
             if (pauseMenu != null)
@@ -98,6 +100,7 @@ namespace LightSouls.Game
             if (dungeonGenerator != null)
             {
                 dungeonGenerator.OnDungeonGenerated -= HandleDungeonGenerated;
+                dungeonGenerator.OnGenerationFailed -= HandleGenerationFailed;
             }
 
             if (enemySpawner != null)
@@ -139,7 +142,15 @@ namespace LightSouls.Game
 
             var offset = player.transform.position - levelExitPoint.position;
             offset.y = 0f;
-            if (offset.sqrMagnitude <= exitReachRadius * exitReachRadius)
+            bool insideExitArea = offset.sqrMagnitude <= exitReachRadius * exitReachRadius;
+            // Không tự kết thúc nếu người chơi đứng ngay trên đích lúc vừa dọn phòng cuối.
+            // Họ phải rời vùng đích rồi quay lại, để có cơ hội nhặt phần thưởng.
+            if (mustLeaveExitArea)
+            {
+                if (!insideExitArea) mustLeaveExitArea = false;
+                return;
+            }
+            if (insideExitArea)
             {
                 FinishGame(victory: true);
             }
@@ -147,9 +158,9 @@ namespace LightSouls.Game
 
         private void HandleDungeonGenerated(DungeonRuntimeContext context)
         {
-            if (context.PlayerSpawnPoint == null)
+            if (context.PlayerSpawnPoint == null || context.LevelExitPoint == null)
             {
-                Debug.LogError("[GameBootstrap] Bản đồ không có điểm xuất phát của người chơi.", this);
+                HandleGenerationFailed("Bản đồ thiếu điểm xuất phát hoặc đích.");
                 return;
             }
 
@@ -181,9 +192,18 @@ namespace LightSouls.Game
             }
         }
 
+        private void HandleGenerationFailed(string error)
+        {
+            if (isFinished) return;
+            isFinished = true;
+            Debug.LogError($"[GameBootstrap] Không thể tạo ngục: {error}", this);
+            RunState.DungeonGenerationFailed = true;
+            SceneLoader.LoadLobby();
+        }
+
         /// <summary>
         /// Thay mỗi điểm loot (khối đánh dấu) bằng một hòm kho báu đặt trên sàn phòng.
-        /// Phòng cuối (Exit) giữ điểm loot cho phần thưởng boss nên bỏ qua.
+        /// Phòng cuối (Exit) giữ điểm loot để sinh hòm sau khi dọn sạch quái.
         /// </summary>
         private void SpawnTreasureChests(DungeonRuntimeContext context)
         {
@@ -211,25 +231,33 @@ namespace LightSouls.Game
 
                 foreach (var point in room.LootSpawnPoints)
                 {
-                    if (point == null)
-                    {
-                        continue;
-                    }
-
-                    // Điểm loot là khối đánh dấu đặt trên sàn: hòm đặt ở đáy khối rồi ẩn khối đi.
-                    // (Không dò sàn bằng tia: bộ sinh phòng thủ tục có thể còn khối cũ chờ hủy cuối khung hình.)
-                    Vector3 position = point.position;
-                    var marker = point.GetComponent<Renderer>();
-                    if (marker != null)
-                    {
-                        position.y = marker.bounds.min.y;
-                    }
-
-                    point.gameObject.SetActive(false);
-
-                    var rotation = Quaternion.Euler(0f, point.eulerAngles.y, 0f);
-                    Instantiate(treasureChestPrefab, position, rotation, point.parent);
+                    SpawnChestAt(point);
                 }
+            }
+        }
+
+        private void SpawnChestAt(Transform point)
+        {
+            if (point == null || treasureChestPrefab == null) return;
+
+            // Điểm loot là khối đánh dấu: đặt đáy hòm trên sàn rồi ẩn khối đi.
+            Vector3 position = point.position;
+            var marker = point.GetComponent<Renderer>();
+            if (marker != null) position.y = marker.bounds.min.y;
+
+            point.gameObject.SetActive(false);
+            var rotation = Quaternion.Euler(0f, point.eulerAngles.y, 0f);
+            Instantiate(treasureChestPrefab, position, rotation, point.parent);
+        }
+
+        private void SpawnBossRewardChests(RoomModule room)
+        {
+            // ClearRoom vừa kích hoạt ngẫu nhiên 1–2 marker của BossRoomRewardController.
+            // Thay đúng các marker đang bật bằng hòm thật có thể tương tác.
+            if (room.RoomType != RoomType.Exit || room.BossRewardController == null) return;
+            foreach (var reward in room.BossRewardController.RewardChests)
+            {
+                if (reward != null && reward.activeSelf) SpawnChestAt(reward.transform);
             }
         }
 
@@ -317,6 +345,15 @@ namespace LightSouls.Game
             if (room.LifecycleController != null)
             {
                 room.LifecycleController.ClearRoom();
+            }
+
+            SpawnBossRewardChests(room);
+
+            if (room.RoomType == RoomType.Exit && levelExitPoint != null && player != null)
+            {
+                var offset = player.transform.position - levelExitPoint.position;
+                offset.y = 0f;
+                mustLeaveExitArea = offset.sqrMagnitude <= exitReachRadius * exitReachRadius;
             }
 
             RunState.AddCoins(coinsPerClearedRoom);

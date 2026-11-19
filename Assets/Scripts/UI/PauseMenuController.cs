@@ -67,7 +67,7 @@ namespace LightSouls.UI
         private void Update()
         {
             // Nút tạm dừng trên màn hình chỉ hiện khi đang chơi.
-            var showPauseButton = !IsPaused && !GameResultScreen.IsOpen;
+            var showPauseButton = !IsPaused && !GameResultScreen.IsOpen && !BackButtonStack.HasOpenPanel;
             if (pauseButton.gameObject.activeSelf != showPauseButton)
             {
                 pauseButton.gameObject.SetActive(showPauseButton);
@@ -100,7 +100,7 @@ namespace LightSouls.UI
 
         public void Pause()
         {
-            if (IsPaused || GameResultScreen.IsOpen)
+            if (IsPaused || GameResultScreen.IsOpen || BackButtonStack.HasOpenPanel)
             {
                 return;
             }

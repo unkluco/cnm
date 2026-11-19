@@ -162,7 +162,7 @@ namespace LightSouls.Combat
             {
                 _currentInteractable.Interact(gameObject);
                 // Sau khi tương tác (ví dụ nhặt xong), quét lại ngay lập tức
-                ScanForInteractables();
+                if (_isInputActive) ScanForInteractables();
             }
         }
 

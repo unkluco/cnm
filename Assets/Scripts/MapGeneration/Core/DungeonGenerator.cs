@@ -96,6 +96,7 @@ namespace LightSouls.MapGeneration
         }
 
         public event Action<DungeonRuntimeContext> OnDungeonGenerated;
+        public event Action<string> OnGenerationFailed;
 
         private async void Start()
         {
@@ -104,14 +105,18 @@ namespace LightSouls.MapGeneration
                 return;
             }
 
-            if (useAsyncInstantiation)
+            DungeonGenerationConfigSO activeConfig = ResolveActiveConfig();
+            int attempts = activeConfig != null && activeConfig.UseRandomSeed ? 3 : 1;
+            for (int i = 0; i < attempts; i++)
             {
-                await GenerateAsync();
+                int seed = activeConfig != null && !activeConfig.UseRandomSeed
+                    ? activeConfig.FixedSeed
+                    : UnityEngine.Random.Range(int.MinValue + 1, int.MaxValue);
+                bool success = useAsyncInstantiation ? await GenerateAsync(seed) : GenerateWithSeed(seed);
+                if (success) return;
             }
-            else
-            {
-                Generate();
-            }
+
+            OnGenerationFailed?.Invoke(LastError);
         }
 
         public void ConfigureReferences(
@@ -188,8 +193,7 @@ namespace LightSouls.MapGeneration
                 spawnedRooms.Add(instance);
             }
 
-            FinalizeGeneratedDungeon(roomInstancesById);
-            return true;
+            return FinalizeGeneratedDungeon(roomInstancesById);
         }
 
         public async Awaitable<bool> GenerateAsync(int? customSeed = null)
@@ -239,8 +243,7 @@ namespace LightSouls.MapGeneration
                 }
             }
 
-            FinalizeGeneratedDungeon(roomInstancesById);
-            return true;
+            return FinalizeGeneratedDungeon(roomInstancesById);
         }
 
         [ContextMenu("Clear Dungeon")]
@@ -377,8 +380,13 @@ namespace LightSouls.MapGeneration
             return instance;
         }
 
-        private void FinalizeGeneratedDungeon(Dictionary<int, RoomModule> roomInstancesById)
+        private bool FinalizeGeneratedDungeon(Dictionary<int, RoomModule> roomInstancesById)
         {
+            if (roomInstancesById.Count != CurrentLayout.rooms.Count)
+            {
+                return FailFinalization("A room prefab is missing from the generated dungeon.");
+            }
+
             // Wire every doorway connection between instantiated rooms
             foreach (RoomConnectionData conn in CurrentLayout.connections)
             {
@@ -407,13 +415,20 @@ namespace LightSouls.MapGeneration
                 LevelExitPoint = exitRoom.transform;
             }
 
-            // Runtime NavMesh bake (requires Physics/Collider sync first when instantiating at runtime)
-            if (bakeNavMeshOnGenerate && navMeshSurface != null)
+            if (PlayerSpawnPoint == null || LevelExitPoint == null)
             {
+                return FailFinalization("The generated dungeon is missing its start or exit.");
+            }
+
+            // Runtime NavMesh bake (requires Physics/Collider sync first when instantiating at runtime)
+            if (bakeNavMeshOnGenerate)
+            {
+                if (navMeshSurface == null) return FailFinalization("No NavMesh surface is configured.");
                 Physics.SyncTransforms();
                 navMeshSurface.BuildNavMesh();
                 IsNavMeshBaked = true;
                 IsNavMeshPathReachable = VerifyNavMeshPath(out _);
+                if (!IsNavMeshPathReachable) return FailFinalization("No navigable path from start to exit.");
             }
 
             InitializeRoomLifecyclesAndWayfindingLandmarks(roomInstancesById);
@@ -461,6 +476,15 @@ namespace LightSouls.MapGeneration
             {
                 onDungeonGeneratedChannel.RaiseEvent(context);
             }
+            return true;
+        }
+
+        private bool FailFinalization(string error)
+        {
+            ClearDungeon();
+            LastError = error;
+            Debug.LogError($"[DungeonGenerator] {LastError}", this);
+            return false;
         }
 
         /// <summary>

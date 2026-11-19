@@ -214,21 +214,15 @@ namespace LightSouls.Combat.UI
 
         public void Open()
         {
-            if (_isOpen) return;
+            if (_isOpen || Time.timeScale <= 0f || BackButtonStack.HasOpenPanel) return;
+            if (player == null)
+            {
+                SetPlayer(FindAnyObjectByType<PlayerController>());
+            }
+            if (player == null || player.IsDead) return;
             _isOpen = true;
 
             gameObject.SetActive(true);
-
-            if (player == null)
-            {
-                player = FindAnyObjectByType<PlayerController>();
-                if (player != null) inventory = player.Inventory;
-            }
-
-            if (player != null)
-            {
-                player.SetInputActive(false);
-            }
 
             // Đăng ký với BackButtonStack để phím Back (Esc) đóng Balo
             BackButtonStack.Push(this, Close);
@@ -243,11 +237,6 @@ namespace LightSouls.Combat.UI
             _isOpen = false;
 
             BackButtonStack.Remove(this);
-
-            if (player != null)
-            {
-                player.SetInputActive(true);
-            }
 
             ClearSelection();
             gameObject.SetActive(false);

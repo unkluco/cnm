@@ -146,14 +146,19 @@ namespace LightSouls.Combat.Inventory
 
         private void Update()
         {
+            if (Time.timeScale <= 0f || (_healthComponent != null && _healthComponent.IsDead)) return;
+
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null)
             {
-                if (kb.digit1Key.wasPressedThisFrame) SelectHotbarSlot(0);
-                else if (kb.digit2Key.wasPressedThisFrame) SelectHotbarSlot(1);
-                else if (kb.digit3Key.wasPressedThisFrame) SelectHotbarSlot(2);
-                else if (kb.digit4Key.wasPressedThisFrame) SelectHotbarSlot(3);
-                else if (kb.digit5Key.wasPressedThisFrame) SelectHotbarSlot(4);
+                if (!BackButtonStack.HasOpenPanel)
+                {
+                    if (kb.digit1Key.wasPressedThisFrame) SelectHotbarSlot(0);
+                    else if (kb.digit2Key.wasPressedThisFrame) SelectHotbarSlot(1);
+                    else if (kb.digit3Key.wasPressedThisFrame) SelectHotbarSlot(2);
+                    else if (kb.digit4Key.wasPressedThisFrame) SelectHotbarSlot(3);
+                    else if (kb.digit5Key.wasPressedThisFrame) SelectHotbarSlot(4);
+                }
 
                 if (kb.tabKey.wasPressedThisFrame)
                 {
@@ -564,11 +569,11 @@ namespace LightSouls.Combat.Inventory
             }
 
             var savedSlots = RunState.InventorySlots;
-            if (savedSlots != null && savedSlots.Count > 0 && itemDatabase != null)
+            if (RunState.HasInventorySnapshot)
             {
                 foreach (var record in savedSlots)
                 {
-                    if (itemDatabase.TryGetItem(record.ItemId, out var item))
+                    if (itemDatabase != null && itemDatabase.TryGetItem(record.ItemId, out var item))
                     {
                         var slot = GetSlot(record.SlotKey);
                         if (slot != null)

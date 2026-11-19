@@ -1,4 +1,6 @@
 using LightSouls.Lobby;
+using LightSouls.Common;
+using LightSouls.Combat.UI;
 using LightSouls.UI;
 using UnityEngine;
 
@@ -16,6 +18,13 @@ namespace LightSouls.Game
     public class LobbyBootstrap : MonoBehaviour
     {
         private bool isLoading;
+
+        private void Start()
+        {
+            if (!RunState.DungeonGenerationFailed) return;
+            RunState.DungeonGenerationFailed = false;
+            CombatToast.Show("Không thể tạo ngục. Hãy chọn ngục và thử lại.");
+        }
 
         private void OnEnable()
         {

@@ -122,7 +122,7 @@ namespace LightSouls.Combat.UI
 
         private void OnSlotClicked(int index)
         {
-            if (inventory != null)
+            if (isActiveAndEnabled && Time.timeScale > 0f && !BackButtonStack.HasOpenPanel && inventory != null)
             {
                 inventory.SelectHotbarSlot(index);
             }
@@ -130,7 +130,8 @@ namespace LightSouls.Combat.UI
 
         private void OnBackpackButtonClicked()
         {
-            if (backpackUI != null)
+            if (isActiveAndEnabled && Time.timeScale > 0f && backpackUI != null &&
+                (backpackUI.IsOpen || !BackButtonStack.HasOpenPanel))
             {
                 backpackUI.Toggle();
             }
