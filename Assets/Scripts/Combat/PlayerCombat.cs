@@ -6,6 +6,7 @@ using LightSouls.Common;
 using LightSouls.Combat.Weapons;
 using LightSouls.Combat.Inventory;
 using LightSouls.Combat.Items;
+using LightSouls.Combat.Effects;
 
 namespace LightSouls.Combat
 {
@@ -38,9 +39,18 @@ namespace LightSouls.Combat
         private GameObject _activeWeaponInstance;
         private PlayerMovement _movement;
         private PlayerInventory _inventory;
+        private AimRangeIndicator _aimIndicator;
         private bool _isInputActive = true;
 
         public WeaponDataSO CurrentWeaponData => (_activeWeapon != null) ? _activeWeapon.Data : null;
+        public float AutoAimRadius => autoAimEnabled ? GetAutoAimRadius(CurrentWeaponData, autoAimMaxDistance) : 0f;
+
+        public static float GetAutoAimRadius(WeaponDataSO weapon, float maximum)
+        {
+            if (weapon == null) return 0f;
+            float reach = weapon.Type == WeaponType.Melee ? weapon.AttackRange * 1.8f : weapon.AttackRange;
+            return Mathf.Max(0f, Mathf.Min(maximum, reach));
+        }
         public IReadOnlyList<WeaponDataSO> Inventory => weaponInventory;
 
         /// <summary>
@@ -58,6 +68,7 @@ namespace LightSouls.Combat
         {
             _movement = GetComponent<PlayerMovement>();
             _inventory = GetComponent<PlayerInventory>();
+            _aimIndicator = GetComponent<AimRangeIndicator>() ?? gameObject.AddComponent<AimRangeIndicator>();
 
             if (attackOrigin == null)
             {
@@ -251,6 +262,7 @@ namespace LightSouls.Combat
 
         public void UnequipCurrentWeapon()
         {
+            if (_aimIndicator != null) _aimIndicator.Hide();
             if (_activeWeaponInstance != null)
             {
                 Destroy(_activeWeaponInstance);
@@ -269,6 +281,7 @@ namespace LightSouls.Combat
 
         public void PerformAttack()
         {
+            if (!_isInputActive || Time.timeScale <= 0f) return;
             // Nếu ô đang chọn trên thanh nhanh là đồ dùng (ví dụ: Bình máu) -> uống hồi máu
             if (_inventory != null && _inventory.SelectedItem is ConsumableDataSO consumable)
             {
@@ -280,7 +293,9 @@ namespace LightSouls.Combat
                 return;
             }
 
-            if (_activeWeapon == null || !_activeWeapon.CanAttack) return;
+            if (_activeWeapon == null) return;
+            _aimIndicator.Show(AutoAimRadius);
+            if (!_activeWeapon.CanAttack) return;
 
             Vector3 aimDirection = transform.forward;
 
@@ -320,13 +335,11 @@ namespace LightSouls.Combat
 
         private Transform FindNearestEnemy()
         {
-            float searchRadius = Mathf.Min(autoAimMaxDistance, _activeWeapon.Data.AttackRange * 1.8f);
-            if (_activeWeapon.Data.Type == WeaponType.Ranged)
-            {
-                searchRadius = autoAimMaxDistance;
-            }
+            float searchRadius = AutoAimRadius;
+            if (searchRadius <= 0f) return null;
 
-            Collider[] hits = Physics.OverlapSphere(transform.position, searchRadius, enemyLayer);
+            Collider[] hits = Physics.OverlapCapsule(transform.position, transform.position + Vector3.up * 2f,
+                searchRadius, enemyLayer, QueryTriggerInteraction.Ignore);
             Transform nearest = null;
             float minDist = float.MaxValue;
 
@@ -334,13 +347,18 @@ namespace LightSouls.Combat
             {
                 IDamageable damageable = col.GetComponent<IDamageable>();
                 if (damageable == null) damageable = col.GetComponentInParent<IDamageable>();
-                if (damageable != null && damageable.IsDead) continue;
+                if (damageable == null || damageable.IsDead) continue;
 
-                float dist = Vector3.Distance(transform.position, col.transform.position);
+                var target = damageable as Component;
+                Transform targetTransform = target != null ? target.transform : col.transform;
+                Vector3 offset = targetTransform.position - transform.position;
+                offset.y = 0f;
+                float dist = offset.magnitude;
+                if (dist > searchRadius) continue;
                 if (dist < minDist)
                 {
                     minDist = dist;
-                    nearest = col.transform;
+                    nearest = targetTransform;
                 }
             }
 
@@ -350,6 +368,7 @@ namespace LightSouls.Combat
         public void SetInputActive(bool active)
         {
             _isInputActive = active;
+            if (!active && _aimIndicator != null) _aimIndicator.Hide();
         }
 
         public void AddWeapon(WeaponDataSO newWeapon)

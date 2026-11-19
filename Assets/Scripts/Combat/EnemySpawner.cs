@@ -15,6 +15,9 @@ namespace LightSouls.Combat
         [Header("Kho Prefab Quái vật")]
         [Tooltip("Danh sách prefab quái có thể sinh (Zombie, Goblin, Cultist...)")]
         [SerializeField] private GameObject[] enemyPrefabs;
+        [Tooltip("Các quái có chiêu riêng, được luân phiên để mỗi phòng có thử thách khác nhau.")]
+        [SerializeField] private GameObject[] specialEnemyPrefabs;
+        [SerializeField, Range(0f, 1f)] private float extraSpecialChance = 0.35f;
 
         [Header("Tùy chọn thử nghiệm")]
         [SerializeField] private bool autoSpawnOnStart = false;
@@ -22,6 +25,17 @@ namespace LightSouls.Combat
 
         private readonly List<IDamageable> _aliveEnemies = new List<IDamageable>();
         private readonly List<GameObject> _spawnedEnemyObjects = new List<GameObject>();
+        private readonly List<GameObject> _specialBag = new List<GameObject>();
+        private GameObject _lastSpecial;
+
+        public IReadOnlyList<GameObject> SpecialEnemyPrefabs => specialEnemyPrefabs ?? Array.Empty<GameObject>();
+
+        public void SetSpecialEnemyPrefabs(GameObject[] prefabs)
+        {
+            specialEnemyPrefabs = prefabs;
+            _specialBag.Clear();
+            _lastSpecial = null;
+        }
 
         /// <summary>
         /// Phát sự kiện khi toàn bộ quái vật sinh ra trong đợt đã chết.
@@ -68,7 +82,9 @@ namespace LightSouls.Combat
                 return;
             }
 
-            if (enemyPrefabs == null || enemyPrefabs.Length == 0)
+            bool hasSpecials = specialEnemyPrefabs != null && Array.Exists(specialEnemyPrefabs, prefab => prefab != null);
+            bool hasNormal = enemyPrefabs != null && Array.Exists(enemyPrefabs, prefab => prefab != null);
+            if (!hasNormal && !hasSpecials)
             {
                 Debug.LogError("[EnemySpawner] Chưa cấu hình enemyPrefabs! Không thể sinh quái.");
                 AllEnemiesDefeated?.Invoke();
@@ -80,14 +96,18 @@ namespace LightSouls.Combat
 
             Debug.Log($"[EnemySpawner] Bắt đầu sinh đợt quái tại {spawnPoints.Count} điểm sinh.");
 
+            bool spawnedSpecial = false;
             for (int i = 0; i < spawnPoints.Count; i++)
             {
                 Transform sp = spawnPoints[i];
                 if (sp == null) continue;
 
-                // Phân bổ đều các loại quái trong danh sách prefab
-                GameObject prefab = enemyPrefabs[i % enemyPrefabs.Length];
+                // Mỗi đợt có ít nhất một quái đặc biệt nếu đã cấu hình; các ô còn lại trộn cả quái thường.
+                bool useSpecial = hasSpecials && (!spawnedSpecial || !hasNormal || UnityEngine.Random.value < extraSpecialChance);
+                GameObject prefab = useSpecial ? TakeSpecialPrefab() : PickNormalPrefab(i);
                 if (prefab == null) continue;
+
+                spawnedSpecial |= useSpecial;
 
                 GameObject enemyObj = Instantiate(prefab, sp.position, sp.rotation);
                 _spawnedEnemyObjects.Add(enemyObj);
@@ -114,6 +134,42 @@ namespace LightSouls.Combat
                 Debug.LogWarning("[EnemySpawner] Không sinh được quái hợp lệ, kích hoạt hoàn thành.");
                 AllEnemiesDefeated?.Invoke();
             }
+        }
+
+        private GameObject PickNormalPrefab(int index)
+        {
+            if (enemyPrefabs == null) return null;
+            for (int offset = 0; offset < enemyPrefabs.Length; offset++)
+            {
+                var prefab = enemyPrefabs[(index + offset) % enemyPrefabs.Length];
+                if (prefab != null) return prefab;
+            }
+            return null;
+        }
+
+        private GameObject TakeSpecialPrefab()
+        {
+            if (_specialBag.Count == 0)
+            {
+                foreach (var prefab in specialEnemyPrefabs)
+                    if (prefab != null && !_specialBag.Contains(prefab)) _specialBag.Add(prefab);
+                for (int i = _specialBag.Count - 1; i > 0; i--)
+                {
+                    int other = UnityEngine.Random.Range(0, i + 1);
+                    (_specialBag[i], _specialBag[other]) = (_specialBag[other], _specialBag[i]);
+                }
+                // Không lặp ngay khi chuyển sang một chu kỳ quái mới.
+                int last = _specialBag.Count - 1;
+                if (last > 0 && _specialBag[last] == _lastSpecial)
+                    (_specialBag[0], _specialBag[last]) = (_specialBag[last], _specialBag[0]);
+            }
+
+            if (_specialBag.Count == 0) return null;
+            int index = _specialBag.Count - 1;
+            var result = _specialBag[index];
+            _specialBag.RemoveAt(index);
+            _lastSpecial = result;
+            return result;
         }
 
         private void HandleEnemyDied(IDamageable deadEnemy)
