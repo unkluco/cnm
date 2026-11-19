@@ -50,6 +50,7 @@ namespace LightSouls.Combat.Enemies
         protected bool _isAttackingLimbAnim = false;
         private Color[] _originalColors;
         private Coroutine _flashCoroutine;
+        private float _lastFeedbackHealth;
 
         protected Quaternion _defaultTorsoRot = Quaternion.identity;
         protected Quaternion _defaultRightArmRot = Quaternion.identity;
@@ -151,6 +152,7 @@ namespace LightSouls.Combat.Enemies
         {
             if (_health != null)
             {
+                _lastFeedbackHealth = _health.CurrentHealth;
                 _health.Died += HandleDied;
                 _health.OnHealthChanged += HandleHealthChanged;
             }
@@ -321,7 +323,9 @@ namespace LightSouls.Combat.Enemies
 
         private void HandleHealthChanged(float current, float max)
         {
-            if (!_isDead && current < max)
+            bool tookDamage = current < _lastFeedbackHealth - .001f;
+            _lastFeedbackHealth = current;
+            if (!_isDead && tookDamage)
             {
                 // Nháy đỏ khi nhận sát thương
                 if (_flashCoroutine != null) StopCoroutine(_flashCoroutine);
@@ -333,9 +337,9 @@ namespace LightSouls.Combat.Enemies
         {
             var block = new MaterialPropertyBlock();
             float snap = Mathf.Min(.045f, flashDuration * .4f);
-            SetFlashColor(block, Color.Lerp(hitFlashColor, Color.white, .72f));
+            SetFlashColor(block, Color.Lerp(hitFlashColor, Color.white, .72f), .72f);
             yield return new WaitForSeconds(snap);
-            SetFlashColor(block, hitFlashColor);
+            SetFlashColor(block, hitFlashColor, .52f);
             yield return new WaitForSeconds(Mathf.Max(0f, flashDuration - snap));
 
             if (meshRenderers != null && _originalColors != null)
@@ -354,17 +358,20 @@ namespace LightSouls.Combat.Enemies
             _flashCoroutine = null;
         }
 
-        private void SetFlashColor(MaterialPropertyBlock block, Color tint)
+        private void SetFlashColor(MaterialPropertyBlock block, Color tint, float strength)
         {
             if (meshRenderers != null)
             {
-                foreach (var r in meshRenderers)
+                for (int i = 0; i < meshRenderers.Length; i++)
                 {
+                    var r = meshRenderers[i];
                     if (r != null && r.sharedMaterial != null)
                     {
+                        Color original = _originalColors != null && i < _originalColors.Length ? _originalColors[i] : tint;
+                        Color blended = Color.Lerp(original, tint, strength);
                         r.GetPropertyBlock(block);
-                        block.SetColor("_BaseColor", tint);
-                        block.SetColor("_Color", tint);
+                        block.SetColor("_BaseColor", blended);
+                        block.SetColor("_Color", blended);
                         r.SetPropertyBlock(block);
                     }
                 }

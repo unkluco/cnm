@@ -90,11 +90,12 @@ namespace LightSouls.Combat.UI
                 }
 
                 _initialColor = damageText.color;
-                var outline = damageText.GetComponent<Outline>() ?? damageText.gameObject.AddComponent<Outline>();
+                var outline = damageText.GetComponent<Outline>();
+                if (outline == null) outline = damageText.gameObject.AddComponent<Outline>();
                 outline.effectColor = new Color(.055f, .04f, .08f, .94f);
                 outline.effectDistance = new Vector2(1.6f, -1.6f);
             }
-            _baseScale = transform.localScale;
+            _baseScale = transform.localScale * .78f;
         }
 
         private void LateUpdate()

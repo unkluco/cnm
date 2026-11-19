@@ -39,7 +39,8 @@ namespace LightSouls.Combat.Weapons
                 slashTrail.emitting = false;
             }
 
-            _bladeRibbon = GetComponent<BladeRibbonTrail>() ?? gameObject.AddComponent<BladeRibbonTrail>();
+            _bladeRibbon = GetComponent<BladeRibbonTrail>();
+            if (_bladeRibbon == null) _bladeRibbon = gameObject.AddComponent<BladeRibbonTrail>();
             _bladeRibbon.Configure(visualBlade != null ? visualBlade : transform);
 
             _aura = WeaponAura.Attach(this, weaponData, _aura);

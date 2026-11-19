@@ -38,7 +38,9 @@ namespace LightSouls.Combat.Tests
             var enemy=SpawnEnemy(spawner,SpecialEnemyKind.StoneGolem,player.transform.position+Vector3.forward*1.7f);
             yield return null;enemy.enabled=false;
             var health=enemy.GetComponent<HealthComponent>();float before=health.CurrentHealth;
-            player.Combat.EquipWeapon(fire);player.SetInputActive(true);Physics.SyncTransforms();
+            Assert.IsTrue(player.Inventory.TryAdd(fire));
+            int fireSlot=player.Inventory.HotbarSlots.ToList().FindIndex(s=>s.Item==fire);Assert.GreaterOrEqual(fireSlot,0);
+            player.Inventory.SelectHotbarSlot(fireSlot);player.SetInputActive(true);Physics.SyncTransforms();
             player.Combat.PerformAttack();
             yield return WaitFor(()=>enemy.GetComponent<StatusEffectReceiver>()?.IsBurning==true,"Fire sword's actual burn effect did not apply.");
             Assert.Less(health.CurrentHealth,before);
@@ -48,7 +50,7 @@ namespace LightSouls.Combat.Tests
             Assert.IsNotNull(Object.FindAnyObjectByType<SwordSlashWave>());
             yield return Capture("01-fire-sword-slash.png");
             var receiver=enemy.GetComponent<StatusEffectReceiver>();var aura=enemy.transform.Find("VFX_Burn");Assert.NotNull(aura);
-            Assert.NotNull(aura.Find("VFX_Burn_Embers"));Assert.LessOrEqual(aura.GetComponent<ParticleSystem>().main.maxParticles,27);
+            Assert.NotNull(aura.Find("VFX_Burn_Embers"));Assert.LessOrEqual(aura.GetComponent<ParticleSystem>().main.maxParticles,30);
             receiver.ApplyBurn(1f,.75f,player.gameObject);Assert.AreSame(aura,enemy.transform.Find("VFX_Burn"));
             yield return new WaitForSeconds(.43f);Assert.IsFalse(blade.IsVisible);
             yield return Capture("02-burning-target.png");
@@ -69,6 +71,34 @@ namespace LightSouls.Combat.Tests
                 yield return Showcase(SpecialEnemyKind.Charger,spawner,player,"07-charge-direction.png",null);
                 yield return Showcase(SpecialEnemyKind.StormArcher,spawner,player,"08-storm-volley.png",null);
             }
+        }
+
+        [UnityTest]
+        public IEnumerator IceProjectileAndSoulDashUseSharedMaterialsAndCleanUp()
+        {
+            RunState.Reset();yield return SceneManager.LoadSceneAsync(SceneNames.Game);
+            yield return WaitFor(()=>Object.FindAnyObjectByType<PlayerController>()!=null,"Player did not spawn.");
+            var player=Object.FindAnyObjectByType<PlayerController>();var spawner=Object.FindAnyObjectByType<EnemySpawner>();
+            var db=Resources.FindObjectsOfTypeAll<ItemDatabaseSO>().First(d=>d.GetItem("weapon.ice_staff")!=null);
+            var ice=db.GetItem("weapon.ice_staff") as WeaponDataSO;Assert.NotNull(ice);
+            var enemy=SpawnEnemy(spawner,SpecialEnemyKind.StoneGolem,player.transform.position+Vector3.forward*3.35f);
+            yield return null;enemy.enabled=false;
+            Assert.IsTrue(player.Inventory.TryAdd(ice));int slot=player.Inventory.HotbarSlots.ToList().FindIndex(s=>s.Item==ice);Assert.GreaterOrEqual(slot,0);
+            player.Inventory.SelectHotbarSlot(slot);player.SetInputActive(true);Physics.SyncTransforms();player.Combat.PerformAttack();
+            var projectile=Object.FindAnyObjectByType<Projectile>();Assert.NotNull(projectile);
+            var trail=projectile.GetComponentInChildren<TrailRenderer>();Assert.NotNull(trail);Assert.AreSame(ArcaneVfxMaterials.Ribbon,trail.sharedMaterial);
+            yield return new WaitForSeconds(.065f);yield return Capture("09-ice-staff-flight.png");
+            yield return WaitFor(()=>enemy.GetComponent<StatusEffectReceiver>()?.IsSlowed==true,"Ice projectile did not apply its original slow.");
+            yield return new WaitForSeconds(.17f);yield return Capture("10-ice-staff-impact.png");
+            Object.Destroy(enemy.gameObject);yield return null;
+            player.transform.rotation=Quaternion.LookRotation(Vector3.right,Vector3.up);player.Movement.PerformDash();
+            yield return new WaitForSeconds(.085f);
+            var ghosts=Object.FindObjectsByType<MeshRenderer>().Where(r=>r.name=="DashGhost_Afterimage").ToArray();
+            Assert.That(ghosts.Length,Is.InRange(1,4));
+            Assert.IsTrue(ghosts.All(g=>g.sharedMaterial==ArcaneVfxMaterials.Ghost&&g.GetComponentsInChildren<Renderer>().Length==1));
+            yield return Capture("11-soul-dash.png");
+            yield return new WaitForSeconds(.75f);
+            Assert.IsFalse(Object.FindObjectsByType<MeshRenderer>().Any(r=>r.name=="DashGhost_Afterimage"));
         }
 
         private static SpecialEnemy SpawnEnemy(EnemySpawner spawner,SpecialEnemyKind kind,Vector3 position)

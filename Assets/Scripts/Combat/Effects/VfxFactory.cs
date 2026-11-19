@@ -142,11 +142,14 @@ namespace LightSouls.Combat.Effects
         /// <summary>Continuous status choreography. Reapplying a status reuses this root and its child layers.</summary>
         public static ParticleSystem BurningAura(Transform parent, float radius = .46f)
         {
-            var flame = Persistent("VFX_Burn", parent, Vector3.up * .22f, Ember, 24f, .43f, .62f, .6f, .95f,
-                ArcaneParticlePattern.Flame, 27, radius, ParticleSystemSimulationSpace.Local);
-            UpwardCone(flame, radius * .95f, 12f);
+            var flame = Persistent("VFX_Burn", parent, Vector3.up * .34f, Ember, 26f, .64f, .78f, .92f, 1.45f,
+                ArcaneParticlePattern.Flame, 30, radius, ParticleSystemSimulationSpace.Local);
+            UpwardCone(flame, radius * .96f, 15f);
             var main = flame.main; main.startRotation = new ParticleSystem.MinMaxCurve(-.13f, .13f);
-            main.gravityModifier = -.34f; flame.Play();
+            main.gravityModifier = -.40f;
+            var flameSize=flame.sizeOverLifetime;flameSize.size=new ParticleSystem.MinMaxCurve(1f,
+                new AnimationCurve(new Keyframe(0f,.68f),new Keyframe(.2f,1f),new Keyframe(.68f,.76f),new Keyframe(1f,.12f)));
+            flame.Play();
             var embers = Persistent("VFX_Burn_Embers", flame.transform, Vector3.up * .31f, new Color(1f,.65f,.18f,1f), 10f, .10f, .76f, .75f, 1.45f,
                 ArcaneParticlePattern.Spark, 12, radius * .7f, ParticleSystemSimulationSpace.World);
             UpwardCone(embers, radius * .7f, 21f); SetStretch(embers); embers.Play();
@@ -224,7 +227,9 @@ namespace LightSouls.Combat.Effects
             if (target == null || color.a <= 0f) return null;
             var child = target.transform.Find(TrailName);
             if (child == null) { child = new GameObject(TrailName).transform; child.SetParent(target.transform, false); }
-            var trail = child.GetComponent<TrailRenderer>() ?? child.gameObject.AddComponent<TrailRenderer>();
+            var trail = child.GetComponent<TrailRenderer>();
+            // Unity uses a special null object for missing native components in the editor.
+            if (trail == null) trail = child.gameObject.AddComponent<TrailRenderer>();
             trail.sharedMaterial = ArcaneVfxMaterials.Ribbon;
             trail.time = time; trail.minVertexDistance = .055f; trail.widthMultiplier = width;
             trail.widthCurve = new AnimationCurve(new Keyframe(0,1),new Keyframe(.35f,.62f),new Keyframe(1,0));

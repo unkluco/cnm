@@ -23,7 +23,8 @@ namespace LightSouls.Combat.Effects
         public void StartDashTrail(float duration)
         {
             StopDashTrail();
-            if (modelRoot == null) modelRoot = transform.Find("HumanoidFigure") ?? transform;
+            if (modelRoot == null) modelRoot = transform.Find("HumanoidFigure");
+            if (modelRoot == null) modelRoot = transform;
             VfxFactory.Burst(transform.position + Vector3.up * .15f, SoulTrail, 10, 2.5f, .17f, .34f, .35f);
             if (ribbonTrail != null) { ribbonTrail.Clear(); ribbonTrail.emitting = true; }
             else
