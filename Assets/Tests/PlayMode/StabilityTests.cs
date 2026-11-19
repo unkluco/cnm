@@ -6,6 +6,7 @@ using LightSouls.Combat.Enemies;
 using LightSouls.Combat.Items;
 using LightSouls.Combat.UI;
 using LightSouls.Common;
+using LightSouls.Game;
 using LightSouls.MapGeneration;
 using LightSouls.UI;
 using NUnit.Framework;
@@ -85,9 +86,13 @@ namespace LightSouls.Stability.Tests
             Assert.IsFalse(BackButtonStack.HasOpenPanel);
 
             var generator = Object.FindAnyObjectByType<DungeonGenerator>();
+            var bootstrap = Object.FindAnyObjectByType<GameBootstrap>();
+            bootstrap.ReturnToShopChance = 1f;
             Assert.IsTrue(generator.IsGenerated);
             Assert.IsTrue(generator.IsNavMeshPathReachable);
             var exit = generator.SpawnedRooms.First(room => room.RoomType == RoomType.Exit);
+            Assert.IsFalse(bootstrap.IsExitPortalOpen);
+            Assert.IsFalse(generator.LevelExitPoint.gameObject.activeSelf, "Portal should be hidden before boss is cleared.");
             int before = Object.FindObjectsByType<TreasureChest>(FindObjectsSortMode.None).Length;
             Assert.IsTrue(exit.LifecycleController.EnterCombat());
             var spawner = Object.FindAnyObjectByType<EnemySpawner>();
@@ -103,13 +108,68 @@ namespace LightSouls.Stability.Tests
             Assert.AreEqual(exit.BossRewardController.SpawnedChestCount, after - before,
                 "All activated reward markers should become real treasure chests.");
             Assert.Greater(after, before);
-            Assert.IsFalse(GameResultScreen.IsOpen, "The player must have an opportunity to collect the rewards.");
+            Assert.IsTrue(bootstrap.IsExitPortalOpen);
+            Assert.IsTrue(generator.LevelExitPoint.gameObject.activeSelf);
+            Assert.IsTrue(string.IsNullOrEmpty(RunState.PendingPortalArrivalMessage), "Destination must remain unknown before entry.");
+            Assert.AreEqual(SceneNames.Game, SceneManager.GetActiveScene().name, "The player must have an opportunity to collect the rewards.");
+            Assert.IsFalse(GameResultScreen.IsOpen);
 
-            // Rời khu vực đích và quay lại để kết thúc màn theo luồng bình thường.
+            int coins = RunState.Coins;
+            // Rời cổng vừa mở rồi bước lại vào. Đây là nhánh 100% về sảnh để kiểm thử xác định.
             FindPlayer().Teleport(generator.PlayerSpawnPoint.position);
             yield return null;
             FindPlayer().Teleport(generator.LevelExitPoint.position);
-            yield return WaitFor(() => GameResultScreen.IsOpen, "Returning to the exit should finish the dungeon.");
+            yield return WaitFor(() => SceneManager.GetActiveScene().name == SceneNames.Lobby && FindPlayer() != null,
+                "Returning to the portal should load the shop lobby.");
+            Assert.AreEqual(coins, RunState.Coins);
+            Assert.IsEmpty(RunState.InventorySlots);
+            Assert.IsFalse(GameResultScreen.IsOpen);
+        }
+
+        [UnityTest]
+        public IEnumerator MysteryPortalCanLeadToDifferentDungeonWithoutResettingRun()
+        {
+            yield return StartRun();
+            RunState.AddCoins(41);
+            RunState.SelectedDungeonId = "dungeon.standard";
+            var snapshot = RunState.InventorySlots.Select(slot => slot.SlotKey + ":" + slot.ItemId + ":" + slot.Count).ToArray();
+            SceneLoader.LoadGame();
+            yield return WaitFor(() => SceneManager.GetActiveScene().name == SceneNames.Game && FindPlayer() != null,
+                "Dungeon did not load.");
+            var oldGenerator = Object.FindAnyObjectByType<DungeonGenerator>();
+            var bootstrap = Object.FindAnyObjectByType<GameBootstrap>();
+            bootstrap.ReturnToShopChance = 0f;
+            var exit = oldGenerator.SpawnedRooms.First(room => room.RoomType == RoomType.Exit);
+            Assert.IsFalse(bootstrap.IsExitPortalOpen);
+            Assert.IsTrue(exit.LifecycleController.EnterCombat());
+            FindPlayer().Teleport(oldGenerator.LevelExitPoint.position);
+            yield return null;
+            Assert.AreEqual("dungeon.standard", RunState.SelectedDungeonId, "Locked portal must not change the destination.");
+            foreach (var enemy in Object.FindObjectsByType<EnemyBase>(FindObjectsSortMode.None))
+            {
+                enemy.TakeDamage(new DamageInfo(100000f, FindPlayer().gameObject, enemy.transform.position));
+            }
+            yield return null;
+            Assert.IsTrue(bootstrap.IsExitPortalOpen);
+            Assert.AreEqual("dungeon.standard", RunState.SelectedDungeonId, "Destination must not be chosen until entering the open portal.");
+            Assert.IsEmpty(RunState.PendingPortalArrivalMessage);
+            int coins = RunState.Coins;
+
+            // Walk away and back into the opened portal. The selected dungeon changes and Game reloads.
+            FindPlayer().Teleport(oldGenerator.PlayerSpawnPoint.position);
+            yield return null;
+            FindPlayer().Teleport(oldGenerator.LevelExitPoint.position);
+            yield return WaitFor(() =>
+            {
+                var current = Object.FindAnyObjectByType<DungeonGenerator>();
+                return current != null && current != oldGenerator && current.IsGenerated && FindPlayer() != null;
+            }, "Mystery portal did not generate the next dungeon.");
+            Assert.AreEqual(SceneNames.Game, SceneManager.GetActiveScene().name);
+            Assert.AreNotEqual("dungeon.standard", RunState.SelectedDungeonId);
+            Assert.IsTrue(new[] { "dungeon.lava", "dungeon.maze" }.Contains(RunState.SelectedDungeonId));
+            Assert.AreEqual(coins, RunState.Coins);
+            CollectionAssert.AreEqual(snapshot, RunState.InventorySlots.Select(slot => slot.SlotKey + ":" + slot.ItemId + ":" + slot.Count));
+            Assert.IsFalse(Object.FindAnyObjectByType<GameBootstrap>().IsExitPortalOpen, "The new dungeon starts with its own portal locked.");
         }
 
         [UnityTest]

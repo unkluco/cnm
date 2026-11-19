@@ -12,7 +12,7 @@ namespace LightSouls.Game
     /// người chơi chọn ngục ở cổng → LobbyController.DungeonChosen → nạp Scene Game.
     ///
     /// Luồng một lượt chơi:
-    ///   MainMenu (Chơi) → Lobby (mua đồ, chọn ngục) → Game (qua màn) → Lobby → ...
+    ///   MainMenu (Chơi) → Lobby (mua đồ, chọn ngục) → Game → cổng bí ẩn → Lobby hoặc Game mới.
     ///   Thua trong Game → lượt mới bắt đầu lại ở Lobby (mất xu và đồ).
     /// </summary>
     public class LobbyBootstrap : MonoBehaviour
@@ -21,9 +21,14 @@ namespace LightSouls.Game
 
         private void Start()
         {
-            if (!RunState.DungeonGenerationFailed) return;
-            RunState.DungeonGenerationFailed = false;
-            CombatToast.Show("Không thể tạo ngục. Hãy chọn ngục và thử lại.");
+            if (RunState.DungeonGenerationFailed)
+            {
+                RunState.DungeonGenerationFailed = false;
+                RunState.ConsumePortalArrivalMessage();
+                CombatToast.Show("Không thể tạo ngục. Hãy chọn ngục và thử lại.");
+                return;
+            }
+            CombatToast.Show(RunState.ConsumePortalArrivalMessage());
         }
 
         private void OnEnable()
