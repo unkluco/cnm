@@ -18,14 +18,19 @@ namespace LightSouls.Art.Editor
             Vector3 center = Vector3.zero;
             foreach (Vector3 p in points) center += p;
             Vector3 normal = Vector3.Cross(points[1] - points[0], points[2] - points[0]).normalized;
-            if (Vector3.Dot(normal, center) < 0f)
-            {
-                System.Array.Reverse(points);
-                normal = -normal;
-            }
+            // A cap often receives the same ring array that its side faces will use.
+            // Choose winding when copying vertices; reversing the caller's ring in place
+            // would connect opposite corners, twisting the prism/profile/blade side faces.
+            bool reverse=Vector3.Dot(normal,center)<0f;
+            AppendFace(points,reverse,reverse?-normal:normal);
+        }
+
+        private void AppendFace(Vector3[] points,bool reverse,Vector3 normal)
+        {
             int start = vertices.Count;
-            foreach (Vector3 point in points)
+            for(int i=0;i<points.Length;i++)
             {
+                Vector3 point=points[reverse?points.Length-1-i:i];
                 vertices.Add(point);
                 normals.Add(normal);
                 uv.Add(new Vector2(point.x + point.z + 0.5f, point.y + point.z + 0.5f));
@@ -38,6 +43,13 @@ namespace LightSouls.Art.Editor
             }
         }
 
+        private void DoubleSidedFace(params Vector3[] points)
+        {
+            if(points.Length<3)return;
+            Vector3 normal=Vector3.Cross(points[1]-points[0],points[2]-points[0]).normalized;
+            AppendFace(points,false,normal);AppendFace(points,true,-normal);
+        }
+
         public Mesh Build(string name)
         {
             var mesh = new Mesh { name = name, indexFormat = vertices.Count<=65535 ? IndexFormat.UInt16 : IndexFormat.UInt32 };
@@ -47,6 +59,17 @@ namespace LightSouls.Art.Editor
             mesh.SetTriangles(triangles, 0);
             mesh.RecalculateBounds();
             return mesh;
+        }
+
+        // Update the native mesh buffer as well as its disk representation. CopySerialized
+        // alone can leave an old uploaded mesh visible during a same-session icon render.
+        internal static void CopyGeometry(Mesh destination,Mesh source)
+        {
+            destination.Clear(false);destination.indexFormat=source.indexFormat;
+            destination.vertices=source.vertices;destination.normals=source.normals;
+            if(source.uv.Length!=0)destination.uv=source.uv;
+            destination.SetTriangles(source.triangles,0);destination.bounds=source.bounds;
+            destination.UploadMeshData(false);
         }
 
         public static Mesh Box(string name, float bevel = 0.10f)
@@ -182,9 +205,10 @@ namespace LightSouls.Art.Editor
             for(int i=0;i<4;i++)
             {
                 Vector3 mid=(top[i]+top[i+1]+hem[i]+hem[i+1])*.25f+Vector3.back*(i%2==0 ? .05f : .01f);
-                b.Face(top[i],hem[i],mid);b.Face(hem[i],hem[i+1],mid);b.Face(hem[i+1],top[i+1],mid);b.Face(top[i+1],top[i],mid);
-                // Show the cloth from both sides without a double-sided custom shader.
-                b.Face(top[i]+Vector3.forward*.035f,top[i+1]+Vector3.forward*.035f,hem[i+1]+Vector3.forward*.035f,hem[i]+Vector3.forward*.035f);
+                // This is an intentionally open cloth surface, so each actual fold gets
+                // both windings rather than an approximate flat back panel.
+                b.DoubleSidedFace(top[i],hem[i],mid);b.DoubleSidedFace(hem[i],hem[i+1],mid);
+                b.DoubleSidedFace(hem[i+1],top[i+1],mid);b.DoubleSidedFace(top[i+1],top[i],mid);
             }
             return b.Build(name);
         }

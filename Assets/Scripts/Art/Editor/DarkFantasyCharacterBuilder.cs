@@ -159,17 +159,18 @@ namespace LightSouls.Art.Editor
         private static Transform Link(Transform parent,string name,Mesh mesh,Material mat,Vector3 from,Vector3 to,float width,float depth)
             =>Part(parent,name,mesh,mat,(from+to)*.5f,V(width,Vector3.Distance(from,to),depth),Quaternion.FromToRotation(Vector3.up,to-from));
 
-        private static void BuildWeapons()
+        private static void BuildWeapons(string onlyWeapon=null)
         {
             string folder=ArtRoot+"/Weapons"; EnsureFolder(folder);
             foreach(string guid in AssetDatabase.FindAssets("t:WeaponDataSO",new[]{"Assets/ScriptableObjects/Combat/Weapons"}))
             {
                 var data=AssetDatabase.LoadAssetAtPath<WeaponDataSO>(AssetDatabase.GUIDToAssetPath(guid)); if(data==null) continue;
+                if(onlyWeapon!=null&&data.name!=onlyWeapon)continue;
                 var o=new GameObject("Model_"+data.name); Transform t=o.transform;
                 string id=data.name;
                 if(data.Type==WeaponType.Melee)
                 {
-                    if(id.Contains("Hammer"))
+                    if(id.IndexOf("hammer",System.StringComparison.OrdinalIgnoreCase)>=0)
                     {
                         Part(t,"Haft",prism,wood,V(0,.40f,0),V(.085f,.97f,.085f));
                         Part(t,"HammerHead",box,darkIron,V(0,.89f,0),V(.63f,.29f,.30f));

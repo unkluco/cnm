@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using LightSouls.Combat.Weapons;
@@ -14,19 +15,25 @@ namespace LightSouls.Art.Editor
 {
     public static partial class DarkFantasyArtBuilder
     {
+        private const int IconSize=192;
+        private const int CaptureSize=IconSize*2;
+
         // Render the same faceted models that are used in-world into clean transparent item sprites.
         // The unsaved studio scene is disposable; the three playable scenes are not touched here.
         private static void BuildItemIcons()
         {
             string folder=ArtRoot+"/Icons";EnsureFolder(folder);
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
-            RenderSettings.fog=false;RenderSettings.skybox=null;RenderSettings.ambientMode=AmbientMode.Flat;RenderSettings.ambientLight=C("b7becb");
+            RenderSettings.fog=false;RenderSettings.skybox=null;RenderSettings.ambientMode=AmbientMode.Flat;RenderSettings.ambientLight=C("a4adbc");
             var cam=new GameObject("Art_IconCamera").AddComponent<Camera>();
-            cam.orthographic=true;cam.clearFlags=CameraClearFlags.SolidColor;cam.backgroundColor=Color.magenta;cam.allowHDR=false;cam.allowMSAA=false;
+            cam.orthographic=true;cam.clearFlags=CameraClearFlags.SolidColor;cam.backgroundColor=Color.black;cam.allowHDR=false;cam.allowMSAA=false;
             cam.nearClipPlane=.05f;cam.farClipPlane=20f;cam.GetUniversalAdditionalCameraData().renderPostProcessing=false;
-            var studioKey=new GameObject("Key").AddComponent<Light>();studioKey.type=LightType.Directional;studioKey.color=C("fff0d2");studioKey.intensity=1.35f;studioKey.transform.rotation=Q(36,-37,0);RenderSettings.sun=studioKey;
-            var fill=new GameObject("Rim").AddComponent<Light>();fill.type=LightType.Directional;fill.color=C("a1c9e8");fill.intensity=.65f;fill.transform.rotation=Q(18,145,0);
-            var target=new RenderTexture(256,256,24,RenderTextureFormat.ARGB32){antiAliasing=1};target.Create();cam.targetTexture=target;
+            var studioKey=new GameObject("Key").AddComponent<Light>();studioKey.type=LightType.Directional;studioKey.color=C("fff0d2");studioKey.intensity=1.2f;studioKey.transform.rotation=Q(35,-43,0);RenderSettings.sun=studioKey;
+            var fill=new GameObject("Fill").AddComponent<Light>();fill.type=LightType.Directional;fill.color=C("b4d2f2");fill.intensity=.60f;fill.transform.rotation=Q(18,46,0);
+            var target=new RenderTexture(CaptureSize,CaptureSize,24,RenderTextureFormat.ARGB32){antiAliasing=1};target.Create();cam.targetTexture=target;
+            var maskShader=Shader.Find("Universal Render Pipeline/Unlit");
+            if(maskShader==null)throw new InvalidOperationException("Icon silhouette shader is unavailable.");
+            var maskMaterial=new Material(maskShader){hideFlags=HideFlags.DontSave};maskMaterial.SetColor("_BaseColor",Color.white);
             try
             {
                 foreach(string guid in AssetDatabase.FindAssets("t:ScriptableObject",new[]{"Assets/ScriptableObjects/Combat"}))
@@ -36,7 +43,7 @@ namespace LightSouls.Art.Editor
                     if(item is WeaponDataSO weapon&&weapon.WeaponPrefab!=null)
                     {
                         model=Object.Instantiate(weapon.WeaponPrefab);model.transform.position=Vector3.zero;
-                        model.transform.rotation=weapon.Type==WeaponType.Melee||weapon.name.Contains("Staff")?Q(0,25,-32):Q(12,-74,20);
+                        model.transform.rotation=IconRotation(weapon);
                     }
                     else
                     {
@@ -45,46 +52,102 @@ namespace LightSouls.Art.Editor
                     }
                     try
                     {
-                        Sprite sprite=RenderItemIcon(model,cam,target,folder+"/"+item.name+".png");
+                        Sprite sprite=RenderItemIcon(model,cam,target,maskMaterial,folder+"/"+item.name+".png");
                         if(sprite!=null){var so=new SerializedObject(item);so.FindProperty("icon").objectReferenceValue=sprite;so.ApplyModifiedPropertiesWithoutUndo();}
                     }
                     finally{Object.DestroyImmediate(model);}
                 }
                 var bag=new GameObject("TravelSatchel");BuildInventoryModel(bag.transform,"Backpack");bag.transform.rotation=Q(6,-18,-7);
-                RenderItemIcon(bag,cam,target,folder+"/Control_Backpack.png");Object.DestroyImmediate(bag);
+                RenderItemIcon(bag,cam,target,maskMaterial,folder+"/Control_Backpack.png");Object.DestroyImmediate(bag);
             }
-            finally{cam.targetTexture=null;target.Release();Object.DestroyImmediate(target);}
+            finally{cam.targetTexture=null;target.Release();Object.DestroyImmediate(target);Object.DestroyImmediate(maskMaterial);}
         }
 
-        private static Sprite RenderItemIcon(GameObject model,Camera cam,RenderTexture target,string path)
+        private static Quaternion IconRotation(WeaponDataSO weapon)
         {
-            var rs=model.GetComponentsInChildren<MeshRenderer>();if(rs.Length==0)return null;
-            Bounds b=rs[0].bounds;foreach(var r in rs.Skip(1))b.Encapsulate(r.bounds);
-            cam.transform.position=b.center+Vector3.back*6f;cam.transform.rotation=Quaternion.identity;cam.orthographicSize=Mathf.Max(.1f,Mathf.Max(b.size.x,b.size.y)*.61f);
+            // Front three-quarter for edged weapons, top three-quarter for the crossbow's limbs.
+            if(weapon.name.Contains("Crossbow"))return Q(-59,-17,-28);
+            if(weapon.name.Contains("Staff"))return Q(-39,10,-34);
+            if(weapon.Type==WeaponType.Melee)return Q(0,10,-34);
+            return Q(12,-74,20);
+        }
+
+        private static Color32[] ReadStudio(Camera cam,RenderTexture target)
+        {
             var request=new RenderPipeline.StandardRequest{destination=target};
             if(RenderPipeline.SupportsRenderRequest(cam,request))RenderPipeline.SubmitRenderRequest(cam,request);else cam.Render();
             RenderTexture previous=RenderTexture.active;RenderTexture.active=target;
-            var input=new Texture2D(256,256,TextureFormat.RGB24,false);input.ReadPixels(new Rect(0,0,256,256),0,0);input.Apply();RenderTexture.active=previous;
-            Color32[] pixels=input.GetPixels32();Object.DestroyImmediate(input);
-            Color32 background=pixels[0];
-            var result=new Color32[128*128];int opaque=0;
-            for(int y=0;y<128;y++)for(int x=0;x<128;x++)
+            var input=new Texture2D(CaptureSize,CaptureSize,TextureFormat.RGB24,false);
+            try{input.ReadPixels(new Rect(0,0,CaptureSize,CaptureSize),0,0);input.Apply();return input.GetPixels32();}
+            finally{RenderTexture.active=previous;Object.DestroyImmediate(input);}
+        }
+
+        private static Sprite RenderItemIcon(GameObject model,Camera cam,RenderTexture target,Material maskMaterial,string path)
+        {
+            var rs=model.GetComponentsInChildren<MeshRenderer>().Where(r=>r.enabled&&r.gameObject.activeInHierarchy).ToArray();
+            if(rs.Length==0)throw new InvalidOperationException("No visible geometry for "+path);
+            Bounds b=rs[0].bounds;foreach(var r in rs.Skip(1))b.Encapsulate(r.bounds);
+            cam.transform.position=b.center+Vector3.back*6f;cam.transform.rotation=Quaternion.identity;cam.orthographicSize=Mathf.Max(.1f,Mathf.Max(b.size.x,b.size.y)*.61f);
+
+            // Render color and a separate opaque geometry mask. No colour key can erase a
+            // valid dark/purple/glowing facet; the exported transparent pixels follow the mesh.
+            Material[][] original=rs.Select(r=>r.sharedMaterials).ToArray();
+            var studioMaterials=new Dictionary<Material,Material>();
+            Color32[] pixels,mask;
+            try
+            {
+                for(int i=0;i<rs.Length;i++)
+                {
+                    var toned=new Material[original[i].Length];
+                    for(int j=0;j<toned.Length;j++)
+                    {
+                        Material mat=original[i][j];toned[j]=mat;
+                        if(mat==null||!mat.HasProperty("_EmissionColor")||mat.GetColor("_EmissionColor").maxColorComponent<=.50f)continue;
+                        // Limit emission for the small UI preview only; keep the actual in-game material untouched.
+                        if(!studioMaterials.TryGetValue(mat,out var clone))
+                        {
+                            clone=new Material(mat){hideFlags=HideFlags.DontSave};Color e=mat.GetColor("_EmissionColor");
+                            clone.SetColor("_EmissionColor",e*(.50f/e.maxColorComponent));studioMaterials.Add(mat,clone);
+                        }
+                        toned[j]=clone;
+                    }
+                    rs[i].sharedMaterials=toned;
+                }
+                pixels=ReadStudio(cam,target);
+                for(int i=0;i<rs.Length;i++)rs[i].sharedMaterials=Enumerable.Repeat(maskMaterial,original[i].Length).ToArray();
+                mask=ReadStudio(cam,target);
+            }
+            finally
+            {
+                for(int i=0;i<rs.Length;i++)rs[i].sharedMaterials=original[i];
+                foreach(var clone in studioMaterials.Values)Object.DestroyImmediate(clone);
+            }
+
+            var result=new Color32[IconSize*IconSize];int opaque=0,minX=IconSize,minY=IconSize,maxX=-1,maxY=-1;
+            for(int y=0;y<IconSize;y++)for(int x=0;x<IconSize;x++)
             {
                 int r=0,g=0,bv=0,n=0;
                 for(int dy=0;dy<2;dy++)for(int dx=0;dx<2;dx++)
                 {
-                    Color32 c=pixels[(y*2+dy)*256+x*2+dx];
-                    if(Mathf.Abs(c.r-background.r)+Mathf.Abs(c.g-background.g)+Mathf.Abs(c.b-background.b)<=9)continue;
-                    // Full coverage samples composited as straight-alpha to avoid a colored border.
+                    int index=(y*2+dy)*CaptureSize+x*2+dx;
+                    if(mask[index].r<128)continue;
+                    Color32 c=pixels[index];
                     r+=c.r;g+=c.g;bv+=c.b;n++;
                 }
-                if(n>0){result[y*128+x]=new Color32((byte)(r/n),(byte)(g/n),(byte)(bv/n),(byte)(n*255/4));opaque++;}
+                if(n>0)
+                {
+                    result[y*IconSize+x]=new Color32((byte)(r/n),(byte)(g/n),(byte)(bv/n),(byte)(n*255/4));opaque++;
+                    minX=Mathf.Min(minX,x);minY=Mathf.Min(minY,y);maxX=Mathf.Max(maxX,x);maxY=Mathf.Max(maxY,y);
+                }
             }
-            if(opaque<45||opaque>128*128*.96f){Debug.LogWarning("Art icon capture skipped (invalid silhouette): "+path);return null;}
-            var texture=new Texture2D(128,128,TextureFormat.RGBA32,false);texture.SetPixels32(result);texture.Apply();File.WriteAllBytes(path,texture.EncodeToPNG());Object.DestroyImmediate(texture);
+            if(opaque<96||opaque>IconSize*IconSize*.95f||minX<4||minY<4||maxX>IconSize-5||maxY>IconSize-5)
+                throw new InvalidOperationException($"Invalid or cropped item silhouette {path}: {opaque} px, {minX},{minY}–{maxX},{maxY}");
+            var texture=new Texture2D(IconSize,IconSize,TextureFormat.RGBA32,false);texture.SetPixels32(result);texture.Apply();File.WriteAllBytes(path,texture.EncodeToPNG());Object.DestroyImmediate(texture);
             AssetDatabase.ImportAsset(path,ImportAssetOptions.ForceSynchronousImport);
             var importer=(TextureImporter)AssetImporter.GetAtPath(path);importer.textureType=TextureImporterType.Sprite;importer.spriteImportMode=SpriteImportMode.Single;importer.alphaIsTransparency=true;
+            var settings=new TextureImporterSettings();importer.ReadTextureSettings(settings);settings.spriteMeshType=SpriteMeshType.FullRect;importer.SetTextureSettings(settings);
             importer.mipmapEnabled=false;importer.wrapMode=TextureWrapMode.Clamp;importer.textureCompression=TextureImporterCompression.Uncompressed;importer.SaveAndReimport();
+            Debug.Log($"ITEM_ICON_COMPLETE {Path.GetFileNameWithoutExtension(path)} opaque={opaque} bounds={minX},{minY}-{maxX},{maxY}");
             return AssetDatabase.LoadAssetAtPath<Sprite>(path);
         }
 
@@ -92,7 +155,7 @@ namespace LightSouls.Art.Editor
         {
             if(id.Contains("Potion"))
             {
-                Material liquid=id.Contains("Rage")?fireOuter:red;
+                Material liquid=id.Contains("Rage")?amber:red;
                 Part(t,"Bottle",plateMesh,liquid,V(0,.39f,0),V(.65f,.65f,.50f));
                 Part(t,"BottleNeck",prism,ivory,V(0,.77f,0),V(.2f,.22f,.20f));
                 Part(t,"Cork",prism,wood,V(0,.91f,0),V(.25f,.12f,.24f));
@@ -102,7 +165,7 @@ namespace LightSouls.Art.Editor
             }
             else if(id.Contains("Boots"))
             {
-                Material material=id.Contains("Spiked")?steel:id.Contains("Wading")?soul:id.Contains("Swift")?cloak:leather;
+                Material material=id.Contains("Spiked")?steel:id.Contains("Wading")?runeTeal:id.Contains("Swift")?cloak:leather;
                 foreach(int s in new[]{-1,1})
                 {
                     var boot=Group(t,"Boot",V(s*.29f,0,s*.055f));

@@ -66,7 +66,13 @@ namespace LightSouls.Art.Editor
             return asset;
         }
 
-        private static Mesh MeshAsset(Mesh mesh) => Save(mesh,ResourceRoot+"/Meshes/"+mesh.name+".asset");
+        private static Mesh MeshAsset(Mesh mesh)
+        {
+            string path=ResourceRoot+"/Meshes/"+mesh.name+".asset";EnsureFolder(ResourceRoot+"/Meshes");
+            var existing=AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if(existing==null){AssetDatabase.CreateAsset(mesh,path);return mesh;}
+            DarkFantasyMeshKit.CopyGeometry(existing,mesh);Object.DestroyImmediate(mesh);EditorUtility.SetDirty(existing);return existing;
+        }
         private static Color C(string hex) { ColorUtility.TryParseHtmlString("#"+hex,out Color c); return c; }
         private static Material Mat(string name, string color, float smooth = .18f, float metal = 0f, string emission = null, float strength = 1f)
         {
@@ -76,7 +82,7 @@ namespace LightSouls.Art.Editor
             return Save(m,ArtRoot+"/Materials/"+m.name+".mat");
         }
 
-        private static void BuildKit()
+        private static void BuildMeshes()
         {
             box=MeshAsset(DarkFantasyMeshKit.Box("BeveledBox",.09f)); block=MeshAsset(DarkFantasyMeshKit.Box("CutStone",.035f));
             cap=MeshAsset(DarkFantasyMeshKit.Cap("StoneFace",.024f));
@@ -93,6 +99,11 @@ namespace LightSouls.Art.Editor
             {
                 var primitive=GameObject.CreatePrimitive(PrimitiveType.Cube); plainCube=primitive.GetComponent<MeshFilter>().sharedMesh; Object.DestroyImmediate(primitive);
             }
+        }
+
+        private static void BuildKit()
+        {
+            BuildMeshes();
             mortar=Mat("Mortar","252932"); floor0=Mat("FlagstoneAsh","505460"); floor1=Mat("FlagstoneSlate","4b505b"); floor2=Mat("FlagstoneBlue","565f6c"); floor3=Mat("FlagstoneWeathered","5b5a61");
             wall0=Mat("WallBasalt","303541"); wall1=Mat("MasonryCold","454b59"); wall2=Mat("MasonryAsh","505461"); wall3=Mat("MasonryDark","363d49"); trim=Mat("ArchitectureTrim","686c76",.25f);
             floorStones=new []{floor0,floor1,floor2,floor3}; wallStones=new []{wall1,wall2,wall3};
@@ -109,6 +120,61 @@ namespace LightSouls.Art.Editor
             lava=Mat("LavaFlow","9b3820",.23f,0,"ff501a",.68f); water=Mat("DeepWater","39737b",.46f,.1f,"21838d",.18f);
             landmark=Mat("LandmarkInlay","d7adc2",.2f,0,"533b51",.2f);
             runeTeal=Mat("EngravedTeal","648c8c",.24f); runeViolet=Mat("EngravedViolet","77687d",.22f);runeGold=Mat("EngravedGold","93744c",.26f,.05f);
+        }
+
+        // Targeted repair: refresh existing mesh assets in place, fix the mislabeled
+        // hammer prefab, and recapture icons without regenerating scenes or materials.
+        [MenuItem("Light Souls/Art/Repair item meshes and icons")]
+        public static void RepairItemArt()
+        {
+            if(!Application.isBatchMode&&!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())return;
+            if(SystemInfo.graphicsDeviceType==GraphicsDeviceType.Null)throw new InvalidOperationException("Item icons require a graphics device.");
+            string scene=EditorSceneManager.GetActiveScene().path;
+            BuildMeshes();BossForgeBuilder.RebuildProfileMeshes();LoadItemMaterials();
+            BuildWeapons("Weapon_Sledgehammer");
+            // Mesh CopySerialized updates the saved data, but the renderer can retain its
+            // previously uploaded buffer until the asset is imported again.
+            AssetDatabase.SaveAssets();
+            foreach(var meshPath in AssetDatabase.FindAssets("t:Mesh",new[]{ResourceRoot+"/Meshes","Assets/Art/DarkFantasy/Bosses/Meshes"})
+                .Select(AssetDatabase.GUIDToAssetPath))
+                AssetDatabase.ImportAsset(meshPath,ImportAssetOptions.ForceSynchronousImport|ImportAssetOptions.ForceUpdate);
+            LoadItemMeshes();
+            BuildItemIcons();
+            AssetDatabase.SaveAssets();AssetDatabase.Refresh();
+            if(!string.IsNullOrEmpty(scene))EditorSceneManager.OpenScene(scene,OpenSceneMode.Single);
+            Debug.Log("LIGHT_SOULS_ITEM_ART_REPAIR_COMPLETE");
+        }
+
+        [MenuItem("Light Souls/Art/Recapture item icons")]
+        public static void RecaptureItemIcons()
+        {
+            if(!Application.isBatchMode&&!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())return;
+            if(SystemInfo.graphicsDeviceType==GraphicsDeviceType.Null)throw new InvalidOperationException("Item icons require a graphics device.");
+            string scene=EditorSceneManager.GetActiveScene().path;
+            LoadItemMeshes();LoadItemMaterials();BuildItemIcons();AssetDatabase.SaveAssets();AssetDatabase.Refresh();
+            if(!string.IsNullOrEmpty(scene))EditorSceneManager.OpenScene(scene,OpenSceneMode.Single);
+            Debug.Log("LIGHT_SOULS_ITEM_ICON_RECAPTURE_COMPLETE");
+        }
+
+        private static void LoadItemMeshes()
+        {
+            Mesh Existing(string name)=>AssetDatabase.LoadAssetAtPath<Mesh>(ResourceRoot+"/Meshes/"+name+".asset")
+                ??throw new InvalidOperationException("Missing authored item mesh: "+name);
+            box=Existing("BeveledBox");block=Existing("CutStone");cap=Existing("StoneFace");
+            prism=Existing("OctagonalPrism");gem=Existing("Crystal");cone=Existing("TaperedSpire");blade=Existing("ForgedBlade");
+            cape=Existing("ClothMantle");helmMesh=Existing("KnightHelm");chestMesh=Existing("SculptedCuirass");
+            plateMesh=Existing("RoundedPauldron");limbMesh=Existing("TaperedArmor");fireMesh=Existing("TorchFlame");
+        }
+
+        private static void LoadItemMaterials()
+        {
+            Material Existing(string name)=>AssetDatabase.LoadAssetAtPath<Material>(ArtRoot+"/Materials/DF_"+name+".mat")
+                ??throw new InvalidOperationException("Missing authored item material: "+name);
+            darkIron=Existing("BlackIron");steel=Existing("TemperedSteel");silver=Existing("PolishedEdge");
+            bronze=Existing("AntiqueBronze");gold=Existing("RoyalGold");leather=Existing("Leather");wood=Existing("SmokedOak");
+            cloth=Existing("InkCloth");cloak=Existing("IndigoMantle");red=Existing("Oxblood");ivory=Existing("BoneIvory");
+            flame=Existing("FlameHeart");fireOuter=Existing("FlameTongue");amber=Existing("EmberRune");
+            soul=Existing("SoulLight");frost=Existing("IceCrystal");poison=Existing("VenomGem");purple=Existing("VoidCrystal");runeTeal=Existing("EngravedTeal");
         }
 
         private static Transform Group(Transform parent,string name,Vector3 position=default,Quaternion rotation=default)

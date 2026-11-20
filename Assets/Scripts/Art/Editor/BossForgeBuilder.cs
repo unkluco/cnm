@@ -41,13 +41,19 @@ namespace LightSouls.Art.Editor
             stoneDark=Mat("MasonryDark");stoneLight=Mat("ArchitectureTrim");voidLight=Mat("VoidCrystal");spectral=Mat("SpectralCloth");ink=Mat("InkCloth");
             storm=BossMaterial("ThunderRune",new Color(.92f,.70f,.16f),new Color(1f,.73f,.13f)*.70f);
             stormSkin=Mat("HunterCloth");wing=BossMaterial("StormMembrane",new Color(.19f,.26f,.39f),Color.black);
-            robe=SaveMesh(DarkFantasyMeshKit.Profile("BossRobe",10,V(.48f,-.5f,.45f),V(.34f,-.15f,.32f),V(.24f,.29f,.25f),V(.28f,.5f,.26f)));
-            boulder=SaveMesh(DarkFantasyMeshKit.Profile("BossBasaltBoulder",7,V(.32f,-.5f,.35f),V(.48f,-.23f,.45f),V(.50f,.10f,.5f),V(.41f,.35f,.42f),V(.23f,.5f,.29f)));
-            muzzle=SaveMesh(DarkFantasyMeshKit.Profile("BossDrakeMuzzle",6,V(.46f,-.5f,.43f),V(.49f,-.25f,.43f),V(.39f,.22f,.35f),V(.27f,.5f,.28f)));
+            RebuildProfileMeshes();
             wingLeft=SaveMesh(DragonWing(-1));wingRight=SaveMesh(DragonWing(1));
             foreach(var definition in BossRoster.All)BuildPrefab(definition);
             AssetDatabase.SaveAssets();AssetDatabase.Refresh();
             Debug.Log("LIGHT_SOULS_GIANT_BOSS_ROSTER_COMPLETE");
+        }
+
+        internal static void RebuildProfileMeshes()
+        {
+            EnsureFolder(BossMeshRoot);
+            robe=SaveMesh(DarkFantasyMeshKit.Profile("BossRobe",10,V(.48f,-.5f,.45f),V(.34f,-.15f,.32f),V(.24f,.29f,.25f),V(.28f,.5f,.26f)));
+            boulder=SaveMesh(DarkFantasyMeshKit.Profile("BossBasaltBoulder",7,V(.32f,-.5f,.35f),V(.48f,-.23f,.45f),V(.50f,.10f,.5f),V(.41f,.35f,.42f),V(.23f,.5f,.29f)));
+            muzzle=SaveMesh(DarkFantasyMeshKit.Profile("BossDrakeMuzzle",6,V(.46f,-.5f,.43f),V(.49f,-.25f,.43f),V(.39f,.22f,.35f),V(.27f,.5f,.28f)));
         }
 
         private static void EnsureFolder(string path)
@@ -58,7 +64,7 @@ namespace LightSouls.Art.Editor
         private static Mesh SaveMesh(Mesh mesh)
         {
             string path=BossMeshRoot+"/"+mesh.name+".asset";var old=AssetDatabase.LoadAssetAtPath<Mesh>(path);
-            if(old!=null){EditorUtility.CopySerialized(mesh,old);Object.DestroyImmediate(mesh);EditorUtility.SetDirty(old);return old;}
+            if(old!=null){DarkFantasyMeshKit.CopyGeometry(old,mesh);Object.DestroyImmediate(mesh);EditorUtility.SetDirty(old);return old;}
             AssetDatabase.CreateAsset(mesh,path);return mesh;
         }
 
