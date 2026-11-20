@@ -52,12 +52,14 @@ namespace LightSouls.Combat.Inventory
     /// - 5 ô thanh nhanh (hotbar/0 .. hotbar/4)
     /// - 15 ô balo (backpack/0 .. backpack/14)
     /// - 2 ô trang bị (equip/armor, equip/boots)
+    /// - Túi nguyên liệu riêng: một ngăn cho mỗi ItemId (material/material.xxx)
     /// Lưu trữ qua Scene bằng RunState.SaveInventory.
     /// </summary>
-    public class PlayerInventory : MonoBehaviour, IInventory
+    public class PlayerInventory : MonoBehaviour, ICraftingInventory
     {
         public const int HotbarSize = 5;
         public const int BackpackSize = 15;
+        public const string MaterialSlotPrefix="material/";
 
         [Header("Cơ sở dữ liệu vật phẩm")]
         [SerializeField] private ItemDatabaseSO itemDatabase;
@@ -69,6 +71,7 @@ namespace LightSouls.Combat.Inventory
         private readonly InventorySlot[] _backpackSlots = new InventorySlot[BackpackSize];
         private readonly Dictionary<string, InventorySlot> _equipmentSlots = new Dictionary<string, InventorySlot>();
         private readonly Dictionary<string, InventorySlot> _allSlots = new Dictionary<string, InventorySlot>();
+        private readonly Dictionary<string,InventorySlot> _materialSlots=new Dictionary<string,InventorySlot>();
 
         private int _selectedHotbarIndex = 0;
         private HealthComponent _healthComponent;
@@ -84,6 +87,8 @@ namespace LightSouls.Combat.Inventory
         public IReadOnlyList<InventorySlot> HotbarSlots => _hotbarSlots;
         public IReadOnlyList<InventorySlot> BackpackSlots => _backpackSlots;
         public IReadOnlyDictionary<string, InventorySlot> EquipmentSlots => _equipmentSlots;
+        public IReadOnlyDictionary<string,InventorySlot> MaterialSlots=>_materialSlots;
+        public static string MaterialSlotKey(ItemDefinitionSO item)=>MaterialSlotPrefix+(item!=null?item.ItemId:string.Empty);
 
         /// <summary>Phát sự kiện mỗi khi ô chọn trên thanh nhanh thay đổi (index, item).</summary>
         public event Action<int, ItemDefinitionSO> OnHotbarSelectionChanged;
@@ -136,6 +141,9 @@ namespace LightSouls.Combat.Inventory
             string bootsKey = "equip/boots";
             _equipmentSlots[bootsKey] = new InventorySlot(bootsKey);
             _allSlots[bootsKey] = _equipmentSlots[bootsKey];
+            if(itemDatabase!=null)
+                foreach(var item in itemDatabase.AllItems)
+                    if(item!=null&&item.Category==ItemCategory.Material)GetOrCreateMaterialSlot(item);
         }
 
         private void Start()
@@ -185,11 +193,29 @@ namespace LightSouls.Combat.Inventory
             return slot;
         }
 
+        private InventorySlot GetOrCreateMaterialSlot(ItemDefinitionSO item)
+        {
+            if(item==null||item.Category!=ItemCategory.Material||string.IsNullOrEmpty(item.ItemId))return null;
+            string key=MaterialSlotKey(item);
+            if(!_materialSlots.TryGetValue(key,out var slot))
+            {slot=new InventorySlot(key);_materialSlots.Add(key,slot);_allSlots.Add(key,slot);}
+            return slot;
+        }
+
+        private static bool IsMaterial(ItemDefinitionSO item)=>item!=null&&item.Category==ItemCategory.Material;
+        private void PublishMaterialOrCraftChange(ItemDefinitionSO previousSelection)
+        {
+            ApplyEquipmentStats();SaveToRunState();Changed?.Invoke();
+            if(previousSelection!=SelectedItem)OnHotbarSelectionChanged?.Invoke(_selectedHotbarIndex,SelectedItem);
+        }
+
         #region Triển khai IInventory
 
         public bool HasSpaceFor(ItemDefinitionSO item, int count = 1)
         {
             if (item == null || count <= 0) return true;
+
+            if(IsMaterial(item))return !string.IsNullOrEmpty(item.ItemId)&&count<=Mathf.Max(0,item.MaxStack-GetCount(item));
 
             int remaining = count;
 
@@ -228,6 +254,12 @@ namespace LightSouls.Combat.Inventory
             if (!HasSpaceFor(item, count))
             {
                 return false;
+            }
+
+            if(IsMaterial(item))
+            {
+                var slot=GetOrCreateMaterialSlot(item);if(slot==null)return false;
+                var previous=SelectedItem;slot.Set(item,slot.Count+count);PublishMaterialOrCraftChange(previous);return true;
             }
 
             int remaining = count;
@@ -278,6 +310,12 @@ namespace LightSouls.Combat.Inventory
             if (GetCount(item) < count)
             {
                 return false;
+            }
+
+            if(IsMaterial(item))
+            {
+                var slot=GetSlot(MaterialSlotKey(item));if(slot==null||slot.Count<count)return false;
+                var previous=SelectedItem;slot.Set(item,slot.Count-count);PublishMaterialOrCraftChange(previous);return true;
             }
 
             int remaining = count;
@@ -351,6 +389,103 @@ namespace LightSouls.Combat.Inventory
 
         #endregion
 
+        #region Chế tạo — mô phỏng toàn bộ giao dịch trước khi ghi vào túi
+
+        private IEnumerable<InventorySlot> CraftInputSlots(ItemDefinitionSO item)
+        {
+            if(IsMaterial(item))
+            {
+                var material=GetSlot(MaterialSlotKey(item));if(material!=null)yield return material;yield break;
+            }
+            // Protect equipment currently worn. Weapons on the hotbar can be upgraded in place.
+            foreach(var slot in _backpackSlots)yield return slot;
+            foreach(var slot in _hotbarSlots)yield return slot;
+        }
+
+        public int GetCraftableCount(ItemDefinitionSO item)
+        {
+            if(item==null)return 0;int total=0;
+            foreach(var slot in CraftInputSlots(item))if(!slot.IsEmpty&&slot.Item.ItemId==item.ItemId)total+=slot.Count;
+            return total;
+        }
+
+        public CraftResult EvaluateCraft(CraftRecipe recipe,int batches=1)=>PlanCraft(recipe,batches,false);
+        public CraftResult TryCraft(CraftRecipe recipe,int batches=1)=>PlanCraft(recipe,batches,true);
+
+        private CraftResult PlanCraft(CraftRecipe recipe,int batches,bool commit)
+        {
+            if(recipe==null||!recipe.IsValid||batches<1||batches>99||recipe.Output.MaxStack<1)return CraftResult.InvalidRecipe;
+            long outputUnits=(long)recipe.OutputCount*batches;
+            if(outputUnits>int.MaxValue)return CraftResult.InvalidRecipe;
+            // Coalesce duplicate ingredients by ID so individually affordable requirements
+            // cannot collectively spend more than is owned.
+            var requirements=new Dictionary<string,(ItemDefinitionSO Item,int Count)>();
+            foreach(var ingredient in recipe.Ingredients)
+            {
+                requirements.TryGetValue(ingredient.Item.ItemId,out var old);
+                long sum=(long)old.Count+(long)ingredient.Count*batches;if(sum>int.MaxValue)return CraftResult.InvalidRecipe;
+                requirements[ingredient.Item.ItemId]=(ingredient.Item,(int)sum);
+            }
+            var plan=new Dictionary<string,ItemStack>(_allSlots.Count);
+            foreach(var slot in _allSlots.Values)plan[slot.SlotKey]=slot.IsEmpty?default:new ItemStack(slot.Item,slot.Count);
+            var reusable=new List<string>();
+            foreach(var requirement in requirements.Values)
+            {
+                int remaining=requirement.Count;
+                foreach(var slot in CraftInputSlots(requirement.Item))
+                {
+                    if(remaining==0)break;
+                    var stack=plan[slot.SlotKey];if(stack.IsEmpty||stack.Item.ItemId!=requirement.Item.ItemId)continue;
+                    int amount=Mathf.Min(stack.Count,remaining);stack.Count-=amount;remaining-=amount;
+                    plan[slot.SlotKey]=stack.IsEmpty?default:stack;
+                    if(stack.IsEmpty&&recipe.Kind==CraftRecipeKind.Upgrade&&!IsMaterial(requirement.Item)&&requirement.Item.Category==recipe.Output.Category)
+                        reusable.Add(slot.SlotKey);
+                }
+                if(remaining>0)return CraftResult.MissingIngredients;
+            }
+
+            int outputRemaining=(int)outputUnits;
+            if(IsMaterial(recipe.Output))
+            {
+                string key=MaterialSlotKey(recipe.Output);plan.TryGetValue(key,out var stack);
+                if(outputRemaining>recipe.Output.MaxStack-stack.Count)return CraftResult.NoSpace;
+                plan[key]=new ItemStack(recipe.Output,stack.Count+outputRemaining);outputRemaining=0;
+            }
+            else
+            {
+                void PutInto(string key,bool emptyOnly)
+                {
+                    if(outputRemaining<=0)return;
+                    var stack=plan[key];
+                    if(emptyOnly&&!stack.IsEmpty)return;
+                    if(!stack.IsEmpty&&stack.Item.ItemId!=recipe.Output.ItemId)return;
+                    int amount=Mathf.Min(outputRemaining,Mathf.Max(0,recipe.Output.MaxStack-stack.Count));
+                    if(amount==0)return;
+                    plan[key]=new ItemStack(recipe.Output,stack.Count+amount);outputRemaining-=amount;
+                }
+                // Prefer stacks, then the consumed weapon's former slot, then the normal free slots.
+                foreach(var slot in GetGeneralSlots())if(!plan[slot.SlotKey].IsEmpty)PutInto(slot.SlotKey,false);
+                foreach(string key in reusable)PutInto(key,true);
+                foreach(var slot in GetGeneralSlots())PutInto(slot.SlotKey,true);
+            }
+            if(outputRemaining>0)return CraftResult.NoSpace;
+            if(!commit)return CraftResult.Success;
+
+            // One commit, one persisted snapshot, one inventory event; failure leaves every slot untouched.
+            var previousSelection=SelectedItem;
+            foreach(var pair in plan)
+            {
+                var slot=GetSlot(pair.Key);
+                if(slot==null&&!pair.Value.IsEmpty)slot=GetOrCreateMaterialSlot(pair.Value.Item);
+                if(slot==null)continue;
+                if(pair.Value.IsEmpty)slot.Clear();else slot.Set(pair.Value.Item,pair.Value.Count);
+            }
+            PublishMaterialOrCraftChange(previousSelection);
+            return CraftResult.Success;
+        }
+
+        #endregion
+
         #region Thao tác di chuyển & Hoán đổi ô
 
         /// <summary>
@@ -360,6 +495,12 @@ namespace LightSouls.Combat.Inventory
         {
             var slot = GetSlot(slotKey);
             if (slot == null || slot.IsEmpty || slot.Count < count) return false;
+
+            if(count<=0)return false;
+            if(IsMaterial(slot.Item))
+            {
+                var previous=SelectedItem;slot.Set(slot.Item,slot.Count-count);PublishMaterialOrCraftChange(previous);return true;
+            }
 
             slot.Count -= count;
             if (slot.Count <= 0) slot.Clear();
@@ -378,6 +519,7 @@ namespace LightSouls.Combat.Inventory
         public bool SwapOrMoveSlots(string fromKey, string toKey)
         {
             if (fromKey == toKey) return false;
+            if((fromKey?.StartsWith(MaterialSlotPrefix)??false)||(toKey?.StartsWith(MaterialSlotPrefix)??false))return false;
 
             var fromSlot = GetSlot(fromKey);
             var toSlot = GetSlot(toKey);
@@ -434,6 +576,7 @@ namespace LightSouls.Combat.Inventory
         private bool CanPlaceInSlot(InventorySlot targetSlot, ItemDefinitionSO item)
         {
             if (item == null) return true;
+            if(IsMaterial(item))return false;
 
             if (targetSlot.SlotKey == "equip/armor")
             {
@@ -575,10 +718,10 @@ namespace LightSouls.Combat.Inventory
                 {
                     if (itemDatabase != null && itemDatabase.TryGetItem(record.ItemId, out var item))
                     {
-                        var slot = GetSlot(record.SlotKey);
+                        var slot = IsMaterial(item)?GetOrCreateMaterialSlot(item):GetSlot(record.SlotKey);
                         if (slot != null)
                         {
-                            slot.Set(item, record.Count);
+                            slot.Set(item,IsMaterial(item)?Mathf.Min(item.MaxStack,slot.Count+record.Count):record.Count);
                         }
                     }
                 }
@@ -590,7 +733,7 @@ namespace LightSouls.Combat.Inventory
                 {
                     if (entry.Item != null)
                     {
-                        var slot = GetSlot(entry.SlotKey);
+                        var slot = IsMaterial(entry.Item)?GetOrCreateMaterialSlot(entry.Item):GetSlot(entry.SlotKey);
                         if (slot != null)
                         {
                             slot.Set(entry.Item, entry.Count);

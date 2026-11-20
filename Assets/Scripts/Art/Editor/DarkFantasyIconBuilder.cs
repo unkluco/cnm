@@ -20,7 +20,7 @@ namespace LightSouls.Art.Editor
 
         // Render the same faceted models that are used in-world into clean transparent item sprites.
         // The unsaved studio scene is disposable; the three playable scenes are not touched here.
-        private static void BuildItemIcons()
+        private static void BuildItemIcons(bool materialsOnly=false)
         {
             string folder=ArtRoot+"/Icons";EnsureFolder(folder);
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
@@ -38,7 +38,7 @@ namespace LightSouls.Art.Editor
             {
                 foreach(string guid in AssetDatabase.FindAssets("t:ScriptableObject",new[]{"Assets/ScriptableObjects/Combat"}))
                 {
-                    var item=AssetDatabase.LoadAssetAtPath<ItemDefinitionSO>(AssetDatabase.GUIDToAssetPath(guid));if(item==null)continue;
+                    var item=AssetDatabase.LoadAssetAtPath<ItemDefinitionSO>(AssetDatabase.GUIDToAssetPath(guid));if(item==null||(materialsOnly&&!(item is CraftMaterialSO)))continue;
                     GameObject model;
                     if(item is WeaponDataSO weapon&&weapon.WeaponPrefab!=null)
                     {
@@ -57,8 +57,11 @@ namespace LightSouls.Art.Editor
                     }
                     finally{Object.DestroyImmediate(model);}
                 }
-                var bag=new GameObject("TravelSatchel");BuildInventoryModel(bag.transform,"Backpack");bag.transform.rotation=Q(6,-18,-7);
-                RenderItemIcon(bag,cam,target,maskMaterial,folder+"/Control_Backpack.png");Object.DestroyImmediate(bag);
+                if(!materialsOnly)
+                {
+                    var bag=new GameObject("TravelSatchel");BuildInventoryModel(bag.transform,"Backpack");bag.transform.rotation=Q(6,-18,-7);
+                    RenderItemIcon(bag,cam,target,maskMaterial,folder+"/Control_Backpack.png");Object.DestroyImmediate(bag);
+                }
             }
             finally{cam.targetTexture=null;target.Release();Object.DestroyImmediate(target);Object.DestroyImmediate(maskMaterial);}
         }
@@ -153,7 +156,11 @@ namespace LightSouls.Art.Editor
 
         private static void BuildInventoryModel(Transform t,string id)
         {
-            if(id.Contains("Potion"))
+            if(id.StartsWith("Material_",StringComparison.Ordinal))
+            {
+                BuildMaterialIconModel(t,id.Substring("Material_".Length));
+            }
+            else if(id.Contains("Potion"))
             {
                 Material liquid=id.Contains("Rage")?amber:red;
                 Part(t,"Bottle",plateMesh,liquid,V(0,.39f,0),V(.65f,.65f,.50f));

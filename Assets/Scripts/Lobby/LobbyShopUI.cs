@@ -310,7 +310,7 @@ namespace LightSouls.Lobby
             // 2. Kiểm tra HasSpaceFor
             if (!inventory.HasSpaceFor(item, 1))
             {
-                ShowStatus("Túi đồ đã đầy, không thể mua thêm!");
+                ShowStatus(item.Category==ItemCategory.Material?"Ngăn nguyên liệu đã đạt giới hạn!":"Túi đồ đã đầy, không thể mua thêm!");
                 return;
             }
 

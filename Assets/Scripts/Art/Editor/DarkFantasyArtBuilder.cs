@@ -162,6 +162,7 @@ namespace LightSouls.Art.Editor
                 ??throw new InvalidOperationException("Missing authored item mesh: "+name);
             box=Existing("BeveledBox");block=Existing("CutStone");cap=Existing("StoneFace");
             prism=Existing("OctagonalPrism");gem=Existing("Crystal");cone=Existing("TaperedSpire");blade=Existing("ForgedBlade");
+            ring=Existing("RuneRing");broadRing=Existing("BroadRing");
             cape=Existing("ClothMantle");helmMesh=Existing("KnightHelm");chestMesh=Existing("SculptedCuirass");
             plateMesh=Existing("RoundedPauldron");limbMesh=Existing("TaperedArmor");fireMesh=Existing("TorchFlame");
         }
