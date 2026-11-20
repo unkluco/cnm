@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: "B\xFAa T\u1EA1"
   description: "N\u1EC7n xu\u1ED1ng \u0111\u1EA5t t\u1EA1o s\xF3ng ch\u1EA5n \u0111\u1ED9ng,
     l\xE0m cho\xE1ng m\u1ECDi k\u1EBB \u0111\u1ECBch xung quanh trong 1 gi\xE2y."
-  icon: {fileID: 21300000, guid: fd650f5a1a1ed304799c7228da8bee1c, type: 3}
+  icon: {fileID: 21300000, guid: a1dae93a3ecafd345b66d66422f4c2d0, type: 3}
   price: 280
   maxStack: 1
   rarity: 2
@@ -24,7 +24,7 @@ MonoBehaviour:
   damage: 45
   attackRate: 1.2
   attackRange: 1.6
-  weaponPrefab: {fileID: 0}
+  weaponPrefab: {fileID: 8614026019893775141, guid: b566885bf36369542a4513b62257b3ce, type: 3}
   weaponColor: {r: 0.4, g: 0.42, b: 0.48, a: 1}
   swingArcAngle: 360
   hitRadius: 2.4
@@ -45,6 +45,7 @@ MonoBehaviour:
   hitEffects:
   - {fileID: 11400000, guid: 672de6aac0ca70144b93e9587ba67a5c, type: 2}
   vfx:
+    element: 5
     slashColor: {r: 0.95, g: 0.85, b: 0.55, a: 0.9}
     auraColor: {r: 0.75, g: 0.6, b: 1, a: 0.8}
     auraRate: 14

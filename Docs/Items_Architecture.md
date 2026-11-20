@@ -13,6 +13,8 @@ Tài liệu này mô tả cách hệ thống vật phẩm được chia lớp v�
 | `WeaponDataSO` | Combat | Vũ khí cận chiến / tầm xa, đạn xuyên, đạn nổ, nhiều nhát chém, `hitEffects`, `vfx`. |
 | `EquipmentDataSO` | Combat | Giáp / giày: giảm sát thương, tốc độ, và danh sách `extraModifiers` (StatModifier). |
 | `ConsumableDataSO` | Combat | Đồ dùng: danh sách `effects` (ConsumableEffectSO), `triggersOnDeath`. |
+| `CraftMaterialSO` / `CraftingCatalogSO` | Common | Nguyên liệu có nguồn rơi, độ hiếm và ngăn riêng; danh mục công thức chế tạo, nâng cấp, giả kim và tinh luyện. |
+| `ICraftingInventory` | Common | Giao dịch kiểm tra và chế tạo toàn vẹn; lò rèn ở Lobby dùng giao diện này để không phụ thuộc Combat. |
 | `PlayerStats` | Combat | Gộp mọi hệ số theo nguồn (trang bị, thuốc có thời hạn...). Hệ số cuối = tích các nguồn. |
 
 Đường đi sát thương duy nhất của vũ khí người chơi: `WeaponHitResolver.Apply` (nhân hệ số sát thương của người đánh, gây sát thương, hiệu ứng trúng đòn, hạt va chạm).
@@ -27,7 +29,7 @@ Tài liệu này mô tả cách hệ thống vật phẩm được chia lớp v�
 
 Không cần sửa code giao diện: viền độ hiếm, tên màu và chỉ số tự hiện.
 
-Bộ 20 vật phẩm hiện có được dựng lại bằng menu **LightSouls > Items > Build Item Set** (`ItemSetBuilder`, icon vẽ bằng code trong `ItemIconLibrary`).
+Bộ vật phẩm gốc được mở rộng bằng menu **LightSouls > Items > Build Item Set** (`ItemSetBuilder`). Biểu tượng low-poly được dựng bởi bộ công cụ Dark Fantasy. Hệ chế tạo và nguyên liệu mới có tài liệu riêng: [Lò rèn Ánh Tàn](Crafting.md).
 
 ## 3. Thêm hiệu ứng khi trúng đòn (vũ khí)
 
@@ -66,7 +68,7 @@ Kháng bẫy môi trường đi qua `IHazardResistant` (Common), nên MapGenerat
 ## 7. Hòm kho báu
 
 - `TreasureChest` giữ một `ItemContainer` 6 ô, quay đồ một lần từ `LootTableSO`, **mở lại được nhiều lần** (kể cả khi trống để cất đồ).
-- `TreasureChestUI` hiện hai bên: trái là túi đồ (5 ô thanh nhanh + 15 ô balo), phải là 6 ô của hòm.
+- `TreasureChestUI` hiện hai bên: trái là túi đồ (5 ô thanh nhanh + 15 ô balo hoặc tab nguyên liệu), phải là 6 ô của hòm.
   - Chạm ô bên hòm: lấy vào túi (túi gần đầy thì lấy một phần).
   - Chạm ô bên túi: cất cả chồng vào hòm (hòm gần đầy thì cất một phần).
   - "Lấy hết": lấy mọi ô. Đóng bảng thì nắp hòm hạ xuống.

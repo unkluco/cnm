@@ -41,7 +41,7 @@ namespace LightSouls.Combat.Weapons
             WeaponVfxProfile vfx = weaponData.Vfx;
             if (vfx.muzzleColor.a > 0f)
             {
-                VfxFactory.Burst(spawnPos, vfx.muzzleColor, 7, 2.5f, 0.16f, 0.15f, 0f);
+                VfxFactory.Muzzle(spawnPos, aim, vfx.muzzleColor, vfx.element, weaponData.ProjectileCount > 1 || weaponData.IsExplosive);
             }
 
             int count = Mathf.Max(1, weaponData.ProjectileCount);
@@ -94,19 +94,18 @@ namespace LightSouls.Combat.Weapons
 
             // Tô màu đạn theo màu vệt của vũ khí để mỗi súng nhìn khác nhau.
             Color trailColor = weaponData.Vfx.trailColor;
-            Renderer r = projObj.GetComponentInChildren<Renderer>();
-            if (r != null && trailColor.a > 0f) r.material.color = new Color(trailColor.r, trailColor.g, trailColor.b, 1f);
+            VfxFactory.TintProjectile(projObj, trailColor);
 
             // Xác định Layer của đạn dựa vào người bắn (Player -> PlayerAttack (9), Quái -> EnemyAttack (10))
             projObj.layer = attacker != null && attacker.CompareTag("Player") ? 9 : 10;
-
-            VfxFactory.AttachTrail(projObj, weaponData.Vfx.trailColor);
 
             Projectile projectile = projObj.GetComponent<Projectile>();
             if (projectile != null)
             {
                 projectile.Initialize(weaponData.Damage, weaponData.ProjectileSpeed, weaponData.ProjectileLifetime, targetLayer, attacker);
                 projectile.SetWeapon(weaponData, weaponData.PierceCount);
+                projectile.SetVisualStyle(trailColor, weaponData.Vfx.element,
+                    weaponData.Vfx.element == CombatVfxElement.Frost ? .30f : .14f);
             }
         }
 

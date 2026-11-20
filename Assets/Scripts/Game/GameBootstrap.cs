@@ -3,6 +3,7 @@ using LightSouls.Combat;
 using LightSouls.Combat.Items;
 using LightSouls.Combat.UI;
 using LightSouls.Combat.Effects;
+using LightSouls.Combat.Bosses;
 using LightSouls.Common;
 using LightSouls.MapGeneration;
 using LightSouls.UI;
@@ -75,6 +76,8 @@ namespace LightSouls.Game
         private Transform levelExitPoint;
         private RoomLifecycleController exitRoom;
         private RoomModule roomInCombat;
+        private BossKind? currentBossKind;
+        private CraftingCatalogSO craftingCatalog;
         private readonly List<RoomLifecycleController> subscribedRooms = new List<RoomLifecycleController>();
         private bool isFinished;
         private bool mustLeaveExitArea;
@@ -235,7 +238,7 @@ namespace LightSouls.Game
             exitPortalVisual.SetActive(false);
         }
 
-        private void OpenMysteryPortal()
+        private void OpenMysteryPortal(bool materialRewards=false)
         {
             if (exitPortalOpen || exitPortalVisual == null || player == null || player.IsDead || isFinished) return;
             exitPortalOpen = true;
@@ -246,7 +249,7 @@ namespace LightSouls.Game
             var offset = player.transform.position - levelExitPoint.position;
             offset.y = 0f;
             mustLeaveExitArea = offset.sqrMagnitude <= exitReachRadius * exitReachRadius;
-            CombatToast.Show("Cổng bí ẩn đã mở. Bước vào để biết điểm đến.");
+            CombatToast.Show(materialRewards?"Cổng bí ẩn đã mở. Nhặt nguyên liệu và mở hòm trước nhé.":"Cổng bí ẩn đã mở. Bước vào để biết điểm đến.");
         }
 
         private void EnterMysteryPortal()
@@ -400,12 +403,26 @@ namespace LightSouls.Game
 
             // Gán trước khi sinh quái: phòng không có điểm sinh quái sẽ phát AllEnemiesDefeated ngay trong SpawnWave.
             roomInCombat = room;
+            currentBossKind=null;
             if (player != null)
             {
                 player.InLockedCombat = true;
             }
 
-            enemySpawner.SpawnWave(room.EnemySpawnPoints);
+            if(room.RoomType==RoomType.Exit)
+            {
+                if(!enemySpawner.SpawnBoss(room.GetCurrentWorldBounds(),room.transform.position.y,player))
+                {
+                    Debug.LogError("[GameBootstrap] Boss roster is missing. Falling back to a normal encounter to keep the dungeon playable.");
+                    enemySpawner.SpawnWave(room.EnemySpawnPoints);
+                }
+                else
+                {
+                    currentBossKind=enemySpawner.ActiveBoss.Kind;
+                    if(cameraFollow!=null)cameraFollow.SetBossFocus(enemySpawner.ActiveBoss);
+                }
+            }
+            else enemySpawner.SpawnWave(room.EnemySpawnPoints);
         }
 
         private void HandleWaveDefeated()
@@ -417,6 +434,8 @@ namespace LightSouls.Game
 
             var room = roomInCombat;
             roomInCombat = null;
+            var defeatedBoss=currentBossKind;currentBossKind=null;
+            if(room.RoomType==RoomType.Exit && cameraFollow!=null)cameraFollow.SetBossFocus(null);
             if (player != null)
             {
                 player.InLockedCombat = false;
@@ -428,7 +447,12 @@ namespace LightSouls.Game
 
             SpawnBossRewardChests(room);
 
-            if (room.RoomType == RoomType.Exit) OpenMysteryPortal();
+            if(craftingCatalog==null)craftingCatalog=CraftingCatalogSO.Load();
+            Vector3? portal=room.RoomType==RoomType.Exit&&levelExitPoint!=null?levelExitPoint.position:null;
+            int materialDrops=CraftingLootDrops.SpawnInRoom(craftingCatalog,room.GetCurrentWorldBounds(),room.transform.position.y,
+                player!=null?player.transform.position:room.transform.position,defeatedBoss,RunState.SelectedDungeonId,portal,exitReachRadius+1.2f);
+            if (room.RoomType == RoomType.Exit) OpenMysteryPortal(materialDrops>0);
+            else if(materialDrops>0)CombatToast.Show("Nguyên liệu chế tạo đã rơi ra!");
 
             RunState.AddCoins(coinsPerClearedRoom);
         }

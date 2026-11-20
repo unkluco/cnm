@@ -1,146 +1,126 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace LightSouls.Combat.Effects
 {
-    /// <summary>
-    /// Hiệu ứng vệt chém kiếm (Sword Slash Wave).
-    /// Xuất hiện hình vòng cung vệt trắng, di chuyển nhẹ về phía trước,
-    /// mở rộng theo dạng sóng và mờ dần trong đúng 0.5 giây rồi biến mất.
-    /// </summary>
+    /// <summary>Feathered elemental crescent with a bright cutting edge, animated sweep and short lifetime.</summary>
     public class SwordSlashWave : MonoBehaviour
     {
-        [Header("Thông số vệt sóng")]
-        [Tooltip("Thời gian tồn tại của vệt kiếm (0.5 giây)")]
-        [SerializeField] private float lifetime = 0.5f;
-
-        [Tooltip("Tốc độ đẩy về phía trước")]
-        [SerializeField] private float forwardSpeed = 3.0f;
-
-        [Tooltip("Kích thước ban đầu và kích thước khi tan dần")]
-        [SerializeField] private Vector3 startScale = new Vector3(1.0f, 0.6f, 1.0f);
-        [SerializeField] private Vector3 endScale = new Vector3(1.6f, 1.2f, 1.6f);
-
+        [SerializeField] private float lifetime = .42f;
+        [SerializeField] private float forwardSpeed = 1.1f;
+        [SerializeField] private Vector3 startScale = new Vector3(.84f, .84f, .84f);
+        [SerializeField] private Vector3 endScale = new Vector3(1.14f, 1.14f, 1.14f);
         [SerializeField] private Renderer waveRenderer;
 
-        private float _elapsedTime = 0f;
-        private Material _instancedMaterial;
-        private Color _initialColor = Color.white;
+        private static readonly Dictionary<int, Mesh> unitArcs = new();
+        private MaterialPropertyBlock properties;
+        private Color elementColor = Color.white;
+        private CombatVfxElement element;
+        private float elapsed;
+        private Vector3 origin;
+
+        public static SwordSlashWave Spawn(Vector3 position, Vector3 direction, float outerRadius, float arcAngle,
+            Color color, CombatVfxElement element, bool mirrored = false)
+        {
+            if (color.a <= 0f) return null;
+            direction.y = 0f;
+            if (direction.sqrMagnitude < .0001f) direction = Vector3.forward;
+            var root = new GameObject("SwordSlashWave_Instance");
+            root.transform.SetPositionAndRotation(position,
+                Quaternion.LookRotation(direction.normalized, Vector3.up) * Quaternion.Euler(0f, mirrored ? 13f : -8f, mirrored ? -14f : 11f));
+            int key = Mathf.RoundToInt(Mathf.Clamp(arcAngle, 45f, 360f));
+            if (!unitArcs.TryGetValue(key, out var mesh) || mesh == null)
+            {
+                mesh = CreateSlashArcMesh(.43f, 1f, key, 36);
+                mesh.hideFlags = HideFlags.DontSave;
+                unitArcs[key] = mesh;
+            }
+            ArcaneVfxMaterials.AddSurface(root, mesh, ArcaneVfxMaterials.Blade);
+            var wave = root.AddComponent<SwordSlashWave>();
+            wave.Configure(outerRadius, color, element);
+            return wave;
+        }
 
         private void Awake()
         {
-            if (waveRenderer == null)
-            {
-                waveRenderer = GetComponentInChildren<Renderer>();
-            }
-
+            if (waveRenderer == null) waveRenderer = GetComponentInChildren<Renderer>();
             if (waveRenderer != null)
             {
-                _instancedMaterial = waveRenderer.material;
-                _initialColor = _instancedMaterial.color;
+                var old = waveRenderer.sharedMaterial;
+                if (old != null && old.HasProperty("_BaseColor")) elementColor = old.GetColor("_BaseColor");
+                else if (old != null && old.HasProperty("_Color")) elementColor = old.GetColor("_Color");
+                waveRenderer.sharedMaterial = ArcaneVfxMaterials.Blade;
+                waveRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                waveRenderer.receiveShadows = false;
             }
-
+            properties = new MaterialPropertyBlock();
+            origin = transform.position;
             transform.localScale = startScale;
+            Apply(0f);
+        }
+
+        public void Configure(float outerRadius, Color tint, CombatVfxElement theme)
+        {
+            elementColor = tint;
+            element = theme;
+            float radius = Mathf.Max(.5f, outerRadius);
+            startScale = Vector3.one * (radius * .91f);
+            endScale = Vector3.one * (radius * 1.11f);
+            transform.localScale = startScale;
+            Apply(0f);
         }
 
         private void Update()
         {
-            _elapsedTime += Time.deltaTime;
-            float progress = Mathf.Clamp01(_elapsedTime / lifetime);
-
-            // 1. Đẩy nhẹ vệt sóng kiếm về phía trước
-            transform.position += transform.forward * (forwardSpeed * (1f - progress * 0.5f) * Time.deltaTime);
-
-            // 2. Mở rộng vệt kiếm dạng sóng xung kích
-            transform.localScale = Vector3.Lerp(startScale, endScale, Mathf.SmoothStep(0f, 1f, progress));
-
-            // 3. Làm mờ dần alpha mượt mà theo đường cong mờ dần
-            if (_instancedMaterial != null)
-            {
-                float alpha = Mathf.SmoothStep(1f, 0f, progress);
-                Color c = _initialColor;
-                c.a = _initialColor.a * alpha;
-                _instancedMaterial.color = c;
-            }
-
-            // 4. Biến mất hoàn toàn sau 0.5 giây
-            if (_elapsedTime >= lifetime)
-            {
-                Destroy(gameObject);
-            }
+            elapsed += Time.deltaTime;
+            float p = Mathf.Clamp01(elapsed / Mathf.Max(.05f, lifetime));
+            transform.position = origin + transform.forward * (forwardSpeed * lifetime * p * (1f - .38f * p));
+            transform.localScale = Vector3.Lerp(startScale, endScale, 1f - (1f - p) * (1f - p));
+            Apply(p);
+            if (p >= 1f) Destroy(gameObject);
         }
 
-        private void OnDestroy()
+        private void Apply(float p)
         {
-            if (_instancedMaterial != null)
-            {
-                Destroy(_instancedMaterial);
-            }
+            if (waveRenderer == null || properties == null) return;
+            float fade = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.16f, 1f, p));
+            properties.SetColor("_Tint", elementColor);
+            properties.SetFloat("_Fade", fade);
+            properties.SetFloat("_Progress", p);
+            properties.SetFloat("_TrailMode", 0f);
+            properties.SetFloat("_Element", (float)element);
+            waveRenderer.SetPropertyBlock(properties);
         }
 
-        /// <summary>
-        /// Tạo một Mesh hình vòng cung lưỡi kiếm (Crescent Slash Arc).
-        /// </summary>
-        public static Mesh CreateSlashArcMesh(float innerRadius = 0.8f, float outerRadius = 1.6f, float arcAngle = 120f, int segments = 24)
+        /// <summary>Tapered arc used by the runtime cache and the legacy editor preview.</summary>
+        public static Mesh CreateSlashArcMesh(float innerRadius = .8f, float outerRadius = 1.6f, float arcAngle = 120f, int segments = 24)
         {
-            Mesh mesh = new Mesh();
-            mesh.name = "SlashArcMesh";
-
-            int vertexCount = (segments + 1) * 2;
-            Vector3[] vertices = new Vector3[vertexCount];
-            Vector2[] uvs = new Vector2[vertexCount];
-            Color[] colors = new Color[vertexCount];
-            int[] triangles = new int[segments * 6];
-
-            float halfAngle = arcAngle * 0.5f;
-            float angleStep = arcAngle / segments;
-
-            int vertIndex = 0;
-            int triIndex = 0;
-
+            segments = Mathf.Clamp(segments, 8, 64);
+            var vertices = new Vector3[(segments + 1) * 2];
+            var uv = new Vector2[vertices.Length];
+            var colors = new Color[vertices.Length];
+            var triangles = new int[segments * 6];
             for (int i = 0; i <= segments; i++)
             {
-                float angle = -halfAngle + i * angleStep;
-                float rad = angle * Mathf.Deg2Rad;
-                float cos = Mathf.Sin(rad);
-                float sin = Mathf.Cos(rad);
-
-                // Độ dày thon nhọn ở 2 đầu (taper tips)
-                float t = (float)i / segments;
-                float taper = Mathf.Sin(t * Mathf.PI);
-                float currentOuter = Mathf.Lerp(innerRadius, outerRadius, taper);
-
-                // Đỉnh trong và ngoài
-                vertices[vertIndex] = new Vector3(cos * innerRadius, 0f, sin * innerRadius);
-                vertices[vertIndex + 1] = new Vector3(cos * currentOuter, 0.05f * taper, sin * currentOuter);
-
-                uvs[vertIndex] = new Vector2(t, 0f);
-                uvs[vertIndex + 1] = new Vector2(t, 1f);
-
-                Color vertColor = new Color(1f, 1f, 1f, taper);
-                colors[vertIndex] = vertColor;
-                colors[vertIndex + 1] = vertColor;
-
-                if (i < segments)
-                {
-                    triangles[triIndex++] = vertIndex;
-                    triangles[triIndex++] = vertIndex + 1;
-                    triangles[triIndex++] = vertIndex + 2;
-
-                    triangles[triIndex++] = vertIndex + 1;
-                    triangles[triIndex++] = vertIndex + 3;
-                    triangles[triIndex++] = vertIndex + 2;
-                }
-
-                vertIndex += 2;
+                float t = i / (float)segments;
+                float rad = (-arcAngle * .5f + arcAngle * t) * Mathf.Deg2Rad;
+                float taper = Mathf.Pow(Mathf.Max(0f, Mathf.Sin(Mathf.PI * t)), .72f);
+                Vector3 dir = new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad));
+                float inner = Mathf.Lerp(outerRadius * .83f, innerRadius, taper);
+                float outer = Mathf.Lerp(outerRadius * .83f, outerRadius, taper);
+                int v = i * 2;
+                vertices[v] = dir * inner + Vector3.up * (-.035f * taper);
+                vertices[v + 1] = dir * outer + Vector3.up * (.035f * taper);
+                uv[v] = new Vector2(t, 0f); uv[v + 1] = new Vector2(t, 1f);
+                colors[v] = colors[v + 1] = new Color(1f, 1f, 1f, Mathf.Lerp(.15f, 1f, taper));
+                if (i == segments) continue;
+                int n = i * 6;
+                triangles[n] = v; triangles[n + 1] = v + 1; triangles[n + 2] = v + 2;
+                triangles[n + 3] = v + 1; triangles[n + 4] = v + 3; triangles[n + 5] = v + 2;
             }
-
-            mesh.vertices = vertices;
-            mesh.uv = uvs;
-            mesh.colors = colors;
-            mesh.triangles = triangles;
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-
+            var mesh = new Mesh { name = "Arcane Crescent" };
+            mesh.vertices = vertices; mesh.uv = uv; mesh.colors = colors; mesh.triangles = triangles;
+            mesh.RecalculateNormals(); mesh.RecalculateBounds();
             return mesh;
         }
     }

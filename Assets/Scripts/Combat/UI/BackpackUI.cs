@@ -26,7 +26,7 @@ namespace LightSouls.Combat.UI
     /// Hỗ trợ chạm để hoán đổi/chuyển đồ giữa các ô.
     /// Tích hợp BackButtonStack để nút Back đóng Balo trước khi mở Pause Menu.
     /// </summary>
-    public class BackpackUI : MonoBehaviour
+    public partial class BackpackUI : MonoBehaviour
     {
         [Header("Tham chiếu Nhân vật & Túi đồ")]
         [SerializeField] private PlayerController player;
@@ -76,6 +76,7 @@ namespace LightSouls.Combat.UI
         private void Awake()
         {
             RegisterViews();
+            BuildMaterialTabs();
 
             if (closeButton != null)
             {
@@ -228,6 +229,7 @@ namespace LightSouls.Combat.UI
             BackButtonStack.Push(this, Close);
 
             ClearSelection();
+            SetMaterialTab(false);
             Refresh();
         }
 
@@ -245,6 +247,7 @@ namespace LightSouls.Combat.UI
         public void OnSlotClicked(string slotKey)
         {
             if (inventory == null) return;
+            if(_selectedSlotKey!=null&&_selectedSlotKey.StartsWith(PlayerInventory.MaterialSlotPrefix))ClearSelection();
 
             var clickedSlot = inventory.GetSlot(slotKey);
 
@@ -473,6 +476,7 @@ namespace LightSouls.Combat.UI
                     kvp.Value.highlightObject.SetActive(kvp.Key == _selectedSlotKey);
                 }
             }
+            UpdateMaterialHighlights();
         }
 
         private void ShowDetail(ItemDefinitionSO item, int count)
@@ -493,6 +497,7 @@ namespace LightSouls.Combat.UI
                     ItemCategory.Weapon => "[VŨ KHÍ]",
                     ItemCategory.Equipment => "[TRANG BỊ]",
                     ItemCategory.Consumable => "[TIÊU HAO]",
+                    ItemCategory.Material => "[NGUYÊN LIỆU]",
                     _ => "[VẬT PHẨM]"
                 } + "  " + ItemRarityStyle.ColoredName(item.Rarity);
                 itemCategoryText.supportRichText = true;
@@ -607,7 +612,9 @@ namespace LightSouls.Combat.UI
                 {
                     ClearSelection();
                 }
+                else if(cur.Item.Category==ItemCategory.Material)ShowDetail(cur.Item,cur.Count);
             }
+            RefreshMaterialTab();
         }
     }
 }

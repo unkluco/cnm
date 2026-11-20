@@ -50,12 +50,16 @@ namespace LightSouls.Combat.Enemies
         protected bool _isAttackingLimbAnim = false;
         private Color[] _originalColors;
         private Coroutine _flashCoroutine;
+        private float _lastFeedbackHealth;
 
         protected Quaternion _defaultTorsoRot = Quaternion.identity;
         protected Quaternion _defaultRightArmRot = Quaternion.identity;
         protected Quaternion _defaultLeftArmRot = Quaternion.identity;
 
         // Triển khai IDamageable ủy quyền cho HealthComponent
+        public virtual string DisplayName => enemyName;
+        protected virtual float MaximumColliderHeight => 2f;
+        protected virtual float MaximumColliderRadius => .5f;
         public bool IsDead => _health != null ? _health.IsDead : _isDead;
         public float CurrentHealth => _health != null ? _health.CurrentHealth : 0f;
         public float MaxHealth => _health != null ? _health.MaxHealth : 0f;
@@ -112,9 +116,9 @@ namespace LightSouls.Combat.Enemies
             gameObject.tag = "Enemy";
             gameObject.layer = 7;
 
-            // Quy chuẩn kích thước: cao ≤ 2m, bán kính ≤ 0.5m
-            _collider.height = Mathf.Min(2.0f, _collider.height);
-            _collider.radius = Mathf.Min(0.5f, _collider.radius);
+            // Quái thường giữ kích cỡ humanoid. Boss khai báo kích thước collider riêng.
+            _collider.height = Mathf.Min(MaximumColliderHeight, _collider.height);
+            _collider.radius = Mathf.Min(MaximumColliderRadius, _collider.radius);
 
             // Cấu hình NavMeshAgent chuẩn Humanoid
             if (_agent != null)
@@ -151,6 +155,7 @@ namespace LightSouls.Combat.Enemies
         {
             if (_health != null)
             {
+                _lastFeedbackHealth = _health.CurrentHealth;
                 _health.Died += HandleDied;
                 _health.OnHealthChanged += HandleHealthChanged;
             }
@@ -321,7 +326,9 @@ namespace LightSouls.Combat.Enemies
 
         private void HandleHealthChanged(float current, float max)
         {
-            if (!_isDead && current < max)
+            bool tookDamage = current < _lastFeedbackHealth - .001f;
+            _lastFeedbackHealth = current;
+            if (!_isDead && tookDamage)
             {
                 // Nháy đỏ khi nhận sát thương
                 if (_flashCoroutine != null) StopCoroutine(_flashCoroutine);
@@ -331,26 +338,44 @@ namespace LightSouls.Combat.Enemies
 
         private IEnumerator FlashRedRoutine()
         {
-            if (meshRenderers != null)
-            {
-                foreach (var r in meshRenderers)
-                {
-                    if (r != null && r.material != null)
-                    {
-                        r.material.color = hitFlashColor;
-                    }
-                }
-            }
-
-            yield return new WaitForSeconds(flashDuration);
+            var block = new MaterialPropertyBlock();
+            float snap = Mathf.Min(.045f, flashDuration * .4f);
+            SetFlashColor(block, Color.Lerp(hitFlashColor, Color.white, .72f), .72f);
+            yield return new WaitForSeconds(snap);
+            SetFlashColor(block, hitFlashColor, .52f);
+            yield return new WaitForSeconds(Mathf.Max(0f, flashDuration - snap));
 
             if (meshRenderers != null && _originalColors != null)
             {
                 for (int i = 0; i < meshRenderers.Length; i++)
                 {
-                    if (meshRenderers[i] != null && meshRenderers[i].material != null && i < _originalColors.Length)
+                    if (meshRenderers[i] != null && meshRenderers[i].sharedMaterial != null && i < _originalColors.Length)
                     {
-                        meshRenderers[i].material.color = _originalColors[i];
+                        meshRenderers[i].GetPropertyBlock(block);
+                        block.SetColor("_BaseColor", _originalColors[i]);
+                        block.SetColor("_Color", _originalColors[i]);
+                        meshRenderers[i].SetPropertyBlock(block);
+                    }
+                }
+            }
+            _flashCoroutine = null;
+        }
+
+        private void SetFlashColor(MaterialPropertyBlock block, Color tint, float strength)
+        {
+            if (meshRenderers != null)
+            {
+                for (int i = 0; i < meshRenderers.Length; i++)
+                {
+                    var r = meshRenderers[i];
+                    if (r != null && r.sharedMaterial != null)
+                    {
+                        Color original = _originalColors != null && i < _originalColors.Length ? _originalColors[i] : tint;
+                        Color blended = Color.Lerp(original, tint, strength);
+                        r.GetPropertyBlock(block);
+                        block.SetColor("_BaseColor", blended);
+                        block.SetColor("_Color", blended);
+                        r.SetPropertyBlock(block);
                     }
                 }
             }

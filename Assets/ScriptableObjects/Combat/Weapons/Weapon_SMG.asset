@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: "S\xFAng Ti\u1EC3u Li\xEAn"
   description: "Gi\u1EEF n\xFAt t\u1EA5n c\xF4ng \u0111\u1EC3 x\u1EA3 \u0111\u1EA1n
     li\xEAn t\u1EE5c. M\u1ED7i vi\xEAn y\u1EBFu v\xE0 h\u01A1i l\u1EC7ch."
-  icon: {fileID: 21300000, guid: 481a878ec513fcc4d9011200b90e4168, type: 3}
+  icon: {fileID: 21300000, guid: 01c5619ff8f7a4a4c8c081b25679457f, type: 3}
   price: 300
   maxStack: 1
   rarity: 2
@@ -24,7 +24,7 @@ MonoBehaviour:
   damage: 7
   attackRate: 0.09
   attackRange: 11
-  weaponPrefab: {fileID: 0}
+  weaponPrefab: {fileID: 2615542954996908379, guid: 46533a75794e966448285c456541c0b2, type: 3}
   weaponColor: {r: 0.3, g: 0.3, b: 0.34, a: 1}
   swingArcAngle: 90
   hitRadius: 1.5
@@ -44,6 +44,7 @@ MonoBehaviour:
   strikeInterval: 0.12
   hitEffects: []
   vfx:
+    element: 4
     slashColor: {r: 1, g: 1, b: 1, a: 0.9}
     auraColor: {r: 0.8, g: 0.5, b: 1, a: 0.5}
     auraRate: 8

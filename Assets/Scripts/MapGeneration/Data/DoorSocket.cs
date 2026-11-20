@@ -99,9 +99,13 @@ namespace LightSouls.MapGeneration
 
             Renderer[] renderers = openVisual.GetComponentsInChildren<Renderer>(true);
             var propBlock = new MaterialPropertyBlock();
+            // The new architecture has a dedicated colored inlay. Preserve the stone frame's
+            // material while keeping the same room-state indicators. Old prefabs still work.
+            bool hasLandmark = System.Array.Exists(renderers, r => r != null && r.name == "Art_Landmark");
             foreach (Renderer r in renderers)
             {
                 if (r == null) continue;
+                if (hasLandmark && r.name != "Art_Landmark") continue;
                 r.GetPropertyBlock(propBlock);
                 propBlock.SetColor("_BaseColor", landmarkColor);
                 propBlock.SetColor("_Color", landmarkColor);

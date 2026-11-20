@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using LightSouls.Combat.Inventory;
 using LightSouls.Combat.Items;
 using LightSouls.Common;
@@ -20,12 +21,12 @@ namespace LightSouls.Combat.UI
     {
         private const int InventoryColumns = 5;
 
-        private static readonly Color PanelColor = new Color(0.16f, 0.12f, 0.08f, 0.97f);
-        private static readonly Color SectionColor = new Color(0.1f, 0.08f, 0.06f, 0.9f);
-        private static readonly Color SlotColor = new Color(0.3f, 0.23f, 0.14f, 1f);
-        private static readonly Color HotbarSlotColor = new Color(0.24f, 0.26f, 0.32f, 1f);
-        private static readonly Color EmptySlotColor = new Color(0.13f, 0.1f, 0.08f, 1f);
-        private static readonly Color GoldColor = new Color(1f, 0.82f, 0.3f);
+        private static readonly Color PanelColor = DarkFantasyTheme.Panel;
+        private static readonly Color SectionColor = DarkFantasyTheme.Inset;
+        private static readonly Color SlotColor = DarkFantasyTheme.Slot;
+        private static readonly Color HotbarSlotColor = new Color32(80, 78, 83, 255);
+        private static readonly Color EmptySlotColor = DarkFantasyTheme.EmptySlot;
+        private static readonly Color GoldColor = DarkFantasyTheme.Gold;
 
         /// <summary>Một ô hiển thị: nền, ảnh, số lượng và khung độ hiếm (RarityFrame).</summary>
         private class SlotView
@@ -44,6 +45,8 @@ namespace LightSouls.Combat.UI
         private Text statusText;
         private Text inventoryHint;
         private Button takeAllButton;
+        private bool showingMaterials;
+        private Text inventoryModeText,hotbarLabel;
         private TreasureChest currentChest;
         private IInventory currentInventory;
         private PlayerInventory playerInventory;
@@ -54,8 +57,7 @@ namespace LightSouls.Combat.UI
 
         private void Awake()
         {
-            for (int i = 0; i < PlayerInventory.HotbarSize; i++) inventoryKeys.Add("hotbar/" + i);
-            for (int i = 0; i < PlayerInventory.BackpackSize; i++) inventoryKeys.Add("backpack/" + i);
+            BuildInventoryKeys();
 
             BuildLayout();
             root.SetActive(false);
@@ -94,6 +96,7 @@ namespace LightSouls.Combat.UI
             currentChest = chest;
             currentInventory = inventory;
             playerInventory = inventory as PlayerInventory;
+            showingMaterials=false;BuildInventoryKeys();
             currentChest.Changed += Refresh;
             if (currentInventory != null)
             {
@@ -247,15 +250,31 @@ namespace LightSouls.Combat.UI
                 ShowStack(chestViews[i], stack.IsEmpty ? null : stack.Item, stack.Count);
             }
 
+            BuildInventoryKeys();
+            if(inventoryModeText!=null)inventoryModeText.text=showingMaterials?"VẬT PHẨM":"NGUYÊN LIỆU";
+            if(hotbarLabel!=null)hotbarLabel.text=showingMaterials?"Túi nguyên liệu • Chạm để cất vào hòm":"Hàng đầu: thanh nhanh";
             for (int i = 0; i < inventoryViews.Count; i++)
             {
-                InventorySlot slot = playerInventory != null ? playerInventory.GetSlot(inventoryKeys[i]) : null;
+                InventorySlot slot = playerInventory != null&&i<inventoryKeys.Count ? playerInventory.GetSlot(inventoryKeys[i]) : null;
                 bool has = slot != null && !slot.IsEmpty;
+                inventoryViews[i].FilledColor=!showingMaterials&&i<PlayerInventory.HotbarSize?HotbarSlotColor:SlotColor;
                 ShowStack(inventoryViews[i], has ? slot.Item : null, has ? slot.Count : 0);
             }
 
             inventoryHint.gameObject.SetActive(playerInventory == null);
             takeAllButton.interactable = !currentChest.IsEmpty && currentInventory != null;
+        }
+
+        private void BuildInventoryKeys()
+        {
+            inventoryKeys.Clear();
+            if(showingMaterials)
+            {
+                if(playerInventory!=null)inventoryKeys.AddRange(playerInventory.MaterialSlots.Values.Where(s=>!s.IsEmpty).OrderBy(s=>s.Item.DisplayName).Select(s=>s.SlotKey));
+                return;
+            }
+            for(int i=0;i<PlayerInventory.HotbarSize;i++)inventoryKeys.Add("hotbar/"+i);
+            for(int i=0;i<PlayerInventory.BackpackSize;i++)inventoryKeys.Add("backpack/"+i);
         }
 
         private static void ShowStack(SlotView view, ItemDefinitionSO item, int count)
@@ -299,13 +318,14 @@ namespace LightSouls.Combat.UI
             dim.gameObject.AddComponent<Button>().onClick.AddListener(Close);
 
             Image panel = CreateImage("Panel", canvasGo.transform, PanelColor);
+            DarkFantasyTheme.FramePanel(panel, Color.white);
             panel.rectTransform.sizeDelta = new Vector2(1640f, 900f);
 
             Text title = CreateText("Title", panel.transform, "HÒM KHO BÁU", 42, GoldColor, TextAnchor.MiddleCenter);
             title.fontStyle = FontStyle.Bold;
             Place(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -55f), new Vector2(-240f, 80f));
 
-            Button closeButton = CreateButton("CloseButton", panel.transform, "X", new Color(0.75f, 0.2f, 0.2f), 36);
+            Button closeButton = CreateButton("CloseButton", panel.transform, "X", DarkFantasyTheme.Danger, 36);
             Place((RectTransform)closeButton.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-60f, -60f), new Vector2(96f, 96f));
             closeButton.onClick.AddListener(Close);
 
@@ -316,12 +336,16 @@ namespace LightSouls.Combat.UI
                 new Vector2(0f, -20f), new Vector2(InventoryColumns * 140f + 4 * 14f, 4 * 110f + 3 * 14f));
             for (int i = 0; i < inventoryKeys.Count; i++)
             {
-                string key = inventoryKeys[i];
+                int index=i;string key = inventoryKeys[i];
                 Color filled = i < PlayerInventory.HotbarSize ? HotbarSlotColor : SlotColor;
-                inventoryViews.Add(CreateSlot(invGrid, "Inv_" + key.Replace('/', '_'), filled, () => StoreSlot(key)));
+                inventoryViews.Add(CreateSlot(invGrid, "Inv_" + key.Replace('/', '_'), filled, () => {if(index<inventoryKeys.Count)StoreSlot(inventoryKeys[index]);}));
             }
 
-            Text hotbarLabel = CreateText("HotbarLabel", left, "Hàng đầu: thanh nhanh", 20, new Color(0.75f, 0.8f, 0.9f), TextAnchor.MiddleLeft);
+            var materialButton=CreateButton("ToggleMaterialPouch",left,"NGUYÊN LIỆU",DarkFantasyTheme.Selected,20);
+            Place((RectTransform)materialButton.transform,new Vector2(1,1),new Vector2(1,1),new Vector2(-146,-44),new Vector2(240,46));
+            inventoryModeText=materialButton.GetComponentInChildren<Text>();materialButton.onClick.AddListener(()=>{showingMaterials=!showingMaterials;Refresh();});
+
+            hotbarLabel = CreateText("HotbarLabel", left, "Hàng đầu: thanh nhanh", 20, new Color(0.75f, 0.8f, 0.9f), TextAnchor.MiddleLeft);
             Place(hotbarLabel.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 26f), new Vector2(-40f, 36f));
 
             inventoryHint = CreateText("NoInventory", left, "Không có túi đồ để cất.", 26, new Color(1f, 0.6f, 0.5f), TextAnchor.MiddleCenter);
@@ -342,7 +366,7 @@ namespace LightSouls.Combat.UI
                 chestViews.Add(CreateSlot(chestGrid, "Chest_" + i, SlotColor, () => TakeSlot(captured)));
             }
 
-            takeAllButton = CreateButton("TakeAllButton", right, "Lấy hết", new Color(0.25f, 0.6f, 0.3f), 30);
+            takeAllButton = CreateButton("TakeAllButton", right, "Lấy hết", DarkFantasyTheme.Success, 30);
             Place((RectTransform)takeAllButton.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 70f), new Vector2(260f, 90f));
             takeAllButton.onClick.AddListener(TakeAll);
 
@@ -354,6 +378,7 @@ namespace LightSouls.Combat.UI
         private RectTransform CreateSection(Transform parent, string name, string label, Vector2 bottomLeft, Vector2 size)
         {
             Image bg = CreateImage(name, parent, SectionColor);
+            DarkFantasyTheme.FramePanel(bg, Color.white);
             RectTransform rt = bg.rectTransform;
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.zero;
@@ -384,6 +409,7 @@ namespace LightSouls.Combat.UI
         private SlotView CreateSlot(Transform parent, string name, Color filledColor, UnityEngine.Events.UnityAction onClick)
         {
             Image background = CreateImage(name, parent, EmptySlotColor);
+            DarkFantasyTheme.FrameSlot(background, EmptySlotColor);
             var button = background.gameObject.AddComponent<Button>();
             button.onClick.AddListener(onClick);
 
@@ -438,6 +464,7 @@ namespace LightSouls.Combat.UI
         {
             Image image = CreateImage(name, parent, color);
             var button = image.gameObject.AddComponent<Button>();
+            DarkFantasyTheme.FrameButton(button, color);
             Text text = CreateText("Text", image.transform, label, fontSize, Color.white, TextAnchor.MiddleCenter);
             text.fontStyle = FontStyle.Bold;
             Stretch(text.rectTransform);

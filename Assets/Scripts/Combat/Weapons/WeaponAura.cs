@@ -14,8 +14,8 @@ namespace LightSouls.Combat.Weapons
                 return null;
             }
 
-            // Hình cầu phát hạt co giãn theo tỉ lệ của mô hình vũ khí, nên hạt bám dọc theo lưỡi/nòng.
-            return VfxFactory.Aura(weapon.transform, data.Vfx.auraColor, data.Vfx.auraRate, 0.6f, Vector3.zero, 0.12f, 0.6f, "VFX_WeaponAura");
+            return VfxFactory.WeaponEnchant(weapon.transform, data.Vfx.auraColor, data.Vfx.auraRate,
+                data.Vfx.element, data.Type == WeaponType.Melee);
         }
 
         public static void Detach(ref ParticleSystem aura)

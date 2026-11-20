@@ -14,7 +14,6 @@ namespace LightSouls.Combat.Weapons
     public class ExplosiveProjectile : MonoBehaviour
     {
         private static readonly Color FireColor = new Color(1f, 0.55f, 0.1f);
-        private static readonly Color SmokeColor = new Color(0.35f, 0.33f, 0.32f, 0.8f);
 
         private Vector3 start;
         private Vector3 end;
@@ -40,7 +39,7 @@ namespace LightSouls.Combat.Weapons
             var renderer = go.GetComponent<Renderer>();
             if (renderer != null)
             {
-                renderer.material.color = color;
+                VfxFactory.TintProjectile(go, color);
                 renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             }
 
@@ -85,10 +84,8 @@ namespace LightSouls.Combat.Weapons
             exploded = true;
             Vector3 center = transform.position;
 
-            VfxFactory.Burst(center + Vector3.up * 0.3f, FireColor, 40, 7f, 0.4f, 0.55f, 0.3f);
-            VfxFactory.Burst(center + Vector3.up * 0.3f, new Color(1f, 0.9f, 0.4f), 20, 4f, 0.3f, 0.35f, 0f);
-            VfxFactory.Burst(center + Vector3.up * 0.5f, SmokeColor, 18, 1.5f, 0.7f, 1.1f, -0.2f);
-            VfxFactory.Ring(center, FireColor, radius, 0.35f, 56);
+            VfxFactory.Explosion(center, radius, FireColor);
+            CombatImpactFeedback.Emit(center, .85f);
 
             var damaged = new HashSet<IDamageable>();
             foreach (Collider hit in Physics.OverlapSphere(center, radius, ~0, QueryTriggerInteraction.Ignore))
@@ -124,6 +121,7 @@ namespace LightSouls.Combat.Weapons
                 }
             }
 
+            VfxFactory.ReleaseTrail(gameObject);
             Destroy(gameObject);
         }
     }

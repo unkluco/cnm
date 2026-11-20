@@ -216,11 +216,11 @@ namespace LightSouls.Combat.UI
                 // Chuyển màu từ xanh ngọc sang vàng sang đỏ
                 if (ratio > 0.5f)
                 {
-                    healthFillImage.color = Color.Lerp(new Color(1f, 0.85f, 0.1f), new Color(0.18f, 0.8f, 0.44f), (ratio - 0.5f) * 2f);
+                    healthFillImage.color = Color.Lerp(new Color32(230, 177, 76, 255), new Color32(103, 195, 153, 255), (ratio - 0.5f) * 2f);
                 }
                 else
                 {
-                    healthFillImage.color = Color.Lerp(new Color(0.9f, 0.2f, 0.2f), new Color(1f, 0.85f, 0.1f), ratio * 2f);
+                    healthFillImage.color = Color.Lerp(new Color32(204, 77, 69, 255), new Color32(230, 177, 76, 255), ratio * 2f);
                 }
             }
 

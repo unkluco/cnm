@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using LightSouls.Combat.Effects;
 
 namespace LightSouls.Combat.Weapons
 {
@@ -10,6 +11,9 @@ namespace LightSouls.Combat.Weapons
     [Serializable]
     public class WeaponVfxProfile
     {
+        [Tooltip("Phong cách hiệu ứng hình ảnh, không thay đổi sát thương hay thuộc tính vũ khí.")]
+        public CombatVfxElement element = CombatVfxElement.Steel;
+
         [Tooltip("Màu vệt chém (cận chiến).")]
         public Color slashColor = new Color(1f, 1f, 1f, 0.9f);
 

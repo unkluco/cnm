@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using LightSouls.Common;
+using LightSouls.Combat.Effects;
 
 namespace LightSouls.Combat.Weapons
 {
@@ -22,6 +23,10 @@ namespace LightSouls.Combat.Weapons
         private bool _finished;
         private WeaponDataSO _weapon;
         private int _pierceRemaining;
+        private Color _visualColor = Color.white;
+        private CombatVfxElement _visualElement;
+        private readonly RaycastHit[] _sweepHits = new RaycastHit[12];
+        private Collider _projectileCollider;
         private readonly HashSet<IDamageable> _alreadyHit = new HashSet<IDamageable>();
 
         public void Initialize(float damageAmount, float projectileSpeed, float lifetime, LayerMask targets, GameObject source)
@@ -41,27 +46,78 @@ namespace LightSouls.Combat.Weapons
             _pierceRemaining = Mathf.Max(0, pierceCount);
         }
 
+        public void SetVisualStyle(Color color, CombatVfxElement element, float trailWidth = .16f)
+        {
+            _visualColor = color;
+            _visualElement = element;
+            VfxFactory.TintProjectile(gameObject, color);
+            VfxFactory.AttachTrail(gameObject, color, trailWidth, .23f);
+            VfxFactory.ProjectileAccent(transform, color, element);
+        }
+
         private void Start()
         {
             _spawnTime = Time.time;
-            Collider col = GetComponent<Collider>();
-            if (col != null)
+            _projectileCollider = GetComponent<Collider>();
+            if (_projectileCollider != null)
             {
-                col.isTrigger = true;
+                _projectileCollider.isTrigger = true;
             }
         }
 
         private void Update()
         {
-            transform.position += transform.forward * (speed * Time.deltaTime);
+            if (_finished) return;
+            Advance(speed * Time.deltaTime);
 
             if (Time.time - _spawnTime >= maxLifetime)
             {
-                Destroy(gameObject);
+                Finish();
             }
         }
 
         private void OnTriggerEnter(Collider other)
+        {
+            if (other == null) return;
+            ResolveContact(other, other.ClosestPoint(transform.position));
+        }
+
+        // Match the original collider's thickness along this frame's travel. A slow mobile frame
+        // must not let a visible spell or projectile pass through a target or a wall.
+        private void Advance(float step)
+        {
+            if (step <= 0f) return;
+            Vector3 from = transform.position, forward = transform.forward;
+            int environment = LayerMask.NameToLayer("Environment");
+            int mask = targetLayer.value | (environment >= 0 ? 1 << environment : 0);
+            float radius = .05f;
+            if (_projectileCollider is SphereCollider sphere)
+            {
+                Vector3 scale = transform.lossyScale;
+                radius = sphere.radius * Mathf.Max(Mathf.Abs(scale.x), Mathf.Max(Mathf.Abs(scale.y), Mathf.Abs(scale.z)));
+            }
+            else if (_projectileCollider != null)
+            {
+                Vector3 ext = _projectileCollider.bounds.extents;
+                radius = Mathf.Max(.01f, Mathf.Min(ext.x, Mathf.Min(ext.y, ext.z)));
+            }
+            int hits = Physics.SphereCastNonAlloc(from, radius, forward, _sweepHits, step, mask, QueryTriggerInteraction.Ignore);
+            // NonAlloc casts have no ordering guarantee. Process the closest hits first, preserving pierce and wall rules.
+            for (int i = 0; i < hits; i++)
+            {
+                int nearest = i;
+                for (int j = i + 1; j < hits; j++) if (_sweepHits[j].distance < _sweepHits[nearest].distance) nearest = j;
+                (_sweepHits[i], _sweepHits[nearest]) = (_sweepHits[nearest], _sweepHits[i]);
+                var hit = _sweepHits[i];
+                if (hit.collider == null) continue;
+                transform.position = from + forward * hit.distance;
+                ResolveContact(hit.collider, hit.point);
+                if (_finished) return;
+            }
+            transform.position = from + forward * step;
+        }
+
+        private void ResolveContact(Collider other, Vector3 contactPoint)
         {
             if (_finished) return;
 
@@ -77,7 +133,8 @@ namespace LightSouls.Combat.Weapons
                 IDamageable damageable = WeaponHitResolver.FindDamageable(other);
                 if (damageable != null && !damageable.IsDead && _alreadyHit.Add(damageable))
                 {
-                    WeaponHitResolver.Apply(_weapon, damage, _source, damageable, other.ClosestPoint(transform.position));
+                    WeaponHitResolver.Apply(_weapon, damage, _source, damageable, contactPoint,
+                        true, transform.forward, _visualElement, _visualColor);
 
                     if (_pierceRemaining > 0)
                     {
@@ -85,17 +142,24 @@ namespace LightSouls.Combat.Weapons
                         return;
                     }
 
-                    _finished = true;
-                    Destroy(gameObject);
+                    Finish();
                     return;
                 }
             }
 
             if (isEnvironment)
             {
-                _finished = true;
-                Destroy(gameObject);
+                VfxFactory.HitImpact(contactPoint, -transform.forward, _visualColor, _visualElement, .18f);
+                Finish();
             }
+        }
+
+        private void Finish()
+        {
+            if (_finished) return;
+            _finished = true;
+            VfxFactory.ReleaseTrail(gameObject);
+            Destroy(gameObject);
         }
     }
 }

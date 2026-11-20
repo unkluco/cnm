@@ -140,7 +140,7 @@ namespace LightSouls.Lobby
                 row = new GameObject($"DungeonRow_{entry.dungeonId}", typeof(RectTransform), typeof(Image));
                 row.transform.SetParent(dungeonListContainer, false);
                 var rowImg = row.GetComponent<Image>();
-                rowImg.color = new Color(0.18f, 0.2f, 0.26f, 0.95f);
+                DarkFantasyTheme.FramePanel(rowImg, Color.white);
 
                 var rt = (RectTransform)row.transform;
                 rt.sizeDelta = new Vector2(0f, 110f);
@@ -151,7 +151,7 @@ namespace LightSouls.Lobby
                 var infoText = infoGo.GetComponent<Text>();
                 infoText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
                 infoText.fontSize = 24;
-                infoText.color = Color.white;
+                infoText.color = DarkFantasyTheme.Ivory;
                 infoText.alignment = TextAnchor.MiddleLeft;
                 infoText.text = $"<b>{entry.displayName}</b> ({entry.dungeonId})\n<size=18>{entry.description}</size>";
                 var infoRt = (RectTransform)infoGo.transform;
@@ -164,7 +164,7 @@ namespace LightSouls.Lobby
                 var btnGo = new GameObject("SelectButton", typeof(RectTransform), typeof(Image), typeof(Button));
                 btnGo.transform.SetParent(row.transform, false);
                 var btnImg = btnGo.GetComponent<Image>();
-                btnImg.color = new Color(0.2f, 0.5f, 0.8f, 1f);
+                btnImg.color = DarkFantasyTheme.Action;
                 var btnRt = (RectTransform)btnGo.transform;
                 btnRt.anchorMin = new Vector2(0.72f, 0.05f);
                 btnRt.anchorMax = new Vector2(0.98f, 0.95f);
@@ -186,6 +186,7 @@ namespace LightSouls.Lobby
                 btnTextRt.offsetMax = Vector2.zero;
 
                 var button = btnGo.GetComponent<Button>();
+                DarkFantasyTheme.FrameButton(button, DarkFantasyTheme.Action);
                 button.onClick.AddListener(() => OnSelectDungeon(entry));
                 return row;
             }

@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: "G\u1EADy B\u0103ng"
   description: "B\u1EAFn c\u1EA7u b\u0103ng l\xE0m ch\u1EADm k\u1EBB \u0111\u1ECBch
     40% trong 2 gi\xE2y. Hay g\u1EB7p \u1EDF M\xEA Cung Th\u1EED Th\xE1ch."
-  icon: {fileID: 21300000, guid: e8ee5fed923a1df409c0b5651fb344ee, type: 3}
+  icon: {fileID: 21300000, guid: 59a4670ad38e3e8429ec96b09c435e6d, type: 3}
   price: 280
   maxStack: 1
   rarity: 2
@@ -24,7 +24,7 @@ MonoBehaviour:
   damage: 16
   attackRate: 0.55
   attackRange: 12
-  weaponPrefab: {fileID: 0}
+  weaponPrefab: {fileID: 155142892565922395, guid: d279748d62f61bd418421d427494b18b, type: 3}
   weaponColor: {r: 0.55, g: 0.9, b: 1, a: 1}
   swingArcAngle: 90
   hitRadius: 1.5
@@ -45,6 +45,7 @@ MonoBehaviour:
   hitEffects:
   - {fileID: 11400000, guid: dd48b158609f2394390e7cf2de80c122, type: 2}
   vfx:
+    element: 2
     slashColor: {r: 1, g: 1, b: 1, a: 0.9}
     auraColor: {r: 0.55, g: 0.9, b: 1, a: 0.9}
     auraRate: 18

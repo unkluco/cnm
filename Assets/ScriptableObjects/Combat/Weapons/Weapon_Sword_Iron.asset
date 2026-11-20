@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: "Ki\u1EBFm S\u1EAFt"
   description: "Thanh ki\u1EBFm th\xE9p c\xE2n b\u1EB1ng, t\u1ED1c \u0111\u1ED9 linh
     ho\u1EA1t, s\xE1t th\u01B0\u01A1ng \u1ED5n \u0111\u1ECBnh."
-  icon: {fileID: 21300000, guid: eb4e33fa343c743bbbbf0eb58f92bd2a, type: 3}
+  icon: {fileID: 21300000, guid: 5fb4056a4f38ea54dbf983858f473e9e, type: 3}
   price: 100
   maxStack: 1
   rarity: 0
@@ -24,7 +24,7 @@ MonoBehaviour:
   damage: 25
   attackRate: 0.35
   attackRange: 2.2
-  weaponPrefab: {fileID: 0}
+  weaponPrefab: {fileID: 9221502372667400548, guid: 55298ce3872ea7548ad1b52d7ea20ad4, type: 3}
   weaponColor: {r: 0.82, g: 0.85, b: 0.9, a: 1}
   swingArcAngle: 100
   hitRadius: 1.5
@@ -44,6 +44,7 @@ MonoBehaviour:
   strikeInterval: 0.12
   hitEffects: []
   vfx:
+    element: 0
     slashColor: {r: 1, g: 1, b: 1, a: 0.9}
     auraColor: {r: 1, g: 1, b: 1, a: 0}
     auraRate: 14

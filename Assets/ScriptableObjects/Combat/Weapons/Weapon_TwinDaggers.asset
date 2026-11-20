@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: Song Dao
   description: "M\u1ED7i l\u1EA7n b\u1EA5m ch\xE9m li\u1EC1n hai nh\xE1t. T\u1EA7m
     r\u1EA5t ng\u1EAFn, ph\u1EA3i \xE1p s\xE1t."
-  icon: {fileID: 21300000, guid: 85133462f134dce4c974870e915218ed, type: 3}
+  icon: {fileID: 21300000, guid: dfeaeedfa3ef4ad40b92216f915e855d, type: 3}
   price: 160
   maxStack: 1
   rarity: 0
@@ -24,7 +24,7 @@ MonoBehaviour:
   damage: 12
   attackRate: 0.3
   attackRange: 1.4
-  weaponPrefab: {fileID: 0}
+  weaponPrefab: {fileID: 4837463822176589111, guid: 0c1c744772f4d294cb55372d5d743103, type: 3}
   weaponColor: {r: 0.7, g: 0.95, b: 0.85, a: 1}
   swingArcAngle: 90
   hitRadius: 1.1
@@ -44,6 +44,7 @@ MonoBehaviour:
   strikeInterval: 0.1
   hitEffects: []
   vfx:
+    element: 0
     slashColor: {r: 0.7, g: 1, b: 0.9, a: 0.9}
     auraColor: {r: 1, g: 1, b: 1, a: 0}
     auraRate: 14

@@ -9,6 +9,7 @@ namespace LightSouls.Common
         Equipment,
         Consumable,
         Misc,
+        Material,
     }
 
     /// <summary>

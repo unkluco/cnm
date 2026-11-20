@@ -55,7 +55,7 @@ namespace LightSouls.Stability.Tests
             yield return StartRun();
             var inventory = FindPlayer().Inventory;
             Assert.IsTrue(inventory.HotbarSlots.Any(slot => !slot.IsEmpty), "New run should have starting items.");
-            foreach (var slot in inventory.HotbarSlots.Concat(inventory.BackpackSlots).Concat(inventory.EquipmentSlots.Values))
+            foreach (var slot in inventory.HotbarSlots.Concat(inventory.BackpackSlots).Concat(inventory.EquipmentSlots.Values).Concat(inventory.MaterialSlots.Values))
             {
                 if (!slot.IsEmpty) Assert.IsTrue(inventory.TryRemoveFromSlot(slot.SlotKey, slot.Count));
             }

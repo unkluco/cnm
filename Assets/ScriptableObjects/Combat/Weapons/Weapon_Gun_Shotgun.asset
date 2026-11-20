@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: "S\xFAng S\u0103n"
   description: "Kh\u1EA9u s\xFAng s\u0103n b\u1EAFn ra nhi\u1EC1u tia \u0111\u1EA1n
     c\xF9ng l\xFAc, c\u1EF1c m\u1EA1nh \u1EDF c\u1EF1 ly g\u1EA7n."
-  icon: {fileID: 21300000, guid: add22eeb21d0c494c9c6e44fd428df49, type: 3}
+  icon: {fileID: 21300000, guid: 50b8852b0146605478bc62eef047d447, type: 3}
   price: 250
   maxStack: 1
   rarity: 1
@@ -24,7 +24,7 @@ MonoBehaviour:
   damage: 12
   attackRate: 0.7
   attackRange: 8
-  weaponPrefab: {fileID: 0}
+  weaponPrefab: {fileID: 2447228040123917183, guid: a78f71520bd3094439dd8d1b36396d15, type: 3}
   weaponColor: {r: 1, g: 0.65, b: 0.1, a: 1}
   swingArcAngle: 0
   hitRadius: 0
@@ -44,6 +44,7 @@ MonoBehaviour:
   strikeInterval: 0.12
   hitEffects: []
   vfx:
+    element: 1
     slashColor: {r: 1, g: 1, b: 1, a: 0.9}
     auraColor: {r: 1, g: 1, b: 1, a: 0}
     auraRate: 14

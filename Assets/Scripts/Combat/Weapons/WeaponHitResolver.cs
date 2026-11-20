@@ -30,7 +30,8 @@ namespace LightSouls.Combat.Weapons
         /// Trả về sát thương thực đã gây (trước giảm sát thương của mục tiêu).
         /// </summary>
         public static float Apply(WeaponDataSO weapon, float baseDamage, GameObject attacker, IDamageable target,
-            Vector3 hitPoint, bool applyAttackerMultiplier = true)
+            Vector3 hitPoint, bool applyAttackerMultiplier = true, Vector3 impactDirection = default,
+            CombatVfxElement fallbackElement = CombatVfxElement.Steel, Color? fallbackColor = null)
         {
             if (target == null || target.IsDead)
             {
@@ -40,13 +41,19 @@ namespace LightSouls.Combat.Weapons
             float damage = baseDamage * (applyAttackerMultiplier ? PlayerStats.DamageMultiplierOf(attacker) : 1f);
             target.TakeDamage(new DamageInfo(damage, attacker, hitPoint));
 
-            Color hitColor = weapon != null ? weapon.Vfx.hitColor : Color.white;
+            Color hitColor = weapon != null ? weapon.Vfx.hitColor : fallbackColor ?? Color.white;
+            CombatVfxElement element = weapon != null ? weapon.Vfx.element : fallbackElement;
+            var targetComponent = target as Component;
+            Vector3 direction = impactDirection.sqrMagnitude > .0001f ? impactDirection :
+                attacker != null && targetComponent != null ? targetComponent.transform.position - attacker.transform.position : Vector3.up;
+            float strength = Mathf.Clamp01(damage / 72f);
             if (hitColor.a > 0f)
             {
-                VfxFactory.Burst(hitPoint, hitColor, 10, 3.5f, 0.14f, 0.3f, 0.4f);
+                VfxFactory.HitImpact(hitPoint, direction, hitColor, element, strength);
             }
+            if ((attacker != null && attacker.CompareTag("Player")) || (targetComponent != null && targetComponent.CompareTag("Player")))
+                CombatImpactFeedback.Emit(hitPoint, Mathf.Lerp(.21f, .7f, strength));
 
-            var targetComponent = target as Component;
             if (weapon != null && weapon.HitEffects != null && targetComponent != null)
             {
                 var context = new WeaponHitContext

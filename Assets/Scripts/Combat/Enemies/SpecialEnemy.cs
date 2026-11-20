@@ -24,15 +24,26 @@ namespace LightSouls.Combat.Enemies
         [SerializeField] private Color accent = Color.red;
         [SerializeField] private GameObject projectilePrefab;
 
-        private readonly List<LineRenderer> warnings = new List<LineRenderer>();
+        private readonly List<ArcaneTelegraph> warnings = new List<ArcaneTelegraph>();
+        private ParticleSystem castAura;
         private Coroutine attack;
         private float baseReduction;
         private bool casting;
         private float nextAttack;
 
         public SpecialEnemyKind Kind => kind;
-        public string DisplayName => enemyName;
         public bool IsCasting => casting;
+        private CombatVfxElement Element => kind switch
+        {
+            SpecialEnemyKind.EmberMage or SpecialEnemyKind.BombWisp => CombatVfxElement.Ember,
+            SpecialEnemyKind.FrostMage => CombatVfxElement.Frost,
+            SpecialEnemyKind.StormArcher => CombatVfxElement.Storm,
+            SpecialEnemyKind.Phantom => CombatVfxElement.Void,
+            SpecialEnemyKind.BloodLeech => CombatVfxElement.Blood,
+            SpecialEnemyKind.LightPriest => CombatVfxElement.Life,
+            SpecialEnemyKind.StoneGolem or SpecialEnemyKind.Charger => CombatVfxElement.Stone,
+            _ => CombatVfxElement.Steel
+        };
 
         protected override void Awake()
         {
@@ -133,7 +144,7 @@ namespace LightSouls.Combat.Enemies
                     if (ally != null)
                     {
                         destination = ally.transform.position;
-                        WarnCircle(destination, abilityRadius);
+                        WarnCircle(destination, abilityRadius, true);
                     }
                     else WarnCircle(target, abilityRadius);
                     break;
@@ -145,6 +156,10 @@ namespace LightSouls.Combat.Enemies
                     WarnCircle(origin, abilityRadius);
                     break;
             }
+
+            if (CombatVfxBudget.AllowSecondaryDetail)
+                castAura = VfxFactory.Aura(transform, new Color(accent.r, accent.g, accent.b, .83f), 17f, .38f,
+                    Vector3.up * 1.1f, .18f, .8f, "VFX_CastCharge");
 
             // IsStunned can change while the animation runs; an interrupted cast cannot hit.
             float elapsed = 0f;
@@ -182,9 +197,11 @@ namespace LightSouls.Combat.Enemies
                             StatusEffectReceiver.GetOrAdd(_playerTransform.gameObject).ApplySlow(0.55f, 2.5f);
                         break;
                     case SpecialEnemyKind.StormArcher:
+                        VfxFactory.Muzzle(transform.position + Vector3.up * .95f + direction * .65f, direction, accent, Element, true);
                         for (int i = -2; i <= 2; i++) FireOrb(Quaternion.Euler(0f, i * 13f, 0f) * direction);
                         break;
                     case SpecialEnemyKind.Phantom:
+                        VfxFactory.Burst(origin + Vector3.up * .8f, accent, 12, 2.4f, .22f, .42f, -.35f);
                         if (_agent != null && _agent.isOnNavMesh) _agent.Warp(destination);
                         Impact(transform.position, abilityRadius);
                         HitCircle(transform.position, abilityRadius, damage);
@@ -231,6 +248,8 @@ namespace LightSouls.Combat.Enemies
         private IEnumerator ChargeTo(Vector3 destination)
         {
             bool hit = false;
+            VfxFactory.AttachTrail(gameObject, accent, .38f, .24f);
+            VfxFactory.Burst(transform.position + Vector3.up * .18f, accent, 9, 3f, .18f, .36f, .58f);
             float start = Time.time;
             while (CanResolve() && Time.time - start < 0.55f && _agent != null && _agent.isOnNavMesh)
             {
@@ -241,6 +260,7 @@ namespace LightSouls.Combat.Enemies
                 if (!hit && HitCircle(transform.position, 1.05f, damage) > 0f) hit = true;
                 yield return null;
             }
+            VfxFactory.ReleaseTrail(gameObject);
             Impact(transform.position, 1.2f);
         }
 
@@ -272,7 +292,14 @@ namespace LightSouls.Combat.Enemies
             if (health == null || health.IsDead) return 0f;
             float before = health.CurrentHealth;
             health.TakeDamage(new DamageInfo(amount, gameObject, _playerTransform.position));
-            return Mathf.Max(0f, before - health.CurrentHealth);
+            float inflicted = Mathf.Max(0f, before - health.CurrentHealth);
+            if (inflicted > 0f)
+            {
+                Vector3 point = _playerTransform.position + Vector3.up * .85f;
+                VfxFactory.HitImpact(point, _playerTransform.position - center, accent, Element, .47f);
+                CombatImpactFeedback.Emit(point, .54f);
+            }
+            return inflicted;
         }
 
         private HealthComponent FindInjuredAlly()
@@ -297,29 +324,29 @@ namespace LightSouls.Combat.Enemies
             GameObject orb = Instantiate(projectilePrefab, spawn, Quaternion.LookRotation(direction));
             orb.layer = 10;
             var projectile = orb.GetComponent<Projectile>();
-            if (projectile != null) projectile.Initialize(damage * 0.65f, 9f, 2f, 1 << 6, gameObject);
+            if (projectile != null)
+            {
+                projectile.Initialize(damage * 0.65f, 9f, 2f, 1 << 6, gameObject);
+                projectile.SetVisualStyle(accent, Element, .15f);
+            }
             else Destroy(orb);
         }
 
-        private void WarnCircle(Vector3 center, float radius)
+        private void WarnCircle(Vector3 center, float radius, bool blessing = false)
         {
-            var line = GroundCombatMarker.Create("EnemyWarning_" + kind);
-            line.transform.position = center + Vector3.up * 0.075f;
-            GroundCombatMarker.Circle(line, radius, 0.14f, new Color(accent.r, accent.g, accent.b, 0.85f));
-            warnings.Add(line);
+            warnings.Add(ArcaneTelegraph.Circle("EnemyWarning_" + kind, center, radius, accent, windup, Element,
+                blessing ? TelegraphStyle.Blessing : TelegraphStyle.Danger, transform));
         }
 
         private void WarnLane(Vector3 start, Vector3 end, float halfWidth)
         {
-            var line = GroundCombatMarker.Create("EnemyWarning_" + kind);
-            GroundCombatMarker.Lane(line, start, end, halfWidth, new Color(accent.r, accent.g, accent.b, 0.85f));
-            warnings.Add(line);
+            warnings.Add(ArcaneTelegraph.Lane("EnemyWarning_" + kind, start, end, halfWidth, accent, windup, Element, transform));
         }
 
         private void Impact(Vector3 position, float radius)
         {
-            VfxFactory.Ring(position, accent, radius, 0.35f, 36);
-            VfxFactory.Burst(position + Vector3.up * 0.25f, accent, 12, 2.5f, 0.18f, 0.4f, 0f);
+            if (kind == SpecialEnemyKind.BombWisp) VfxFactory.Explosion(position, radius, accent);
+            else VfxFactory.SpellImpact(position, radius, accent, Element);
         }
 
         private void SetGuard(bool guard)
@@ -329,8 +356,9 @@ namespace LightSouls.Combat.Enemies
 
         private void ClearWarnings()
         {
-            foreach (var warning in warnings) if (warning != null) Destroy(warning.gameObject);
+            foreach (var warning in warnings) if (warning != null) warning.Remove();
             warnings.Clear();
+            if (castAura != null) { castAura.gameObject.SetActive(false); Destroy(castAura.gameObject); castAura = null; }
         }
 
         protected override void HandleDied(IDamageable damageable)
@@ -339,6 +367,7 @@ namespace LightSouls.Combat.Enemies
             attack = null;
             casting = false;
             ClearWarnings();
+            VfxFactory.ReleaseTrail(gameObject);
             base.HandleDied(damageable);
         }
 
@@ -346,6 +375,17 @@ namespace LightSouls.Combat.Enemies
         {
             ClearWarnings();
             base.OnDestroy();
+        }
+
+        private void OnDisable()
+        {
+            if (attack != null) StopCoroutine(attack);
+            attack = null;
+            casting = false;
+            _isAttackingLimbAnim = false;
+            ClearWarnings();
+            if (kind == SpecialEnemyKind.ShieldGuard && !IsDead) SetGuard(true);
+            if (gameObject.activeInHierarchy) VfxFactory.ReleaseTrail(gameObject);
         }
     }
 }

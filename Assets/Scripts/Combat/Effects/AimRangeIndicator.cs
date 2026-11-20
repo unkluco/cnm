@@ -5,44 +5,43 @@ namespace LightSouls.Combat.Effects
     /// <summary>Shows the actual target-selection radius briefly whenever the player presses attack.</summary>
     public sealed class AimRangeIndicator : MonoBehaviour
     {
-        private LineRenderer line;
+        private ArcaneTelegraph marker;
         private float remaining;
         private float duration;
         private float radius;
         private static readonly Color RingColor = new Color(0.65f, 0.91f, 1f, 0.55f);
 
-        public float VisibleRadius => line != null && line.enabled ? radius : 0f;
+        public float VisibleRadius => marker != null && marker.IsVisible ? radius : 0f;
 
         public void Show(float range, float seconds = 0.65f)
         {
             if (range <= 0f) { Hide(); return; }
-            if (line == null)
+            if (marker == null)
             {
-                line = GroundCombatMarker.Create("VFX_AutoAimRange", transform);
-                line.transform.localPosition = new Vector3(0f, 0.065f, 0f);
+                marker = ArcaneTelegraph.Circle("VFX_AutoAimRange", transform.position, range, RingColor, 0f,
+                    CombatVfxElement.Steel, TelegraphStyle.Aim, null, transform);
             }
             if (!Mathf.Approximately(range, radius))
-                GroundCombatMarker.Circle(line, range, Mathf.Clamp(range * 0.025f, 0.07f, 0.14f), RingColor);
+                marker.SetCircle(transform.position, range);
             radius = range;
             duration = remaining = Mathf.Max(0.05f, seconds);
-            GroundCombatMarker.Tint(line, RingColor);
-            line.enabled = true;
+            marker.SetProgress(1f);
+            marker.SetOpacity(1f);
+            marker.SetVisible(true);
         }
 
         private void LateUpdate()
         {
-            if (line == null || !line.enabled) return;
+            if (marker == null || !marker.IsVisible) return;
             remaining -= Time.deltaTime;
             if (remaining <= 0f) { Hide(); return; }
-            var color = RingColor;
-            color.a *= Mathf.Clamp01(remaining / Mathf.Min(duration, 0.3f));
-            GroundCombatMarker.Tint(line, color);
+            marker.SetOpacity(Mathf.Clamp01(remaining / Mathf.Min(duration, .3f)));
         }
 
         public void Hide()
         {
             remaining = 0f;
-            if (line != null) line.enabled = false;
+            if (marker != null) marker.SetVisible(false);
         }
 
         private void OnDisable() => Hide();

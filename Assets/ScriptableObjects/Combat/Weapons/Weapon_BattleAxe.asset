@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: "R\xECu Chi\u1EBFn"
   description: "R\xECu n\u1EB7ng ch\xE9m r\u1ED9ng h\xECnh qu\u1EA1t. Ch\u1EADm nh\u01B0ng
     m\u1ED7i nh\xE1t \u0111\u1EC1u \u0111au."
-  icon: {fileID: 21300000, guid: a7d1f9ea6013cc242b9636dd6f0285f0, type: 3}
+  icon: {fileID: 21300000, guid: 3851403dbea01f34d97e0abe3143c0b8, type: 3}
   price: 220
   maxStack: 1
   rarity: 0
@@ -24,7 +24,7 @@ MonoBehaviour:
   damage: 38
   attackRate: 0.75
   attackRange: 2.4
-  weaponPrefab: {fileID: 0}
+  weaponPrefab: {fileID: 1079998083869164199, guid: 92985d4ef6762374b9c6d2f3cc6c1c72, type: 3}
   weaponColor: {r: 0.62, g: 0.62, b: 0.68, a: 1}
   swingArcAngle: 150
   hitRadius: 1.6
@@ -44,6 +44,7 @@ MonoBehaviour:
   strikeInterval: 0.12
   hitEffects: []
   vfx:
+    element: 5
     slashColor: {r: 1, g: 0.85, b: 0.6, a: 0.9}
     auraColor: {r: 1, g: 1, b: 1, a: 0}
     auraRate: 14

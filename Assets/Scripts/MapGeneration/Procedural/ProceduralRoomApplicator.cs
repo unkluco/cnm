@@ -182,6 +182,8 @@ namespace LightSouls.MapGeneration
                 {
                     cube.GetComponent<Renderer>().sharedMaterial = matWall;
                 }
+                var stoneMesh = Resources.Load<Mesh>("Art/DarkFantasy/Meshes/BeveledBox");
+                if (stoneMesh != null) cube.GetComponent<MeshFilter>().sharedMesh = stoneMesh;
 
                 int envLayer = LayerMask.NameToLayer("Environment");
                 if (envLayer >= 0) cube.layer = envLayer;
@@ -204,6 +206,7 @@ namespace LightSouls.MapGeneration
                 {
                     marker.GetComponent<Renderer>().sharedMaterial = matEnemy;
                 }
+                if (Application.isPlaying) marker.GetComponent<Renderer>().enabled = false;
                 enemyTransforms.Add(marker.transform);
             }
 

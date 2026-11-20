@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: "N\u1ECF"
   description: "M\u0169i t\xEAn xuy\xEAn qua t\u1ED1i \u0111a 2 k\u1EBB \u0111\u1ECBch.
     B\u1EAFn ch\u1EADm nh\u01B0ng m\u1EA1nh."
-  icon: {fileID: 21300000, guid: f7ea646c72175aa499b01c161a38f459, type: 3}
+  icon: {fileID: 21300000, guid: b1bcb67dba2b73d4daf0c5048207bb20, type: 3}
   price: 200
   maxStack: 1
   rarity: 0
@@ -24,7 +24,7 @@ MonoBehaviour:
   damage: 30
   attackRate: 0.8
   attackRange: 14
-  weaponPrefab: {fileID: 0}
+  weaponPrefab: {fileID: 810750012983728770, guid: e5bebf3a03cacef4c98752de322bc1c8, type: 3}
   weaponColor: {r: 0.55, g: 0.38, b: 0.2, a: 1}
   swingArcAngle: 90
   hitRadius: 1.5
@@ -44,6 +44,7 @@ MonoBehaviour:
   strikeInterval: 0.12
   hitEffects: []
   vfx:
+    element: 0
     slashColor: {r: 1, g: 1, b: 1, a: 0.9}
     auraColor: {r: 1, g: 1, b: 1, a: 0}
     auraRate: 14

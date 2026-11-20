@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 81c873b39327d4347a7484378b04bad1, type: 3}
+  m_Name: Material_VoidShard
+  m_EditorClassIdentifier: LightSouls.Common::LightSouls.Common.CraftMaterialSO
+  itemId: material.void_shard
+  displayName: "Tinh th\u1EC3 h\u01B0 kh\xF4ng"
+  description: "M\u1EA3nh v\u1EE1 m\xE0u t\xEDm t\u1EEB kh\xF4ng gian b\xEAn kia."
+  icon: {fileID: 21300000, guid: 2c42b5f9728cf3847a2ba82e4701be9e, type: 3}
+  price: 55
+  maxStack: 999
+  rarity: 2
+  sourceHint: "Th\u01B0\u1EDFng v\u01B0\u1EE3t ph\xF2ng v\xE0 h\xF2m trong ng\u1EE5c.
+    D\u1EC5 g\u1EB7p \u1EDF M\xEA Cung Th\u1EED Th\xE1ch. Noctyr lu\xF4n \u0111\u1EC3
+    l\u1EA1i tinh th\u1EC3 h\u01B0 kh\xF4ng."
+  dropWeight: 1.7
+  minDrop: 1
+  maxDrop: 2
+  favoredDungeonId: dungeon.maze
+  favoredMultiplier: 3
+  bossOnly: 0
+  soldAtShop: 0

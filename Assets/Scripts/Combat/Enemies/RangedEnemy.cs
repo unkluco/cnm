@@ -1,6 +1,8 @@
 using System.Collections;
 using UnityEngine;
 using LightSouls.Combat.Weapons;
+using LightSouls.Combat.Effects;
+using LightSouls.Common;
 
 namespace LightSouls.Combat.Enemies
 {
@@ -19,6 +21,8 @@ namespace LightSouls.Combat.Enemies
         [SerializeField] private Transform visualStaff;
 
         private bool _isFiring = false;
+        private static readonly Color ArcaneColor = new Color(.76f, .38f, 1f, .95f);
+        private ArcaneTelegraph warning;
 
         protected override void HandleBehavior(float distanceToPlayer)
         {
@@ -85,7 +89,17 @@ namespace LightSouls.Combat.Enemies
                 visualStaff.localRotation = initialStaffRot * Quaternion.Euler(-30f, 0f, 0f);
             }
 
-            yield return new WaitForSeconds(0.25f);
+            GetAimLane(out Vector3 laneStart, out Vector3 laneEnd);
+            warning = ArcaneTelegraph.Lane("EnemyWarning_Cultist", laneStart, laneEnd, .16f, ArcaneColor, .25f, CombatVfxElement.Void, transform);
+            float resolveAt = Time.time + .25f;
+            while (Time.time < resolveAt && !IsDead && _playerTransform != null && isActiveAndEnabled)
+            {
+                GetAimLane(out laneStart, out laneEnd);
+                if (warning != null) warning.SetLane(laneStart, laneEnd, .16f);
+                yield return null;
+            }
+            ClearWarning();
+            if (IsDead || _playerTransform == null || !isActiveAndEnabled) { _isFiring = _isAttackingLimbAnim = false; yield break; }
 
             // Xác định hướng bắn về phía ngực Người chơi
             Vector3 spawnPos = muzzlePoint != null 
@@ -94,6 +108,7 @@ namespace LightSouls.Combat.Enemies
 
             Vector3 targetAimPoint = _playerTransform.position + Vector3.up * 0.9f;
             Vector3 aimDir = (targetAimPoint - spawnPos).normalized;
+            VfxFactory.Muzzle(spawnPos, aimDir, ArcaneColor, CombatVfxElement.Void);
 
             GameObject bulletObj;
             if (projectilePrefab != null)
@@ -134,6 +149,7 @@ namespace LightSouls.Combat.Enemies
             if (proj != null)
             {
                 proj.Initialize(damage, projectileSpeed, 4.0f, playerLayerMask, gameObject);
+                proj.SetVisualStyle(ArcaneColor, CombatVfxElement.Void, .19f);
             }
 
             // Hạ trượng về
@@ -146,5 +162,18 @@ namespace LightSouls.Combat.Enemies
             _isFiring = false;
             _isAttackingLimbAnim = false;
         }
+
+        private void GetAimLane(out Vector3 start, out Vector3 end)
+        {
+            start = muzzlePoint != null ? muzzlePoint.position : transform.position + transform.forward * .65f;
+            start.y = transform.position.y;
+            Vector3 d = _playerTransform != null ? _playerTransform.position - start : transform.forward;
+            d.y = 0f; if (d.sqrMagnitude < .001f) d = transform.forward;
+            end = start + d.normalized * Mathf.Max(1f, Mathf.Min(d.magnitude + .6f, attackRange));
+        }
+
+        private void ClearWarning() { if (warning != null) warning.Remove(); warning = null; }
+        protected override void HandleDied(IDamageable damageable) { ClearWarning(); base.HandleDied(damageable); }
+        protected override void OnDestroy() { ClearWarning(); base.OnDestroy(); }
     }
 }

@@ -76,6 +76,12 @@ namespace LightSouls.Combat.Items
             transform.Rotate(Vector3.up, rotateSpeed * Time.deltaTime, Space.World);
         }
 
+        private void LateUpdate()
+        {
+            if(item!=null&&item.Category==ItemCategory.Material&&iconRenderer!=null&&Camera.main!=null)
+                iconRenderer.transform.rotation=Camera.main.transform.rotation;
+        }
+
         public void SetItem(ItemDefinitionSO newItem, int newCount)
         {
             item = newItem;
@@ -123,11 +129,12 @@ namespace LightSouls.Combat.Items
             if (inv.TryAdd(item, count))
             {
                 Debug.Log($"[ItemPickup] Người chơi đã nhặt: {item.DisplayName} x{count}");
+                if(item.Category==ItemCategory.Material)CombatToast.Show($"Nhận +{count} {item.DisplayName}");
                 Destroy(gameObject);
             }
             else
             {
-                CombatToast.Show("Túi đồ đã đầy");
+                CombatToast.Show(item!=null&&item.Category==ItemCategory.Material?"Túi nguyên liệu đã đạt giới hạn":"Túi đồ đã đầy");
             }
         }
 
@@ -157,7 +164,8 @@ namespace LightSouls.Combat.Items
             GameObject visualObj = new GameObject("Icon");
             visualObj.transform.SetParent(pickupObj.transform, false);
             visualObj.transform.localPosition = Vector3.zero;
-            visualObj.transform.localScale = Vector3.one * 0.6f;
+            float iconSize=item.Icon!=null?Mathf.Max(item.Icon.bounds.size.x,item.Icon.bounds.size.y):1f;
+            visualObj.transform.localScale = Vector3.one * (.86f/Mathf.Max(.1f,iconSize));
 
             SpriteRenderer sr = visualObj.AddComponent<SpriteRenderer>();
             sr.sprite = item.Icon;

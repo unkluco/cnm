@@ -35,6 +35,24 @@ namespace LightSouls.Common
     public static class RunState
     {
         private static readonly List<ItemSlotRecord> inventorySlots = new List<ItemSlotRecord>();
+        private static readonly List<int> bossRotation = new List<int>();
+        private static int lastBossIndex = -1, bossRosterSize;
+
+        /// <summary>Shuffle bag: meet each boss before a repeat, even when travelling to another dungeon.</summary>
+        public static int TakeNextBossIndex(int rosterSize)
+        {
+            if(rosterSize<=0)return -1;
+            if(bossRosterSize!=rosterSize){bossRosterSize=rosterSize;bossRotation.Clear();lastBossIndex=-1;}
+            if(bossRotation.Count==0)
+            {
+                for(int i=0;i<rosterSize;i++)bossRotation.Add(i);
+                for(int i=bossRotation.Count-1;i>0;i--)
+                {int j=UnityEngine.Random.Range(0,i+1);(bossRotation[i],bossRotation[j])=(bossRotation[j],bossRotation[i]);}
+                int last=bossRotation.Count-1;
+                if(last>0 && bossRotation[last]==lastBossIndex)(bossRotation[0],bossRotation[last])=(bossRotation[last],bossRotation[0]);
+            }
+            int index=bossRotation.Count-1;lastBossIndex=bossRotation[index];bossRotation.RemoveAt(index);return lastBossIndex;
+        }
 
         public static int Coins { get; private set; }
 
@@ -110,6 +128,7 @@ namespace LightSouls.Common
         public static void Reset()
         {
             inventorySlots.Clear();
+            bossRotation.Clear();lastBossIndex=-1;bossRosterSize=0;
             HasInventorySnapshot = false;
             SelectedDungeonId = string.Empty;
             DungeonGenerationFailed = false;
