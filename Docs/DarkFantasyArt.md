@@ -27,7 +27,7 @@ Icon vật phẩm là ảnh trong suốt 192×192, render hai lượt (màu và 
 
 1. Giữ lại collider, điểm spawn, door socket, trigger, prefab/script và các tham số gameplay. Các chi tiết `Art_...` chỉ để hiển thị. Đối với địa hình, mặt sàn trang trí phải thấp hơn mặt bẫy để không che dấu lava/nước/bẫy.
 2. Dùng vật liệu chung thay vì tạo vật liệu mới cho từng viên gạch. Gộp mesh tĩnh theo vật liệu trong một phòng; mặt đá chỉ có mặt ngoài và cạnh vát nhìn thấy, bỏ các mặt khuất để giảm số đa giác. Ưu tiên ít draw call.
-3. Đèn đuốc runtime dùng `DarkFantasyTorchLight`. `DarkFantasyLightBudget` bật tối đa 4 đèn điểm gần người chơi, không bật đổ bóng cho đèn điểm. Bóng chính đến từ directional light. Không thêm nhiều đèn runtime bên ngoài bộ điều phối.
+3. Đèn đuốc runtime dùng `DarkFantasyTorchLight`. Trong Game, `DarkFantasyLightBudget` bật tối đa 4 đèn điểm gần người chơi; Lobby dùng `FixedSceneLighting` giữ toàn bộ đèn của sảnh luôn bật, không phụ thuộc vị trí nhân vật. Đèn điểm không đổ bóng; bóng chính đến từ directional light. Không thêm nhiều đèn runtime bên ngoài bộ điều phối.
 4. Cổng tại phòng boss là cổng bí ẩn trung tính; không đổi màu theo điểm đến. Các dấu hiệu khóa/mở cửa, vùng ngắm, hiệu ứng nguy hiểm và khung độ hiếm phải giữ nguyên ý nghĩa.
 5. UI ưu tiên kích thước nút/độ tương phản hiện có để chạm trên điện thoại. Dùng `DarkFantasyTheme` cho các bảng dựng khi chạy.
 

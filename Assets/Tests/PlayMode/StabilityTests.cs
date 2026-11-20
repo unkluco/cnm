@@ -67,6 +67,9 @@ namespace LightSouls.Stability.Tests
                 "Dungeon did not generate a player.");
             Assert.IsEmpty(RunState.InventorySlots, "Starting items were incorrectly restored.");
             Assert.IsTrue(FindPlayer().Inventory.HotbarSlots.All(slot => slot.IsEmpty));
+            var defaultArrival = Object.FindAnyObjectByType<DungeonArrivalBanner>();
+            Assert.NotNull(defaultArrival);
+            Assert.AreEqual("dungeon.standard", defaultArrival.DungeonId, "Direct Game entry should announce the actual fallback dungeon.");
 
             var pause = Object.FindAnyObjectByType<PauseMenuController>();
             var backpack = Object.FindAnyObjectByType<BackpackUI>(FindObjectsInactive.Include);
@@ -169,6 +172,12 @@ namespace LightSouls.Stability.Tests
             Assert.IsTrue(new[] { "dungeon.lava", "dungeon.maze" }.Contains(RunState.SelectedDungeonId));
             Assert.AreEqual(coins, RunState.Coins);
             CollectionAssert.AreEqual(snapshot, RunState.InventorySlots.Select(slot => slot.SlotKey + ":" + slot.ItemId + ":" + slot.Count));
+            var arrival = Object.FindAnyObjectByType<DungeonArrivalBanner>();
+            Assert.NotNull(arrival, "The destination is announced only after the new dungeon has loaded.");
+            Assert.IsTrue(arrival.FromMysteryPortal);
+            Assert.AreEqual(RunState.SelectedDungeonId, arrival.DungeonId);
+            Assert.IsEmpty(RunState.PendingPortalArrivalMessage);
+            Assert.IsTrue(Object.FindAnyObjectByType<WeaponVendingMachine>().IsShopReady);
             Assert.IsFalse(Object.FindAnyObjectByType<GameBootstrap>().IsExitPortalOpen, "The new dungeon starts with its own portal locked.");
         }
 
