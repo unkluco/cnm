@@ -6,7 +6,7 @@ using UnityEngine.UI;
 namespace LightSouls.Lobby
 {
     /// <summary>
-    /// Giao diện bảng Cửa hàng tại Sảnh (Canvas sort order 8).
+    /// Giao diện cửa hàng dùng chung ở sảnh và máy tiếp tế đầu ngục.
     /// Bố cục: bên trái là lưới vật phẩm (ảnh, tên, giá) trong khung cuộn được; chạm một ô thì
     /// bên phải hiện chi tiết (ảnh lớn, mô tả, giá) và nút Mua.
     /// Lưới và bảng chi tiết tự dựng bằng mã bên trong vùng itemsContainer, nên Scene chỉ cần
@@ -64,6 +64,7 @@ namespace LightSouls.Lobby
         private Button buyButton;
 
         public bool IsOpen => panelRoot != null && panelRoot.activeSelf;
+        public ShopCatalogSO Catalog => catalog;
         public ItemDefinitionSO SelectedItem => selectedItem;
         public ScrollRect GridScroll => gridScroll;
 
@@ -127,6 +128,7 @@ namespace LightSouls.Lobby
 
         public void Open(GameObject interactor)
         {
+            if (!IsOpen && BackButtonStack.HasOpenPanel) return;
             currentInteractor = interactor != null ? interactor : GameObject.FindWithTag("Player");
 
             if (panelRoot != null)

@@ -21,13 +21,15 @@
 
 Các prefab và scene trong dự án đã được phối sẵn, vì vậy không cần chạy công cụ tạo asset trước khi chơi. Khi cần tái dựng toàn bộ bộ đồ họa hiện tại, dùng **Light Souls → Art → Rebuild Dark Fantasy art** trong Unity Editor. Công cụ gắn lại các nhóm trang trí `Art_...` và giữ nguyên các anchor điều khiển gameplay; không chạy nó đè lên một prefab đang sửa thủ công nếu chưa lưu các chỉnh sửa riêng.
 
+Riêng 30 mẫu phòng đã có `RoomTerrainProfile` thuộc bộ [Expanded Dungeon Terrain](ExpandedDungeonTerrain.md). Công cụ **Light Souls → Art → Build Expanded Dungeon Terrain** quản lý thiết kế riêng, các nhóm tường mờ và vật cản thực; công cụ art tổng quát không ghi đè những prefab này.
+
 Icon vật phẩm là ảnh trong suốt 192×192, render hai lượt (màu và mặt nạ hình học) từ mô hình thật. Dùng **Light Souls → Art → Repair item meshes and icons** để sửa/tạo lại các mesh dùng chung và icon mà không dựng lại scene; **Recapture item icons** chỉ chụp lại ảnh từ tài nguyên đã lưu. Mặt đáy của các khối lăng trụ/lưỡi kiếm không được đảo thứ tự mảng đỉnh nguồn; mặt bên phải nối đúng các vòng đỉnh liên tiếp để không khuyết hình. Công cụ kiểm tra viền ảnh và bảo toàn GUID của sprite/mesh đang được prefab tham chiếu.
 
 ## Khi thêm phòng, quái và vũ khí
 
 1. Giữ lại collider, điểm spawn, door socket, trigger, prefab/script và các tham số gameplay. Các chi tiết `Art_...` chỉ để hiển thị. Đối với địa hình, mặt sàn trang trí phải thấp hơn mặt bẫy để không che dấu lava/nước/bẫy.
-2. Dùng vật liệu chung thay vì tạo vật liệu mới cho từng viên gạch. Gộp mesh tĩnh theo vật liệu trong một phòng; mặt đá chỉ có mặt ngoài và cạnh vát nhìn thấy, bỏ các mặt khuất để giảm số đa giác. Ưu tiên ít draw call.
-3. Đèn đuốc runtime dùng `DarkFantasyTorchLight`. `DarkFantasyLightBudget` bật tối đa 4 đèn điểm gần người chơi, không bật đổ bóng cho đèn điểm. Bóng chính đến từ directional light. Không thêm nhiều đèn runtime bên ngoài bộ điều phối.
+2. Dùng vật liệu chung thay vì tạo vật liệu mới cho từng viên gạch. Gộp mesh tĩnh theo vật liệu trong một phòng; tường gộp theo bốn hướng (tối đa 14 renderer kể cả chân tường) để hỗ trợ mờ từng hướng độc lập. Ưu tiên ít draw call.
+3. Đèn đuốc runtime dùng `DarkFantasyTorchLight`. Trong Game, `DarkFantasyLightBudget` bật tối đa 4 đèn điểm gần người chơi; Lobby dùng `FixedSceneLighting` giữ toàn bộ đèn của sảnh luôn bật, không phụ thuộc vị trí nhân vật. Đèn điểm không đổ bóng; bóng chính đến từ directional light. Không thêm nhiều đèn runtime bên ngoài bộ điều phối.
 4. Cổng tại phòng boss là cổng bí ẩn trung tính; không đổi màu theo điểm đến. Các dấu hiệu khóa/mở cửa, vùng ngắm, hiệu ứng nguy hiểm và khung độ hiếm phải giữ nguyên ý nghĩa.
 5. UI ưu tiên kích thước nút/độ tương phản hiện có để chạm trên điện thoại. Dùng `DarkFantasyTheme` cho các bảng dựng khi chạy.
 

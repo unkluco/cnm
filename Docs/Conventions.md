@@ -84,10 +84,11 @@ Assets/Scripts/
 | `ctx.LevelExitPoint` | đích qua màn |
 | `ctx.SpawnedRooms` | danh sách phòng; mỗi `RoomModule` có `RoomType`, `EnemySpawnPoints`, `LifecycleController` |
 | `ctx.IsNavMeshBaked` | chỉ cho quái di chuyển khi `true` |
+| `ctx.VendingMachine` | `GameBootstrap` nối máy tiếp tế phòng bắt đầu với cửa hàng dùng chung của Lobby |
 
 Khi `generateOnStart` bật, sự kiện này phát ngay trong `Start()` của `DungeonGenerator`. Ai cần nghe thì đăng ký trong `Awake()` hoặc `OnEnable()`; đăng ký trong `Start()` có thể bị lỡ.
 
-Các trường còn lại (`VendingMachine`, `BossRewardController`, `TriggerBossRewards()`) nằm ngoài phạm vi prototype và **không** thuộc hợp đồng: hệ thống khác không được dựa vào chúng. Mua vũ khí và phần thưởng boss sẽ được thiết kế lại ở một đợt sau, khi hệ thống vũ khí của Khải đã có.
+`VendingMachine` đã được đưa vào luồng thật qua `GameBootstrap`: chỉ cung cấp điểm tương tác `IInteractable`, không tự trừ xu hay phát vật phẩm. Danh mục và giao dịch thuộc `LobbyShopUI`. Phần thưởng boss tiếp tục do `RoomModule.BossRewardController` và `GameBootstrap` phối hợp sau khi dọn phòng cuối; không dùng các API thử nghiệm để cấp đồ trực tiếp.
 
 ### 4.2. Sát thương
 

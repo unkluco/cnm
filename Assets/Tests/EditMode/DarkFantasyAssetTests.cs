@@ -23,7 +23,8 @@ namespace LightSouls.MapGeneration.Tests
                 var floor=prefab.transform.Find("Art_Flagstones"); var wall=prefab.transform.Find("Art_Masonry");
                 Assert.NotNull(floor,prefab.name); Assert.NotNull(wall,prefab.name);
                 Assert.That(floor.GetComponentsInChildren<MeshRenderer>(true).Length,Is.InRange(1,7),prefab.name+" floor must be batched.");
-                Assert.That(wall.GetComponentsInChildren<MeshRenderer>(true).Length,Is.InRange(1,4),prefab.name+" wall must be batched.");
+                Assert.That(wall.GetComponentsInChildren<MeshRenderer>(true).Length,Is.InRange(1,14),prefab.name+" walls must be batched by material and cutaway facing.");
+                Assert.AreEqual(4,wall.GetComponentsInChildren<WallCutawayGroup>(true).Length,prefab.name+" must have four independent cutaway facings.");
                 int architectureTriangles=floor.GetComponentsInChildren<MeshFilter>(true).Concat(wall.GetComponentsInChildren<MeshFilter>(true)).Sum(m=>m.sharedMesh.triangles.Length/3);
                 Assert.Less(architectureTriangles,15000,prefab.name+" architecture must remain low-poly.");
                 foreach(var collider in prefab.GetComponentsInChildren<Collider>(true))

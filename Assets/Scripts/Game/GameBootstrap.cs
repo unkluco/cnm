@@ -5,6 +5,7 @@ using LightSouls.Combat.UI;
 using LightSouls.Combat.Effects;
 using LightSouls.Combat.Bosses;
 using LightSouls.Common;
+using LightSouls.Lobby;
 using LightSouls.MapGeneration;
 using LightSouls.UI;
 using UnityEngine;
@@ -54,6 +55,7 @@ namespace LightSouls.Game
         [Header("Hòm kho báu")]
         [Tooltip("Hòm đặt tại mỗi điểm loot của phòng (trừ phòng cuối, nơi có phần thưởng boss riêng). Bỏ trống thì không đặt hòm.")]
         [SerializeField] private TreasureChest treasureChestPrefab;
+        [SerializeField] private LootTableSO hiddenTreasuryLootTable;
 
         [Tooltip("Bảng mở hòm. Bỏ trống thì tự tìm trong Scene, không có thì tự tạo.")]
         [SerializeField] private TreasureChestUI treasureChestUI;
@@ -65,6 +67,9 @@ namespace LightSouls.Game
         [SerializeField] private PauseMenuController pauseMenu;
         [SerializeField] private GameResultScreen resultScreen;
         [SerializeField] private GameMinimap minimap;
+
+        [Header("Cửa hàng đầu ngục")]
+        [SerializeField] private LobbyShopUI dungeonShop;
 
         [Header("Cổng bí ẩn sau boss")]
         [Tooltip("Bán kính (mét, XZ) bên trong cổng mà người chơi cần bước vào.")]
@@ -78,6 +83,7 @@ namespace LightSouls.Game
         private RoomModule roomInCombat;
         private BossKind? currentBossKind;
         private CraftingCatalogSO craftingCatalog;
+        private DungeonArrivalBanner arrivalBanner;
         private readonly List<RoomLifecycleController> subscribedRooms = new List<RoomLifecycleController>();
         private bool isFinished;
         private bool mustLeaveExitArea;
@@ -215,8 +221,41 @@ namespace LightSouls.Game
                 minimap.Show(context, player.transform);
             }
 
-            // Tên ngục được công bố sau khi đã bước vào cổng và tới ngục mới.
-            CombatToast.Show(RunState.ConsumePortalArrivalMessage());
+            BindDungeonShop(context.VendingMachine);
+            ShowDungeonArrival();
+        }
+
+        private void BindDungeonShop(WeaponVendingMachine kiosk)
+        {
+            if (kiosk == null) return;
+            if (dungeonShop == null) dungeonShop = FindAnyObjectByType<LobbyShopUI>(FindObjectsInactive.Include);
+            if (dungeonShop == null || dungeonShop.Catalog == null)
+            {
+                Debug.LogWarning("[GameBootstrap] Máy tiếp tế chưa được nối với cửa hàng.", kiosk);
+                return;
+            }
+            kiosk.BindShop(dungeonShop.Open, interactor => !isFinished && player != null && !player.IsDead &&
+                !player.InLockedCombat && interactor == player.gameObject);
+        }
+
+        private void ShowDungeonArrival()
+        {
+            // Resolve the configuration actually used, including direct entry from the Editor or
+            // an invalid selection that falls back to the default config. Never announce a destination early.
+            var catalog = dungeonGenerator.Catalog;
+            var config = dungeonGenerator.ActiveConfig;
+            DungeonEntry entry = null;
+            if (catalog != null)
+            {
+                if (catalog.TryGetEntry(RunState.SelectedDungeonId, out var selected) && selected.config == config)
+                    entry = selected;
+                else
+                    foreach (var candidate in catalog.Entries)
+                        if (candidate != null && candidate.config == config) { entry = candidate; break; }
+            }
+            bool fromMystery = !string.IsNullOrEmpty(RunState.ConsumePortalArrivalMessage());
+            if (arrivalBanner == null) arrivalBanner = DungeonArrivalBanner.Create();
+            arrivalBanner.Show(entry?.dungeonId, entry?.displayName, entry?.description, fromMystery);
         }
 
         private void PrepareExitPortal()
@@ -313,12 +352,12 @@ namespace LightSouls.Game
 
                 foreach (var point in room.LootSpawnPoints)
                 {
-                    SpawnChestAt(point);
+                    SpawnChestAt(point, room.GetComponent<RoomTerrainProfile>()?.HiddenTreasury == true);
                 }
             }
         }
 
-        private void SpawnChestAt(Transform point)
+        private void SpawnChestAt(Transform point, bool secretTreasury = false)
         {
             if (point == null || treasureChestPrefab == null) return;
 
@@ -329,7 +368,8 @@ namespace LightSouls.Game
 
             point.gameObject.SetActive(false);
             var rotation = Quaternion.Euler(0f, point.eulerAngles.y, 0f);
-            Instantiate(treasureChestPrefab, position, rotation, point.parent);
+            var chest = Instantiate(treasureChestPrefab, position, rotation, point.parent);
+            if (secretTreasury && hiddenTreasuryLootTable != null) chest.SetLootTable(hiddenTreasuryLootTable);
         }
 
         private void SpawnBossRewardChests(RoomModule room)
@@ -419,6 +459,7 @@ namespace LightSouls.Game
                 else
                 {
                     currentBossKind=enemySpawner.ActiveBoss.Kind;
+                    room.GetComponent<BossArenaDressing>()?.Apply(enemySpawner.ActiveBoss.Definition);
                     if(cameraFollow!=null)cameraFollow.SetBossFocus(enemySpawner.ActiveBoss);
                 }
             }
@@ -489,6 +530,8 @@ namespace LightSouls.Game
             {
                 treasureChestUI.Close();
             }
+            if (dungeonShop != null && dungeonShop.IsOpen) dungeonShop.Close();
+            if (arrivalBanner != null) arrivalBanner.gameObject.SetActive(false);
 
             if (player != null)
             {

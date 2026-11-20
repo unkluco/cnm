@@ -4,6 +4,8 @@
 **Nhánh Git:** `feature/map-generation`  
 **Dự án:** Light Souls (Unity 6 — `6000.5.x`, URP, New Input System, Unity AI Navigation)
 
+Thư viện 30 mẫu phòng và các địa hình thủ công mới được mô tả tại [Expanded Dungeon Terrain](ExpandedDungeonTerrain.md). Những quy ước socket, footprint và integration anchor của tài liệu này vẫn được giữ nguyên.
+
 ---
 
 ## 1. Kiến trúc tổng thể & Tham khảo thiết kế
@@ -121,7 +123,7 @@ Các hệ thống khác (`GameBootstrap`, hệ thống chiến đấu của Kh�
 | `ctx.IsNavMeshBaked` | `bool` | Trạng thái bake NavMesh (hệ thống quái chỉ kích hoạt di chuyển khi giá trị này là `true`) |
 
 > **Lưu ý quan trọng về tính năng ngoài hợp đồng:**  
-> Các trường `ctx.VendingMachine`, `ctx.BossRewardController`, và hàm `ctx.TriggerBossRewards()` được Đạt dựng sẵn làm mẫu thử nghiệm cục bộ trong prototype, **hoàn toàn nằm ngoài hợp đồng prototype** (theo mục 4.1 của Quy ước chung). Các hệ thống khác không được dựa vào các trường này. Việc mua vũ khí và phần thưởng boss sẽ được thiết kế lại ở đợt sau khi hệ thống vũ khí của Khải hoàn thiện.
+> `ctx.VendingMachine` hiện được dùng trong luồng thật: `GameBootstrap` gọi `BindShop` để nối máy tiếp tế của phòng Start với cửa hàng. Phần sinh màn không xử lý giá hoặc túi đồ. Phần thưởng boss thật do `GameBootstrap` xử lý sau khi dọn phòng cuối, theo hợp đồng cập nhật tại `Docs/Conventions.md`.
 
 ---
 
@@ -176,13 +178,13 @@ Mọi phòng trong màn chơi đều được gắn component `RoomLifecycleCont
 
 ---
 
-### 5.4. Tính năng thử nghiệm nội bộ (Ngoài hợp đồng prototype)
+### 5.4. Ki-ốt tiếp tế và phần thưởng boss
 
 1. **Ki-ốt bán vũ khí tự động (`WeaponVendingMachine`) tại phòng bắt đầu:**
    - Nằm trực tiếp trên GameObject con bên trong prefab `Assets/Prefabs/MapGeneration/Rooms/Room_Start.prefab` (không có prefab độc lập).
    - Component: `WeaponVendingMachine.cs`.
-   - Hàm thử nghiệm: `bool TryPurchaseWeapon(string weaponId, out string message)`.
-   - Sự kiện: `event Action<string> OnWeaponPurchased`.
+   - `BindShop(Action<GameObject> showShop, Func<GameObject, bool> canShop = null)` kết nối cửa hàng khi ngục đã sinh xong.
+   - Máy triển khai `IInteractable` và dùng trigger riêng ở `InteractionPoint`. Mua đồ thực hiện tại `LobbyShopUI` dùng chung; không có giao dịch giả chỉ báo thành công.
 2. **Rương thưởng Boss (`BossRoomRewardController`) tại phòng Boss tím:**
    - Nằm trên `Room_Exit.prefab`.
    - Hàm thử nghiệm: `int TriggerBossRewards()`.

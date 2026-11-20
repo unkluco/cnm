@@ -110,7 +110,9 @@ namespace LightSouls.Stability.Tests
             budget.Refresh(Player().transform.position);
             var active=DarkFantasyTorchLight.ActiveLights.Where(t=>t!=null&&t.Source!=null&&t.Source.enabled).ToArray();
             Assert.Greater(active.Length,0,"At least one nearby light should contribute.");
-            Assert.LessOrEqual(active.Length,budget.MaximumActiveLights);
+            if (budget.FixedSceneLighting)
+                Assert.AreEqual(DarkFantasyTorchLight.ActiveLights.Count(t=>t!=null&&t.Source!=null&&t.gameObject.scene==budget.gameObject.scene),active.Length);
+            else Assert.LessOrEqual(active.Length,budget.MaximumActiveLights);
             Assert.IsTrue(active.All(t=>t.Source.shadows==LightShadows.None));
         }
 

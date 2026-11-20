@@ -42,8 +42,8 @@ namespace LightSouls.Art.Editor
                 if(name=="MainMenu") {art.gameObject.AddComponent<DarkFantasyLightBudget>();BuildMenuDiorama(art,camera);}
                 else
                 {
-                    art.gameObject.AddComponent<DarkFantasyLightBudget>();
-                    if(name=="Lobby") BuildLobbyEnvironment(scene,art);
+                    var budget=art.gameObject.AddComponent<DarkFantasyLightBudget>();
+                    if(name=="Lobby") {budget.ConfigureFixedSceneLighting(true);BuildLobbyEnvironment(scene,art);}
                     foreach(var root in scene.GetRootGameObjects().Where(g=>g.name=="UI_CoinCounter"||g.name=="Canvas_LobbyUI")) StyleUi(root.transform);
                 }
                 EditorSceneManager.MarkSceneDirty(scene);EditorSceneManager.SaveScene(scene);

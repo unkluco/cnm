@@ -54,7 +54,7 @@ namespace LightSouls.Lobby
             }
             else
             {
-                LobbyShopUI shopUI = FindAnyObjectByType<LobbyShopUI>();
+                LobbyShopUI shopUI = FindAnyObjectByType<LobbyShopUI>(FindObjectsInactive.Include);
                 if (shopUI != null)
                 {
                     shopUI.Open(interactor);
