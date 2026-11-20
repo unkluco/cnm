@@ -80,6 +80,7 @@ namespace LightSouls.Combat
         // Góc gốc của cánh tay phải khi giương vũ khí (Combat Stance)
         private Quaternion _rightArmDefaultRotation = Quaternion.Euler(-35f, -8f, 12f);
         private Quaternion _torsoDefaultRotation = Quaternion.identity;
+        private Quaternion _leftArmDefaultRotation=Quaternion.identity,_leftLegDefaultRotation=Quaternion.identity,_rightLegDefaultRotation=Quaternion.identity;
 
         public Vector2 InputVector => _inputVector;
         public bool IsMoving => _inputVector.sqrMagnitude > 0.01f;
@@ -121,6 +122,9 @@ namespace LightSouls.Combat
             {
                 _torsoDefaultRotation = torso.localRotation;
             }
+            if(leftArm!=null)_leftArmDefaultRotation=leftArm.localRotation;
+            if(leftLeg!=null)_leftLegDefaultRotation=leftLeg.localRotation;
+            if(rightLeg!=null)_rightLegDefaultRotation=rightLeg.localRotation;
 
             if (dashTrailEffect == null)
             {
@@ -244,10 +248,10 @@ namespace LightSouls.Combat
                 // Khi Dash: người chúi mạnh về phía trước, chân co lại tạo thế lao đi
                 if (torso != null)
                 {
-                    torso.localRotation = Quaternion.Slerp(torso.localRotation, Quaternion.Euler(24f, 0f, 0f), 20f * Time.deltaTime);
+                    torso.localRotation = Quaternion.Slerp(torso.localRotation, _torsoDefaultRotation*Quaternion.Euler(24f, 0f, 0f), 20f * Time.deltaTime);
                 }
-                if (leftLeg != null) leftLeg.localRotation = Quaternion.Euler(-25f, 0f, 0f);
-                if (rightLeg != null) rightLeg.localRotation = Quaternion.Euler(35f, 0f, 0f);
+                if (leftLeg != null) leftLeg.localRotation = _leftLegDefaultRotation*Quaternion.Euler(-25f, 0f, 0f);
+                if (rightLeg != null) rightLeg.localRotation = _rightLegDefaultRotation*Quaternion.Euler(35f, 0f, 0f);
                 return;
             }
 
@@ -257,11 +261,11 @@ namespace LightSouls.Combat
                 float bobCycle = Mathf.Sin(Time.time * 24f);
 
                 // 1. Chân bước nhịp nhàng luân phiên
-                if (leftLeg != null) leftLeg.localRotation = Quaternion.Euler(cycle * 32f, 0f, 0f);
-                if (rightLeg != null) rightLeg.localRotation = Quaternion.Euler(-cycle * 32f, 0f, 0f);
+                if (leftLeg != null) leftLeg.localRotation = _leftLegDefaultRotation*Quaternion.Euler(cycle * 32f, 0f, 0f);
+                if (rightLeg != null) rightLeg.localRotation = _rightLegDefaultRotation*Quaternion.Euler(-cycle * 32f, 0f, 0f);
 
                 // 2. Tay trái vung ngược pha với chân trái
-                if (leftArm != null) leftArm.localRotation = Quaternion.Euler(-cycle * 28f, 0f, 0f);
+                if (leftArm != null) leftArm.localRotation = _leftArmDefaultRotation*Quaternion.Euler(-cycle * 28f, 0f, 0f);
 
                 // 3. Tay phải (cầm vũ khí đưa lên 1 góc): giữ tư thế cầm vũ khí và nhấp nhô nhẹ đồng bộ bước chạy
                 if (rightArm != null)
@@ -275,7 +279,7 @@ namespace LightSouls.Combat
                 {
                     float forwardLean = 11f;
                     float sway = bobCycle * 3f;
-                    torso.localRotation = Quaternion.Euler(forwardLean + sway, 0f, 0f);
+                    torso.localRotation = _torsoDefaultRotation*Quaternion.Euler(forwardLean + sway, 0f, 0f);
                 }
             }
             else
@@ -283,9 +287,9 @@ namespace LightSouls.Combat
                 // Khi đứng yên: trở về tư thế idle tự nhiên, thân người thở nhẹ
                 float idleBreathing = Mathf.Sin(Time.time * 2.5f) * 1.5f;
 
-                if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, Quaternion.identity, 10f * Time.deltaTime);
-                if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, Quaternion.identity, 10f * Time.deltaTime);
-                if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, Quaternion.identity, 10f * Time.deltaTime);
+                if (leftLeg != null) leftLeg.localRotation = Quaternion.Slerp(leftLeg.localRotation, _leftLegDefaultRotation, 10f * Time.deltaTime);
+                if (rightLeg != null) rightLeg.localRotation = Quaternion.Slerp(rightLeg.localRotation, _rightLegDefaultRotation, 10f * Time.deltaTime);
+                if (leftArm != null) leftArm.localRotation = Quaternion.Slerp(leftArm.localRotation, _leftArmDefaultRotation, 10f * Time.deltaTime);
                 if (rightArm != null) rightArm.localRotation = Quaternion.Slerp(rightArm.localRotation, _rightArmDefaultRotation, 10f * Time.deltaTime);
                 if (torso != null)
                 {

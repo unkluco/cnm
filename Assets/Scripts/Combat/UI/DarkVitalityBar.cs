@@ -9,6 +9,7 @@ namespace LightSouls.Combat.UI
     {
         private readonly Image fill, chip;
         private readonly Color baseFill, lowFill;
+        private bool isAlly;
         private float target=1f, chipAmount=1f, chipDelay;
         private static Font font;
         private static Sprite fillSprite;
@@ -56,8 +57,11 @@ namespace LightSouls.Combat.UI
             if(immediate || ratio>=target){chipAmount=ratio;chipDelay=0;}
             else{chipAmount=Mathf.Max(chipAmount,target);chipDelay=.17f;}
             target=ratio;fill.fillAmount=ratio;chip.fillAmount=chipAmount;
-            fill.color=Color.Lerp(lowFill,baseFill,Mathf.Clamp01(ratio*1.7f));
+            UpdateColor();
         }
+
+        public void SetAlly(bool value){isAlly=value;UpdateColor();}
+        private void UpdateColor(){fill.color=isAlly?new Color(.23f,.77f,.55f):Color.Lerp(lowFill,baseFill,Mathf.Clamp01(target*1.7f));}
 
         public void Tick(float dt)
         {

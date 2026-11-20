@@ -23,12 +23,13 @@ namespace LightSouls.Combat.Enemies
         private bool _isFiring = false;
         private static readonly Color ArcaneColor = new Color(.76f, .38f, 1f, .95f);
         private ArcaneTelegraph warning;
+        private Coroutine fireRoutine;
+        private Quaternion staffRest;
 
         protected override void HandleBehavior(float distanceToPlayer)
         {
             if (_isFiring)
             {
-                LookAtPlayer();
                 return;
             }
 
@@ -74,7 +75,7 @@ namespace LightSouls.Combat.Enemies
         protected override void ExecuteAttack()
         {
             _lastAttackTime = Time.time;
-            StartCoroutine(FireRoutine());
+            fireRoutine=StartCoroutine(FireRoutine());
         }
 
         private IEnumerator FireRoutine()
@@ -84,29 +85,30 @@ namespace LightSouls.Combat.Enemies
 
             // Nâng trượng / gậy phép nạp năng lượng (0.25s)
             Quaternion initialStaffRot = visualStaff != null ? visualStaff.localRotation : Quaternion.identity;
+            staffRest=initialStaffRot;
             if (visualStaff != null)
             {
                 visualStaff.localRotation = initialStaffRot * Quaternion.Euler(-30f, 0f, 0f);
             }
 
             GetAimLane(out Vector3 laneStart, out Vector3 laneEnd);
-            warning = ArcaneTelegraph.Lane("EnemyWarning_Cultist", laneStart, laneEnd, .16f, ArcaneColor, .25f, CombatVfxElement.Void, transform);
-            float resolveAt = Time.time + .25f;
-            while (Time.time < resolveAt && !IsDead && _playerTransform != null && isActiveAndEnabled)
+            const float windup=.42f;
+            Vector3 lockedAim=_playerTransform.position+Vector3.up*.9f;
+            warning = ArcaneTelegraph.Lane("EnemyWarning_Cultist", laneStart, laneEnd, .16f, ArcaneColor, windup, CombatVfxElement.Void, transform);
+            float resolveAt = Time.time + windup;
+            while (Time.time < resolveAt && !IsDead && !IsStunned && !IsCharmed && _playerTransform != null && isActiveAndEnabled)
             {
-                GetAimLane(out laneStart, out laneEnd);
-                if (warning != null) warning.SetLane(laneStart, laneEnd, .16f);
                 yield return null;
             }
             ClearWarning();
-            if (IsDead || _playerTransform == null || !isActiveAndEnabled) { _isFiring = _isAttackingLimbAnim = false; yield break; }
+            if (IsDead || IsStunned || IsCharmed || _playerTransform == null || !isActiveAndEnabled) { ResetPose(); yield break; }
 
             // Xác định hướng bắn về phía ngực Người chơi
             Vector3 spawnPos = muzzlePoint != null 
                 ? muzzlePoint.position 
                 : transform.position + transform.forward * 0.8f + Vector3.up * 1.0f;
 
-            Vector3 targetAimPoint = _playerTransform.position + Vector3.up * 0.9f;
+            Vector3 targetAimPoint = lockedAim;
             Vector3 aimDir = (targetAimPoint - spawnPos).normalized;
             VfxFactory.Muzzle(spawnPos, aimDir, ArcaneColor, CombatVfxElement.Void);
 
@@ -161,7 +163,11 @@ namespace LightSouls.Combat.Enemies
 
             _isFiring = false;
             _isAttackingLimbAnim = false;
+            fireRoutine=null;
         }
+
+        private void ResetPose(){if(visualStaff!=null&&_isFiring)visualStaff.localRotation=staffRest;_isFiring=false;_isAttackingLimbAnim=false;fireRoutine=null;}
+        protected override void CancelPendingAttack(){if(fireRoutine!=null)StopCoroutine(fireRoutine);ClearWarning();ResetPose();}
 
         private void GetAimLane(out Vector3 start, out Vector3 end)
         {
@@ -175,5 +181,6 @@ namespace LightSouls.Combat.Enemies
         private void ClearWarning() { if (warning != null) warning.Remove(); warning = null; }
         protected override void HandleDied(IDamageable damageable) { ClearWarning(); base.HandleDied(damageable); }
         protected override void OnDestroy() { ClearWarning(); base.OnDestroy(); }
+        private void OnDisable()=>CancelPendingAttack();
     }
 }

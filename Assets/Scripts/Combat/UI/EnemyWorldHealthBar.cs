@@ -27,6 +27,9 @@ namespace LightSouls.Combat.UI
         private float _lastHealth = -1f;
         private DarkVitalityBar view;
         private BossEnemy boss;
+        private EnemyBase enemy;
+        private Text nameLabel;
+        private bool allyShown;
         public float HealthRatio=>view!=null?view.Ratio:0f;
 
         private void Awake()
@@ -39,6 +42,7 @@ namespace LightSouls.Combat.UI
             _worldCanvas = GetComponentInChildren<Canvas>();
             if(_worldCanvas==null || healthComponent==null)return;
             var owner=healthComponent.GetComponent<EnemyBase>();
+            enemy=owner;
             boss=owner as BossEnemy;
             // The large encounter HUD replaces the small floating boss bar, but damage popups still work.
             if(boss!=null){_worldCanvas.enabled=false;return;}
@@ -49,7 +53,7 @@ namespace LightSouls.Combat.UI
             root.sizeDelta=new Vector2(190,44);root.localScale=Vector3.one*.0105f;
             var capsule=healthComponent.GetComponent<CapsuleCollider>();
             if(capsule!=null)root.localPosition=Vector3.up*(capsule.height+.38f);
-            DarkVitalityBar.Label(root,"EnemyName_Styled",caption,new Vector2(0,11),new Vector2(190,25),17,DarkFantasyTheme.Ivory,bold:true);
+            nameLabel=DarkVitalityBar.Label(root,"EnemyName_Styled",caption,new Vector2(0,11),new Vector2(190,25),17,DarkFantasyTheme.Ivory,bold:true);
             view=DarkVitalityBar.Create(root,new Vector2(0,-9),new Vector2(174,13),new Color(.9f,.34f,.20f),false);
         }
 
@@ -81,6 +85,12 @@ namespace LightSouls.Combat.UI
             if (_mainCamera == null) _mainCamera = Camera.main;
 
             view?.Tick(Time.deltaTime);
+            if(enemy!=null&&boss==null&&allyShown!=enemy.IsCharmed)
+            {
+                allyShown=enemy.IsCharmed;
+                if(nameLabel!=null){nameLabel.text=allyShown?"ĐỒNG MINH · "+enemy.DisplayName:enemy.DisplayName;nameLabel.color=allyShown?new Color(.42f,1f,.76f):DarkFantasyTheme.Ivory;}
+                view?.SetAlly(allyShown);
+            }
             if (_mainCamera != null && transform != null && boss==null)
             {
                 // Luôn quay mặt về Camera

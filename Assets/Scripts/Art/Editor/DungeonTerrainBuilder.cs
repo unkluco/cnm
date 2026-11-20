@@ -176,7 +176,7 @@ namespace LightSouls.Art.Editor
             var table=AssetDatabase.LoadAssetAtPath<LootTableSO>(path);
             if(table==null){table=ScriptableObject.CreateInstance<LootTableSO>();AssetDatabase.CreateAsset(table,path);}
             var db=AssetDatabase.LoadAssetAtPath<ItemDatabaseSO>("Assets/ScriptableObjects/Combat/Items/ItemDatabase.asset");
-            var items=db.AllItems.Where(i=>i!=null&&i.Rarity>=ItemRarity.Rare&&!(i is CraftMaterialSO m&&m.BossOnly)).ToArray();
+            var items=db.AllItems.Where(i=>i!=null&&i.Rarity>=ItemRarity.Rare&&!(i is CraftMaterialSO m&&m.BossOnly)&&!(ArsenalId(i)&&i.Rarity==ItemRarity.Legendary)).ToArray();
             var so=new SerializedObject(table);var list=so.FindProperty("dropEntries");list.arraySize=items.Length;
             for(int i=0;i<items.Length;i++)
             {

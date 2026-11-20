@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using LightSouls.Combat.Bosses;
+using LightSouls.Combat.Enemies;
 using UnityEngine;
 using UnityEngine.AI;
 using LightSouls.Common;
@@ -31,8 +32,17 @@ namespace LightSouls.Combat
         private readonly List<GameObject> _specialBag = new List<GameObject>();
         private GameObject _lastSpecial;
         private GameObject[] _bossPrefabs;
+        private float healthScale=1f,damageScale=1f,recoveryScale=1f;
+
+        public void ConfigureChallenge(string dungeon,int depth,int entered,int cleared)
+        {
+            var challenge=DungeonChallenge.For(dungeon);float progress=challenge.Progression(entered,depth,cleared);
+            healthScale=challenge.EnemyHealth*progress;damageScale=challenge.EnemyDamage*(1+(progress-1)*.45f);
+            recoveryScale=challenge.EnemyRecovery;extraSpecialChance=challenge.SpecialChance;
+        }
 
         public IReadOnlyList<GameObject> SpecialEnemyPrefabs => specialEnemyPrefabs ?? Array.Empty<GameObject>();
+        public IReadOnlyList<GameObject> RegularEnemyPrefabs => enemyPrefabs ?? Array.Empty<GameObject>();
 
         public IReadOnlyList<GameObject> BossPrefabs
         {
@@ -73,6 +83,7 @@ namespace LightSouls.Combat
             var obj=Instantiate(prefab,position,rotation);
             ActiveBoss=obj.GetComponent<BossEnemy>();
             ActiveBoss.ConfigureEncounter(roomBounds,floorY,player);
+            ActiveBoss.ApplyChallenge(healthScale*1.12f,damageScale,recoveryScale);
             var health=obj.GetComponent<HealthComponent>();
             _spawnedEnemyObjects.Add(obj);_aliveEnemies.Add(health);health.Died+=HandleEnemyDied;
             return true;
@@ -158,9 +169,11 @@ namespace LightSouls.Combat
                 spawnedSpecial |= useSpecial;
 
                 GameObject enemyObj = Instantiate(prefab, sp.position, sp.rotation);
+                enemyObj.GetComponent<EnemyBase>()?.ApplyChallenge(healthScale,damageScale,recoveryScale);
                 _spawnedEnemyObjects.Add(enemyObj);
 
-                IDamageable damageable = enemyObj.GetComponent<IDamageable>();
+                IDamageable damageable = enemyObj.GetComponent<HealthComponent>();
+                if(damageable==null)damageable=enemyObj.GetComponent<IDamageable>();
                 if (damageable == null)
                 {
                     damageable = enemyObj.GetComponentInChildren<IDamageable>();
@@ -228,6 +241,19 @@ namespace LightSouls.Combat
                 _aliveEnemies.Remove(deadEnemy);
             }
             if(ActiveBoss!=null && ActiveBoss.IsDead)ActiveBoss=null;
+
+            // If the charmed ally is the only survivor, it departs with the cleared room.
+            // It must neither trap the player behind locked doors nor be counted twice.
+            if(_aliveEnemies.Count>0 && _aliveEnemies.All(d=>(d as Component)?.GetComponent<EnemyBase>()?.IsCharmed==true))
+            {
+                var remaining=_aliveEnemies.ToArray();_aliveEnemies.Clear();
+                foreach(var d in remaining)
+                {
+                    d.Died-=HandleEnemyDied;
+                    var component=d as Component;
+                    if(component!=null){component.GetComponent<EnemyBase>()?.EndCharm();component.gameObject.SetActive(false);Destroy(component.gameObject);}
+                }
+            }
 
             Debug.Log($"[EnemySpawner] Quái bị tiêu diệt! Còn lại: {_aliveEnemies.Count}");
 

@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca5bee58beea4d31af7ec6c5613c970e, type: 3}
+  m_Name: Weapon_Arsenal_arcane_bow
+  m_EditorClassIdentifier: LightSouls.Combat::LightSouls.Combat.Weapons.WeaponDataSO
+  itemId: weapon.arsenal_arcane_bow
+  displayName: "Cung S\xE9t Linh V\u0103n"
+  description: "Linh kh\xED t\u1EA7m xa thu\u1ED9c kho v\u0169 kh\xED c\u1ED5. M\u1ED7i
+    \u0111\xF2n c\xF3 nh\u1ECBp h\u1ED3i r\xF5 r\xE0ng; k\u1EF9 n\u0103ng chi\u1EBFn
+    thu\u1EADt kh\xF4ng th\u1EC3 d\xF9ng li\xEAn t\u1EE5c b\u1EB1ng c\xE1ch \u0111\u1ED5i
+    v\u0169 kh\xED."
+  icon: {fileID: 21300000, guid: 5f101331d92b5764a9ed4a4cc72d207f, type: 3}
+  price: 373
+  maxStack: 1
+  rarity: 2
+  weaponType: 1
+  damage: 23
+  attackRate: 1.16
+  attackRange: 12
+  weaponPrefab: {fileID: 2215252045837375962, guid: 5328ab3f82d73744bb39921ed26f8de4, type: 3}
+  weaponColor: {r: 1, g: 0.88235295, b: 0.5372549, a: 1}
+  swingArcAngle: 105
+  hitRadius: 2
+  knockbackForce: 1.5
+  projectilePrefab: {fileID: 6081238883670587671, guid: 1da134f1b388c433b974c52a1c410881, type: 3}
+  projectileSpeed: 16
+  projectileLifetime: 2
+  projectileCount: 1
+  spreadAngle: 0
+  inaccuracy: 0
+  autoFire: 0
+  pierceCount: 1
+  explosionRadius: 0
+  explosionDamagesOwner: 0
+  arcHeight: 2.4
+  strikeCount: 1
+  strikeInterval: 0.19
+  hitEffects:
+  - {fileID: 11400000, guid: 5d89be16d96340e4da0a4adcc189a7e2, type: 2}
+  tacticalCast: 0
+  tacticalCooldown: 8
+  tacticalDistance: 3
+  tacticalDuration: 3
+  vfx:
+    element: 4
+    slashColor: {r: 1, g: 0.88235295, b: 0.5372549, a: 1}
+    auraColor: {r: 1, g: 0.88235295, b: 0.5372549, a: 0.7}
+    auraRate: 13
+    hitColor: {r: 1, g: 0.88235295, b: 0.5372549, a: 1}
+    trailColor: {r: 1, g: 0.88235295, b: 0.5372549, a: 1}
+    muzzleColor: {r: 1, g: 0.88235295, b: 0.5372549, a: 1}
+    groundShockwave: 0

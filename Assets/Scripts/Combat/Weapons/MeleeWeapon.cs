@@ -20,13 +20,15 @@ namespace LightSouls.Combat.Weapons
 
         private Quaternion _defaultLocalRot = Quaternion.identity;
         private Coroutine _swingCoroutine;
+        private Coroutine _trailCoroutine;
+        private Transform SwingTarget => visualBlade!=null?visualBlade:transform;
         private ParticleSystem _aura;
         private BladeRibbonTrail _bladeRibbon;
 
         public override void OnEquipped()
         {
             base.OnEquipped();
-            _defaultLocalRot = transform.localRotation;
+            _defaultLocalRot = SwingTarget.localRotation;
 
             if (slashTrail == null)
             {
@@ -51,6 +53,8 @@ namespace LightSouls.Combat.Weapons
             base.OnUnequipped();
             WeaponAura.Detach(ref _aura);
             if (_bladeRibbon != null) _bladeRibbon.Clear();
+            if(slashTrail!=null){slashTrail.emitting=false;slashTrail.Clear();}
+            SwingTarget.localRotation=_defaultLocalRot;_swingCoroutine=null;_trailCoroutine=null;
         }
 
         public override bool ExecuteAttack(Transform attackOrigin, Vector3 aimDirection, LayerMask targetLayer, GameObject attacker)
@@ -116,7 +120,9 @@ namespace LightSouls.Combat.Weapons
                 if (angle > weaponData.SwingArcAngle * 0.5f) continue;
 
                 IDamageable damageable = WeaponHitResolver.FindDamageable(col);
-                if (damageable == null || damageable.IsDead || !damagedEntities.Add(damageable)) continue;
+                if (damageable == null || damageable.IsDead || WeaponHitResolver.IsFriendly(attacker,damageable) || !damagedEntities.Add(damageable)) continue;
+                Vector3 contact=col.ClosestPoint(attackOrigin.position);
+                if(Physics.Linecast(attackOrigin.position,contact,1<<8,QueryTriggerInteraction.Ignore))continue;
 
                 WeaponHitResolver.Apply(weaponData, weaponData.Damage, attacker, damageable, col.ClosestPoint(attackOrigin.position));
 
@@ -163,7 +169,8 @@ namespace LightSouls.Combat.Weapons
             {
                 slashTrail.Clear();
                 slashTrail.emitting = true;
-                StartCoroutine(StopTrailRoutine(0.2f));
+                if(_trailCoroutine!=null)StopCoroutine(_trailCoroutine);
+                _trailCoroutine=StartCoroutine(StopTrailRoutine(0.2f));
             }
         }
 
@@ -174,17 +181,18 @@ namespace LightSouls.Combat.Weapons
             {
                 slashTrail.emitting = false;
             }
+            _trailCoroutine=null;
         }
 
         private IEnumerator SwingRoutine(bool mirrored)
         {
-            Transform targetTransform = visualBlade != null ? visualBlade : transform;
-            Quaternion startRot = _defaultLocalRot;
+            Transform targetTransform = SwingTarget;
+            Quaternion startRot = targetTransform.localRotation;
 
             // Giai đoạn 1: Vung mạnh kiếm từ phải qua trái (0.12s)
             float elapsed = 0f;
             float swingTime = 0.12f;
-            Quaternion swingRot = startRot * Quaternion.Euler(60f, mirrored ? 68f : -75f, mirrored ? -20f : 20f);
+            Quaternion swingRot = _defaultLocalRot * Quaternion.Euler(60f, mirrored ? 68f : -75f, mirrored ? -20f : 20f);
 
             while (elapsed < swingTime)
             {
@@ -201,11 +209,11 @@ namespace LightSouls.Combat.Weapons
             {
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / returnTime);
-                targetTransform.localRotation = Quaternion.Slerp(swingRot, startRot, Mathf.SmoothStep(0f, 1f, t));
+                targetTransform.localRotation = Quaternion.Slerp(swingRot, _defaultLocalRot, Mathf.SmoothStep(0f, 1f, t));
                 yield return null;
             }
 
-            targetTransform.localRotation = startRot;
+            targetTransform.localRotation = _defaultLocalRot;
             _swingCoroutine = null;
         }
 

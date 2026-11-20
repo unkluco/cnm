@@ -21,6 +21,7 @@ namespace LightSouls.Combat
 
         private float _lastHitTime = -999f;
         private bool _isDead = false;
+        private float exposedUntil, incomingMultiplier=1f;
 
         public bool IsDead => _isDead;
         public float CurrentHealth => currentHealth;
@@ -53,6 +54,24 @@ namespace LightSouls.Combat
             OnHealthChanged?.Invoke(currentHealth, maxHealth);
         }
 
+        public void ScaleMaximum(float multiplier)
+        {
+            if(_isDead)return;float ratio=currentHealth/Mathf.Max(1f,maxHealth);
+            maxHealth=Mathf.Max(1f,maxHealth*multiplier);currentHealth=maxHealth*ratio;
+            OnHealthChanged?.Invoke(currentHealth,maxHealth);
+        }
+
+        public void RestoreFraction(float fraction)
+        {
+            if(_isDead)return;currentHealth=Mathf.Max(1f,maxHealth*Mathf.Clamp01(fraction));OnHealthChanged?.Invoke(currentHealth,maxHealth);
+        }
+
+        public void Expose(float multiplier,float duration)
+        {
+            incomingMultiplier=Time.time<exposedUntil?Mathf.Max(incomingMultiplier,multiplier):multiplier;
+            exposedUntil=Mathf.Max(exposedUntil,Time.time+duration);
+        }
+
         public void TakeDamage(DamageInfo info)
         {
             if (_isDead) return;
@@ -63,7 +82,7 @@ namespace LightSouls.Combat
             }
 
             _lastHitTime = Time.time;
-            float effectiveAmount = info.Amount * (1f - damageReduction);
+            float effectiveAmount = Mathf.Max(0f,info.Amount) * (1f - damageReduction) * (Time.time<exposedUntil?incomingMultiplier:1f);
             currentHealth = Mathf.Max(0f, currentHealth - effectiveAmount);
             OnHealthChanged?.Invoke(currentHealth, maxHealth);
 
@@ -89,6 +108,7 @@ namespace LightSouls.Combat
         public void ResetHealth()
         {
             _isDead = false;
+            exposedUntil=0f;incomingMultiplier=1f;_lastHitTime=-999f;
             currentHealth = maxHealth;
             OnHealthChanged?.Invoke(currentHealth, maxHealth);
         }

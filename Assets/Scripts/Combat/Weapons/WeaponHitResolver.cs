@@ -1,5 +1,6 @@
 using LightSouls.Combat.Effects;
 using LightSouls.Combat.Stats;
+using LightSouls.Combat.Enemies;
 using LightSouls.Common;
 using UnityEngine;
 
@@ -24,6 +25,12 @@ namespace LightSouls.Combat.Weapons
             return damageable ?? collider.GetComponentInParent<IDamageable>();
         }
 
+        public static bool IsFriendly(GameObject attacker, IDamageable target)
+        {
+            var component=target as Component;
+            return attacker!=null&&attacker.CompareTag("Player")&&component!=null&&component.GetComponent<EnemyBase>()?.IsCharmed==true;
+        }
+
         /// <summary>
         /// Gây sát thương lên mục tiêu. baseDamage là sát thương gốc của vũ khí;
         /// applyAttackerMultiplier = false khi sát thương đã được nhân sẵn (ví dụ vụ nổ tính lúc phóng).
@@ -33,17 +40,20 @@ namespace LightSouls.Combat.Weapons
             Vector3 hitPoint, bool applyAttackerMultiplier = true, Vector3 impactDirection = default,
             CombatVfxElement fallbackElement = CombatVfxElement.Steel, Color? fallbackColor = null)
         {
-            if (target == null || target.IsDead)
+            if (target == null || target.IsDead || IsFriendly(attacker,target))
             {
                 return 0f;
             }
 
             float damage = baseDamage * (applyAttackerMultiplier ? PlayerStats.DamageMultiplierOf(attacker) : 1f);
+            var targetComponent = target as Component;
+            var health=targetComponent!=null?targetComponent.GetComponent<HealthComponent>():null;
+            float prior=health!=null?health.CurrentHealth:0f;
             target.TakeDamage(new DamageInfo(damage, attacker, hitPoint));
+            float actual=health!=null?Mathf.Max(0f,prior-health.CurrentHealth):damage;
 
             Color hitColor = weapon != null ? weapon.Vfx.hitColor : fallbackColor ?? Color.white;
             CombatVfxElement element = weapon != null ? weapon.Vfx.element : fallbackElement;
-            var targetComponent = target as Component;
             Vector3 direction = impactDirection.sqrMagnitude > .0001f ? impactDirection :
                 attacker != null && targetComponent != null ? targetComponent.transform.position - attacker.transform.position : Vector3.up;
             float strength = Mathf.Clamp01(damage / 72f);
@@ -54,14 +64,14 @@ namespace LightSouls.Combat.Weapons
             if ((attacker != null && attacker.CompareTag("Player")) || (targetComponent != null && targetComponent.CompareTag("Player")))
                 CombatImpactFeedback.Emit(hitPoint, Mathf.Lerp(.21f, .7f, strength));
 
-            if (weapon != null && weapon.HitEffects != null && targetComponent != null)
+            if (actual>0f && weapon != null && weapon.HitEffects != null && targetComponent != null)
             {
                 var context = new WeaponHitContext
                 {
                     Attacker = attacker,
                     Target = targetComponent.gameObject,
                     Damageable = target,
-                    DamageDealt = damage,
+                    DamageDealt = actual,
                     HitPoint = hitPoint,
                     Weapon = weapon,
                 };
@@ -75,7 +85,7 @@ namespace LightSouls.Combat.Weapons
                 }
             }
 
-            return damage;
+            return actual;
         }
     }
 }

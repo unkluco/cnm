@@ -131,7 +131,7 @@ namespace LightSouls.Combat.Weapons
             if (isTargetLayer)
             {
                 IDamageable damageable = WeaponHitResolver.FindDamageable(other);
-                if (damageable != null && !damageable.IsDead && _alreadyHit.Add(damageable))
+                if (damageable != null && !damageable.IsDead && !WeaponHitResolver.IsFriendly(_source,damageable) && _alreadyHit.Add(damageable))
                 {
                     WeaponHitResolver.Apply(_weapon, damage, _source, damageable, contactPoint,
                         true, transform.forward, _visualElement, _visualColor);

@@ -7,6 +7,7 @@ using LightSouls.Combat.Weapons;
 using LightSouls.Combat.Inventory;
 using LightSouls.Combat.Items;
 using LightSouls.Combat.Effects;
+using LightSouls.Combat.Stats;
 
 namespace LightSouls.Combat
 {
@@ -43,6 +44,22 @@ namespace LightSouls.Combat
         private bool _isInputActive = true;
 
         public WeaponDataSO CurrentWeaponData => (_activeWeapon != null) ? _activeWeapon.Data : null;
+        private const string GlobalAttackKey = "combat.global_attack";
+        public static float CooldownFor(WeaponDataSO data) => data != null ? RunState.CooldownRemaining("weapon." + data.ItemId) : 0f;
+        public float AttackCooldownRemaining => Mathf.Max(RunState.CooldownRemaining(GlobalAttackKey),
+            _inventory != null && _inventory.SelectedItem is ConsumableDataSO ? ConsumableDataSO.CooldownRemaining : CooldownFor(CurrentWeaponData));
+        public float AttackCooldownRatio => Mathf.Clamp01(AttackCooldownRemaining / Mathf.Max(.1f,
+            _inventory != null && _inventory.SelectedItem is ConsumableDataSO potion ? potion.Cooldown : _activeWeapon != null ? _activeWeapon.EffectiveAttackInterval : .4f));
+        public float TacticalCooldownRemaining
+        {
+            get
+            {
+                var weapon=CurrentWeaponData;if(weapon==null)return 0f;
+                float time=WeaponTactics.CastCooldownRemaining(weapon);
+                foreach(var effect in weapon.HitEffects)if(effect is TacticalHitEffectSO tactic)time=Mathf.Max(time,tactic.Remaining);
+                return time;
+            }
+        }
         public float AutoAimRadius => autoAimEnabled ? GetAutoAimRadius(CurrentWeaponData, autoAimMaxDistance) : 0f;
 
         public static float GetAutoAimRadius(WeaponDataSO weapon, float maximum)
@@ -201,6 +218,7 @@ namespace LightSouls.Combat
                 return;
             }
 
+            if (_activeWeapon != null && _activeWeapon.Data == data) return;
             // Xóa vũ khí cũ trên tay
             UnequipCurrentWeapon();
 
@@ -265,6 +283,8 @@ namespace LightSouls.Combat
             if (_aimIndicator != null) _aimIndicator.Hide();
             if (_activeWeaponInstance != null)
             {
+                if(_activeWeapon != null) _activeWeapon.OnUnequipped();
+                _activeWeaponInstance.SetActive(false);
                 Destroy(_activeWeaponInstance);
                 _activeWeaponInstance = null;
                 _activeWeapon = null;
@@ -281,13 +301,19 @@ namespace LightSouls.Combat
 
         public void PerformAttack()
         {
-            if (!_isInputActive || Time.timeScale <= 0f) return;
+            if (!_isInputActive || Time.timeScale <= 0f || (_movement!=null&&_movement.IsDashing)) return;
+            if (RunState.CooldownRemaining(GlobalAttackKey) > 0f)
+            {
+                if(CurrentWeaponData!=null) _aimIndicator.Show(AutoAimRadius);
+                return;
+            }
             // Nếu ô đang chọn trên thanh nhanh là đồ dùng (ví dụ: Bình máu) -> uống hồi máu
             if (_inventory != null && _inventory.SelectedItem is ConsumableDataSO consumable)
             {
                 if (consumable.Use(gameObject))
                 {
                     _inventory.TryRemoveFromSlot(_inventory.SelectedSlotKey, 1);
+                    RunState.StartCooldown(GlobalAttackKey,.45f);
                     OnAttackExecuted?.Invoke();
                 }
                 return;
@@ -295,7 +321,7 @@ namespace LightSouls.Combat
 
             if (_activeWeapon == null) return;
             _aimIndicator.Show(AutoAimRadius);
-            if (!_activeWeapon.CanAttack) return;
+            if (!_activeWeapon.CanAttack || CooldownFor(CurrentWeaponData)>0f) return;
 
             Vector3 aimDirection = transform.forward;
 
@@ -318,9 +344,16 @@ namespace LightSouls.Combat
                 }
             }
 
+            var firedWeapon=CurrentWeaponData;
+            // The cast and the ordinary shot/strike share the same input, but a stronger
+            // tactical action has its own longer cooldown even when the weapon is swapped.
+            WeaponTactics.TryCast(firedWeapon, gameObject, aimDirection);
             bool success = _activeWeapon.ExecuteAttack(attackOrigin, aimDirection, enemyLayer, gameObject);
             if (success)
             {
+                float interval=_activeWeapon.EffectiveAttackInterval;
+                RunState.StartCooldown("weapon."+firedWeapon.ItemId,interval);
+                RunState.StartCooldown(GlobalAttackKey, interval);
                 OnAttackExecuted?.Invoke();
 
                 // Rung nhẹ khi bắn/chém nếu máy cho phép
@@ -347,7 +380,7 @@ namespace LightSouls.Combat
             {
                 IDamageable damageable = col.GetComponent<IDamageable>();
                 if (damageable == null) damageable = col.GetComponentInParent<IDamageable>();
-                if (damageable == null || damageable.IsDead) continue;
+                if (damageable == null || damageable.IsDead || WeaponHitResolver.IsFriendly(gameObject,damageable)) continue;
 
                 var target = damageable as Component;
                 Transform targetTransform = target != null ? target.transform : col.transform;
@@ -355,6 +388,7 @@ namespace LightSouls.Combat
                 offset.y = 0f;
                 float dist = offset.magnitude;
                 if (dist > searchRadius) continue;
+                if(Physics.Linecast(transform.position+Vector3.up*.85f,col.bounds.center,1<<8,QueryTriggerInteraction.Ignore))continue;
                 if (dist < minDist)
                 {
                     minDist = dist;

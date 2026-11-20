@@ -165,6 +165,7 @@ namespace LightSouls.Art.Editor
             foreach(string guid in AssetDatabase.FindAssets("t:WeaponDataSO",new[]{"Assets/ScriptableObjects/Combat/Weapons"}))
             {
                 var data=AssetDatabase.LoadAssetAtPath<WeaponDataSO>(AssetDatabase.GUIDToAssetPath(guid)); if(data==null) continue;
+                if(data.name.StartsWith("Weapon_Arsenal_",System.StringComparison.Ordinal))continue; // owned by Build Arsenal and Dungeon Journal
                 if(onlyWeapon!=null&&data.name!=onlyWeapon)continue;
                 var o=new GameObject("Model_"+data.name); Transform t=o.transform;
                 string id=data.name;

@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 917f5d6b77c9c4680a3359e2a563c23f, type: 3}
+  m_Name: Consumable_Arsenal_swift
+  m_EditorClassIdentifier: LightSouls.Combat::LightSouls.Combat.Items.ConsumableDataSO
+  itemId: consumable.arsenal_swift
+  displayName: "D\u01B0\u1EE3c Phong H\xE0nh"
+  description: "D\u01B0\u1EE3c ph\u1EA9m c\u1EE7a x\u01B0\u1EDFng gi\u1EA3 kim. C\xF3
+    th\u1EDDi gian h\u1ED3i chung v\u1EDBi m\u1ECDi v\u1EADt ph\u1EA9m ti\xEAu hao;
+    d\xF9ng \u0111\xFAng th\u1EDDi \u0111i\u1EC3m."
+  icon: {fileID: 21300000, guid: 9cfb0010bb8a4fc4eb87cf46c181ec49, type: 3}
+  price: 48
+  maxStack: 5
+  rarity: 0
+  healAmount: 35
+  effects:
+  - {fileID: 11400000, guid: f0a522012c72db848b0f350dec7e0954, type: 2}
+  triggersOnDeath: 0
+  cooldown: 14

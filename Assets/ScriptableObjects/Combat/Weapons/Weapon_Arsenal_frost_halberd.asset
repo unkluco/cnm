@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca5bee58beea4d31af7ec6c5613c970e, type: 3}
+  m_Name: Weapon_Arsenal_frost_halberd
+  m_EditorClassIdentifier: LightSouls.Combat::LightSouls.Combat.Weapons.WeaponDataSO
+  itemId: weapon.arsenal_frost_halberd
+  displayName: "K\xEDch T\u01B0\u1EDDng B\u0103ng"
+  description: "V\u0169 kh\xED c\u1EADn chi\u1EBFn thu\u1ED9c kho v\u0169 kh\xED
+    c\u1ED5. M\u1ED7i \u0111\xF2n c\xF3 nh\u1ECBp h\u1ED3i r\xF5 r\xE0ng; k\u1EF9
+    n\u0103ng chi\u1EBFn thu\u1EADt kh\xF4ng th\u1EC3 d\xF9ng li\xEAn t\u1EE5c b\u1EB1ng
+    c\xE1ch \u0111\u1ED5i v\u0169 kh\xED."
+  icon: {fileID: 21300000, guid: ab274b45c508c524bae5c9e80da30fdf, type: 3}
+  price: 376
+  maxStack: 1
+  rarity: 2
+  weaponType: 0
+  damage: 26
+  attackRate: 1.26
+  attackRange: 3
+  weaponPrefab: {fileID: 2648400704028801045, guid: dd5f678fc6597684c965d0fb379319da, type: 3}
+  weaponColor: {r: 0.52156866, g: 0.8509804, b: 0.95686275, a: 1}
+  swingArcAngle: 132
+  hitRadius: 2
+  knockbackForce: 1.5
+  projectilePrefab: {fileID: 6081238883670587671, guid: 1da134f1b388c433b974c52a1c410881, type: 3}
+  projectileSpeed: 16
+  projectileLifetime: 2
+  projectileCount: 1
+  spreadAngle: 0
+  inaccuracy: 0
+  autoFire: 0
+  pierceCount: 0
+  explosionRadius: 0
+  explosionDamagesOwner: 0
+  arcHeight: 2.4
+  strikeCount: 1
+  strikeInterval: 0.19
+  hitEffects:
+  - {fileID: 11400000, guid: 895639d3bd3c506458759579fb28588e, type: 2}
+  tacticalCast: 3
+  tacticalCooldown: 14
+  tacticalDistance: 2.7
+  tacticalDuration: 4.8
+  vfx:
+    element: 2
+    slashColor: {r: 0.52156866, g: 0.8509804, b: 0.95686275, a: 1}
+    auraColor: {r: 0.52156866, g: 0.8509804, b: 0.95686275, a: 0.7}
+    auraRate: 13
+    hitColor: {r: 0.52156866, g: 0.8509804, b: 0.95686275, a: 1}
+    trailColor: {r: 0.52156866, g: 0.8509804, b: 0.95686275, a: 1}
+    muzzleColor: {r: 0.52156866, g: 0.8509804, b: 0.95686275, a: 1}
+    groundShockwave: 0

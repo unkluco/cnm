@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
+using LightSouls.Combat.Weapons;
 using LightSouls.Common;
 
 namespace LightSouls.Combat.Items
@@ -28,6 +29,10 @@ namespace LightSouls.Combat.Items
 
         [Tooltip("Tự kích hoạt khi người chơi sắp chết thay vì bấm dùng.")]
         [SerializeField] private bool triggersOnDeath;
+        [SerializeField, Min(1f)] private float cooldown = 7f;
+        private const string CooldownKey = "combat.consumable";
+        public float Cooldown => Mathf.Max(1f,cooldown);
+        public static float CooldownRemaining => RunState.CooldownRemaining(CooldownKey);
 
         public float HealAmount => healAmount;
         public bool TriggersOnDeath => triggersOnDeath;
@@ -49,9 +54,17 @@ namespace LightSouls.Combat.Items
                 return false;
             }
 
+            if (user.CompareTag("Player") && CooldownRemaining > 0f)
+            {
+                UseRejected?.Invoke(user,"Đang hồi dược phẩm: "+Mathf.CeilToInt(CooldownRemaining)+"s");
+                return false;
+            }
+
             if (!HasEffects())
             {
-                return UseLegacyHeal(user);
+                bool used = UseLegacyHeal(user);
+                if(used && user.CompareTag("Player")) RunState.StartCooldown(CooldownKey,Cooldown);
+                return used;
             }
 
             ConsumableUseContext context = BuildContext(user, false);
@@ -66,6 +79,7 @@ namespace LightSouls.Combat.Items
             }
 
             ApplyAll(context);
+            if(user.CompareTag("Player")) RunState.StartCooldown(CooldownKey,Cooldown);
             return true;
         }
 
@@ -95,6 +109,7 @@ namespace LightSouls.Combat.Items
             }
 
             if (triggersOnDeath) sb.Append("\n• Tự kích hoạt khi gục ngã");
+            else sb.Append("\nHồi dược phẩm: ").Append(Cooldown.ToString("0.#")).Append("s (dùng chung)");
             return sb.ToString();
         }
 
@@ -149,7 +164,7 @@ namespace LightSouls.Combat.Items
             foreach (Collider col in Physics.OverlapSphere(origin, AutoAimRange, enemyMask))
             {
                 var damageable = col.GetComponentInParent<IDamageable>();
-                if (damageable == null || damageable.IsDead) continue;
+                if (damageable == null || damageable.IsDead || WeaponHitResolver.IsFriendly(user,damageable)) continue;
                 float distance = (col.bounds.center - origin).sqrMagnitude;
                 if (distance < best)
                 {

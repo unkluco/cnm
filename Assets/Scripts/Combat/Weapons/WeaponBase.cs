@@ -1,4 +1,5 @@
 using System;
+using LightSouls.Combat.Stats;
 using UnityEngine;
 
 namespace LightSouls.Combat.Weapons
@@ -13,13 +14,16 @@ namespace LightSouls.Combat.Weapons
         protected float lastAttackTime = -999f;
 
         public WeaponDataSO Data => weaponData;
+        public float EffectiveAttackInterval => weaponData == null ? 0f : Mathf.Max(.18f,
+            weaponData.Type==WeaponType.Melee?(weaponData.StrikeCount-1)*weaponData.StrikeInterval+.32f:0f,
+            weaponData.AttackRate * (GetComponentInParent<PlayerStats>()?.Get(StatType.AttackCooldown) ?? 1f));
 
         public virtual bool CanAttack
         {
             get
             {
                 if (weaponData == null) return false;
-                return Time.time >= lastAttackTime + weaponData.AttackRate;
+                return Time.time >= lastAttackTime + EffectiveAttackInterval;
             }
         }
 
@@ -38,7 +42,7 @@ namespace LightSouls.Combat.Weapons
         /// </summary>
         public virtual void OnEquipped()
         {
-            lastAttackTime = Time.time - (weaponData != null ? weaponData.AttackRate : 0.5f);
+            lastAttackTime = -999f;
         }
 
         /// <summary>
@@ -46,6 +50,7 @@ namespace LightSouls.Combat.Weapons
         /// </summary>
         public virtual void OnUnequipped()
         {
+            StopAllCoroutines();
         }
     }
 }

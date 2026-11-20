@@ -1,4 +1,6 @@
 using LightSouls.Common;
+using LightSouls.Combat.Enemies;
+using LightSouls.Combat.Bosses;
 using UnityEngine;
 
 namespace LightSouls.Combat.Effects
@@ -37,6 +39,14 @@ namespace LightSouls.Combat.Effects
 
         public bool IsBurning => Time.time < burnUntil;
         public bool IsSlowed => Time.time < slowUntil;
+        public bool IsStunned => Time.time < stunUntil;
+        public bool HasNegativeEffects=>IsBurning||IsSlowed||IsStunned;
+        public void Cleanse()
+        {
+            burnUntil=slowUntil=stunUntil=0f;burnDps=0f;slowMultiplier=1f;
+            DestroyAura(ref burnAura);DestroyAura(ref slowAura);DestroyAura(ref stunAura);
+            if(speedModifiable!=null)speedModifiable.RemoveSpeedMultiplier(this);
+        }
 
         public static StatusEffectReceiver GetOrAdd(GameObject target)
         {
@@ -84,6 +94,7 @@ namespace LightSouls.Combat.Effects
                 return;
             }
 
+            if(GetComponent<BossEnemy>()!=null){multiplier=Mathf.Max(.8f,multiplier);duration=Mathf.Min(1.6f,duration);}
             slowMultiplier = IsSlowed ? Mathf.Min(slowMultiplier, multiplier) : multiplier;
             slowUntil = Mathf.Max(slowUntil, Time.time + duration);
             speedModifiable.SetSpeedMultiplier(this, slowMultiplier);
@@ -93,19 +104,25 @@ namespace LightSouls.Combat.Effects
             }
         }
 
-        public void ApplyStun(float duration)
+        public void ApplyStun(float duration)=>TryStun(duration);
+
+        public bool TryStun(float duration)
         {
             if (IsDead() || duration <= 0f || stunnable == null)
             {
-                return;
+                return false;
             }
-
-            stunnable.Stun(duration);
+            if(stunnable is EnemyBase enemy)
+            {
+                if(!enemy.TryStun(duration,out duration))return false;
+            }
+            else stunnable.Stun(duration);
             stunUntil = Mathf.Max(stunUntil, Time.time + duration);
             if (stunAura == null)
             {
                 stunAura = VfxFactory.StunAura(transform, StunColor);
             }
+            return true;
         }
 
         private void Update()
@@ -136,10 +153,11 @@ namespace LightSouls.Combat.Effects
                 }
             }
 
-            if (slowAura != null && now >= slowUntil)
+            if (slowUntil>0f && now >= slowUntil)
             {
                 if (speedModifiable != null) speedModifiable.RemoveSpeedMultiplier(this);
                 DestroyAura(ref slowAura);
+                slowUntil=0f;slowMultiplier=1f;
             }
 
             if (stunAura != null && now >= stunUntil)

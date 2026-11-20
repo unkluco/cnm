@@ -37,6 +37,21 @@ namespace LightSouls.Common
         private static readonly List<ItemSlotRecord> inventorySlots = new List<ItemSlotRecord>();
         private static readonly List<int> bossRotation = new List<int>();
         private static int lastBossIndex = -1, bossRosterSize;
+        private static readonly Dictionary<string, float> combatCooldowns = new Dictionary<string, float>();
+
+        public static int DungeonsEntered { get; private set; }
+        public static int CombatRoomsCleared { get; private set; }
+        private static float nextDungeonHealth=1f;
+        public static void CarryHealthToNextDungeon(float fraction)=>nextDungeonHealth=Mathf.Clamp(fraction,.05f,1f);
+        public static float ConsumeDungeonHealth(){float value=nextDungeonHealth;nextDungeonHealth=1f;return value;}
+        public static void RecordDungeonEntry() => DungeonsEntered++;
+        public static void RecordCombatClear() => CombatRoomsCleared++;
+        public static float CooldownRemaining(string key) => !string.IsNullOrEmpty(key) && combatCooldowns.TryGetValue(key, out float until)
+            ? Mathf.Max(0f, until - Time.time) : 0f;
+        public static void StartCooldown(string key, float duration)
+        {
+            if (!string.IsNullOrEmpty(key) && duration > 0f) combatCooldowns[key] = Time.time + duration;
+        }
 
         /// <summary>Shuffle bag: meet each boss before a repeat, even when travelling to another dungeon.</summary>
         public static int TakeNextBossIndex(int rosterSize)
@@ -129,6 +144,8 @@ namespace LightSouls.Common
         {
             inventorySlots.Clear();
             bossRotation.Clear();lastBossIndex=-1;bossRosterSize=0;
+            combatCooldowns.Clear(); DungeonsEntered=0; CombatRoomsCleared=0;
+            nextDungeonHealth=1f;
             HasInventorySnapshot = false;
             SelectedDungeonId = string.Empty;
             DungeonGenerationFailed = false;
