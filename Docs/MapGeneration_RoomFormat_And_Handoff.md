@@ -4,6 +4,8 @@
 **Nhánh Git:** `feature/map-generation`  
 **Dự án:** Light Souls (Unity 6 — `6000.5.x`, URP, New Input System, Unity AI Navigation)
 
+Thư viện 30 mẫu phòng và các địa hình thủ công mới được mô tả tại [Expanded Dungeon Terrain](ExpandedDungeonTerrain.md). Những quy ước socket, footprint và integration anchor của tài liệu này vẫn được giữ nguyên.
+
 ---
 
 ## 1. Kiến trúc tổng thể & Tham khảo thiết kế

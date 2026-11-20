@@ -199,9 +199,9 @@ namespace LightSouls.Stability.Tests
             shop.Close();
         }
 
-        private static IEnumerator Capture(string filename)
+        internal static IEnumerator Capture(string filename, string captureVariable = "LIGHTSOULS_ARRIVAL_CAPTURE_DIR")
         {
-            string directory = Environment.GetEnvironmentVariable("LIGHTSOULS_ARRIVAL_CAPTURE_DIR");
+            string directory = Environment.GetEnvironmentVariable(captureVariable);
             if (string.IsNullOrWhiteSpace(directory) || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null) yield break;
             Directory.CreateDirectory(directory);
             var camera = Camera.main;

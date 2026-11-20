@@ -43,6 +43,8 @@ namespace LightSouls.Game
             public RoomModule Room;
             public Bounds WorldBounds;
             public Image Image;
+            public Image Marker;
+            public bool SecretTreasury;
             public bool Visited;
             public readonly List<RoomEntry> Neighbors = new List<RoomEntry>();
         }
@@ -51,6 +53,18 @@ namespace LightSouls.Game
         private Transform player;
         private Vector2 worldCenter;
         private float pixelsPerMeter = 1f;
+
+        public bool HasDiscoveredMarker(int roomId)
+        {
+            var entry = entries.Find(e => e.Room.RoomId == roomId);
+            return entry != null && entry.Marker != null && entry.Marker.enabled;
+        }
+
+        public bool IsRoomVisible(int roomId)
+        {
+            var entry = entries.Find(e => e.Room.RoomId == roomId);
+            return entry != null && entry.Image != null && entry.Image.enabled;
+        }
 
         /// <summary>Dựng bản đồ cho màn vừa sinh và bắt đầu theo dõi người chơi.</summary>
         public void Show(DungeonRuntimeContext context, Transform playerTransform)
@@ -120,7 +134,7 @@ namespace LightSouls.Game
                     continue;
                 }
 
-                var entry = new RoomEntry { Room = room, WorldBounds = room.GetCurrentWorldBounds() };
+                var entry = new RoomEntry { Room = room, WorldBounds = room.GetCurrentWorldBounds(), SecretTreasury = room.GetComponent<RoomTerrainProfile>()?.HiddenTreasury == true };
                 entries.Add(entry);
                 byId[room.RoomId] = entry;
             }
@@ -178,6 +192,27 @@ namespace LightSouls.Game
                 entry.Image = go.GetComponent<Image>();
                 entry.Image.raycastTarget = false;
                 entry.Image.enabled = false;
+
+                string marker = entry.Room.RoomType switch
+                {
+                    RoomType.Start when entry.Room.VendingMachine != null => "MapShop",
+                    RoomType.Treasure => "MapTreasure",
+                    RoomType.Exit => "MapBoss",
+                    _ => null
+                };
+                if (marker != null)
+                {
+                    var sprite = Resources.Load<Sprite>("Art/DarkFantasy/UI/" + marker);
+                    if (sprite != null)
+                    {
+                        var icon = new GameObject(marker, typeof(RectTransform), typeof(Image));
+                        var iconRect = (RectTransform)icon.transform; iconRect.SetParent(rect, false);
+                        iconRect.anchorMin = iconRect.anchorMax = iconRect.pivot = new Vector2(.5f, .5f);
+                        iconRect.sizeDelta = Vector2.one * Mathf.Clamp(Mathf.Min(rect.sizeDelta.x, rect.sizeDelta.y) * .70f, 12f, 26f);
+                        entry.Marker = icon.GetComponent<Image>(); entry.Marker.sprite = sprite;
+                        entry.Marker.preserveAspect = true; entry.Marker.raycastTarget = false; entry.Marker.enabled = false;
+                    }
+                }
             }
         }
 
@@ -185,7 +220,8 @@ namespace LightSouls.Game
         {
             bool isExit = entry.Room.RoomType == RoomType.Exit;
             // Phòng đích (phòng boss) cũng chịu sương mù: người chơi phải tự tìm ra nó.
-            bool seen = entry.Visited || HasVisitedNeighbor(entry);
+            bool seen = entry.Visited || (!entry.SecretTreasury && HasVisitedNeighbor(entry));
+            if (entry.Marker != null) entry.Marker.enabled = entry.Visited && seen;
 
             if (entry.Image.enabled != seen)
             {
@@ -206,6 +242,8 @@ namespace LightSouls.Game
 
         private Color GetRoomColor(RoomEntry entry, bool isExit)
         {
+            // The map can hint at adjacent geometry, but not reveal special rooms before discovery.
+            if (!entry.Visited) return seenColor;
             var lifecycle = entry.Room.LifecycleController;
             if (lifecycle != null && lifecycle.State == RoomLifecycleState.Combat)
             {

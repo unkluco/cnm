@@ -15,6 +15,8 @@ namespace LightSouls.Art.Editor
             {
                 RoomModule room=root.GetComponent<RoomModule>();
                 if(room==null) return;
+                // The expanded terrain builder owns these authored room kits and cutaway walls.
+                if(root.GetComponent<RoomTerrainProfile>()!=null)return;
                 Material rune=room.RoomType switch { RoomType.Exit=>purple, RoomType.Treasure=>gold, RoomType.Start=>soul, RoomType.Combat=>amber, _=>bronze };
                 StyleFloor(root,Find(root,"Floor"),root.name,rune,room.RoomType!=RoomType.Corridor);
                 Transform walls=Find(root,"Walls");
@@ -52,12 +54,12 @@ namespace LightSouls.Art.Editor
             });
         }
 
-        private static void StyleFloor(Transform root,Transform floor,string key,Material rune,bool emblem)
+        private static void StyleFloor(Transform root,Transform floor,string key,Material rune,bool emblem,Material[] paletteOverride=null)
         {
             if(floor==null) return;
             Restyle(floor,mortar);
             var random=new System.Random(1729+key.Length*331);
-            Material[] palette=key.Contains("Lava")?volcanicStones:key.Contains("Water")?drownedStones:key.Contains("Exit")?cryptStones:key.Contains("Treasure")?treasuryStones:floorStones;
+            Material[] palette=paletteOverride??(key.Contains("Lava")?volcanicStones:key.Contains("Water")?drownedStones:key.Contains("Exit")?cryptStones:key.Contains("Treasure")?treasuryStones:floorStones);
             Material engraved=rune==soul?runeTeal:rune==purple?runeViolet:rune==gold||rune==amber?runeGold:bronze;
             Vector3 size=floor.localScale, center=root.InverseTransformPoint(floor.position);
             float top=center.y+size.y*.5f;

@@ -259,6 +259,9 @@ namespace LightSouls.MapGeneration
                     GameObject child = container.GetChild(i).gameObject;
                     if (Application.isPlaying)
                     {
+                        // Runtime NavMesh baking happens before deferred destruction completes.
+                        // Retired obstacles must be inactive immediately.
+                        child.SetActive(false);
                         Destroy(child);
                     }
                     else

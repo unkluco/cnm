@@ -1265,6 +1265,7 @@ MonoBehaviour:
   backpack: {fileID: 838858860}
   coinsPerClearedRoom: 20
   treasureChestPrefab: {fileID: 4686626137835454384, guid: 2c1d6deb60b133e40bd67fae10b7eac1, type: 3}
+  hiddenTreasuryLootTable: {fileID: 11400000, guid: 110a30e4242dbd943886218860494933, type: 2}
   treasureChestUI: {fileID: 238918646}
   cameraFollow: {fileID: 1571660453}
   pauseMenu: {fileID: 1672815430}
@@ -2017,6 +2018,7 @@ GameObject:
   - component: {fileID: 1571660450}
   - component: {fileID: 1571660453}
   - component: {fileID: 1571660454}
+  - component: {fileID: 1571660455}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -2159,6 +2161,19 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!114 &1571660455
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1571660449}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3dc5623d150670a428844bec4905de2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LightSouls.Art::LightSouls.Art.DungeonWallOcclusion
+  scanInterval: 0.075
 --- !u!1 &1583079646
 GameObject:
   m_ObjectHideFlags: 0

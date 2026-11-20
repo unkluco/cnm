@@ -55,6 +55,7 @@ namespace LightSouls.Game
         [Header("Hòm kho báu")]
         [Tooltip("Hòm đặt tại mỗi điểm loot của phòng (trừ phòng cuối, nơi có phần thưởng boss riêng). Bỏ trống thì không đặt hòm.")]
         [SerializeField] private TreasureChest treasureChestPrefab;
+        [SerializeField] private LootTableSO hiddenTreasuryLootTable;
 
         [Tooltip("Bảng mở hòm. Bỏ trống thì tự tìm trong Scene, không có thì tự tạo.")]
         [SerializeField] private TreasureChestUI treasureChestUI;
@@ -351,12 +352,12 @@ namespace LightSouls.Game
 
                 foreach (var point in room.LootSpawnPoints)
                 {
-                    SpawnChestAt(point);
+                    SpawnChestAt(point, room.GetComponent<RoomTerrainProfile>()?.HiddenTreasury == true);
                 }
             }
         }
 
-        private void SpawnChestAt(Transform point)
+        private void SpawnChestAt(Transform point, bool secretTreasury = false)
         {
             if (point == null || treasureChestPrefab == null) return;
 
@@ -367,7 +368,8 @@ namespace LightSouls.Game
 
             point.gameObject.SetActive(false);
             var rotation = Quaternion.Euler(0f, point.eulerAngles.y, 0f);
-            Instantiate(treasureChestPrefab, position, rotation, point.parent);
+            var chest = Instantiate(treasureChestPrefab, position, rotation, point.parent);
+            if (secretTreasury && hiddenTreasuryLootTable != null) chest.SetLootTable(hiddenTreasuryLootTable);
         }
 
         private void SpawnBossRewardChests(RoomModule room)
@@ -457,6 +459,7 @@ namespace LightSouls.Game
                 else
                 {
                     currentBossKind=enemySpawner.ActiveBoss.Kind;
+                    room.GetComponent<BossArenaDressing>()?.Apply(enemySpawner.ActiveBoss.Definition);
                     if(cameraFollow!=null)cameraFollow.SetBossFocus(enemySpawner.ActiveBoss);
                 }
             }
