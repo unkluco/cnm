@@ -102,6 +102,7 @@ namespace LightSouls.Combat.Weapons
                 {
                     continue;
                 }
+                if(!isOwner&&Physics.Linecast(center+Vector3.up*.65f,hit.bounds.center,1<<8,QueryTriggerInteraction.Ignore))continue;
 
                 float distance = Vector3.Distance(center, hit.ClosestPoint(center));
                 float falloff = Mathf.Lerp(1f, 0.5f, Mathf.Clamp01(distance / Mathf.Max(0.01f, radius)));

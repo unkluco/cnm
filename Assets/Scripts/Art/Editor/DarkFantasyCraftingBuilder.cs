@@ -134,6 +134,9 @@ namespace LightSouls.Art.Editor
 
             var catalog=AssetDatabase.LoadAssetAtPath<CraftingCatalogSO>(CraftCatalogAsset);
             if(catalog==null){catalog=ScriptableObject.CreateInstance<CraftingCatalogSO>();AssetDatabase.CreateAsset(catalog,CraftCatalogAsset);}
+            // The expansion owns its own recipes; rebuilding the original forge must not discard them.
+            materials.AddRange(catalog.Materials.Where(m=>m!=null&&ArsenalId(m)));
+            recipes.AddRange(catalog.Recipes.Where(r=>r!=null&&r.Id.StartsWith("arsenal.",StringComparison.Ordinal)));
             var serialized=new SerializedObject(catalog);var ml=serialized.FindProperty("materials");ml.arraySize=materials.Count;
             for(int i=0;i<materials.Count;i++)ml.GetArrayElementAtIndex(i).objectReferenceValue=materials[i];
             var rl=serialized.FindProperty("recipes");rl.arraySize=recipes.Count;

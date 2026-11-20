@@ -21,8 +21,8 @@ MonoBehaviour:
   maxStack: 1
   rarity: 2
   weaponType: 0
-  damage: 45
-  attackRate: 1.2
+  damage: 39
+  attackRate: 1.54
   attackRange: 1.6
   weaponPrefab: {fileID: 8614026019893775141, guid: b566885bf36369542a4513b62257b3ce, type: 3}
   weaponColor: {r: 0.4, g: 0.42, b: 0.48, a: 1}
@@ -44,6 +44,10 @@ MonoBehaviour:
   strikeInterval: 0.12
   hitEffects:
   - {fileID: 11400000, guid: 672de6aac0ca70144b93e9587ba67a5c, type: 2}
+  tacticalCast: 0
+  tacticalCooldown: 8
+  tacticalDistance: 3
+  tacticalDuration: 4
   vfx:
     element: 5
     slashColor: {r: 0.95, g: 0.85, b: 0.55, a: 0.9}

@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
 using LightSouls.Combat.Weapons;
+using LightSouls.Common;
+using LightSouls.Combat.Items;
 
 namespace LightSouls.Combat.UI
 {
@@ -49,6 +51,9 @@ namespace LightSouls.Combat.UI
         [SerializeField] private Image skillCooldownOverlay;
 
         private PlayerController _subscribedPlayer;
+        private Image attackCooldownShade;
+        private Text attackCooldownText,tacticalCooldownText;
+        public Text AttackCooldownText=>attackCooldownText;
 
         private void Start()
         {
@@ -78,6 +83,23 @@ namespace LightSouls.Combat.UI
             }
 
             Subscribe();
+            BuildAttackCooldownUI();
+        }
+
+        private void BuildAttackCooldownUI()
+        {
+            if(attackCooldownShade!=null)return;
+            var anchor=attackButtonIconImage!=null?attackButtonIconImage.transform.parent:attackButtonIconText!=null?attackButtonIconText.transform.parent:null;
+            if(anchor==null)return;
+            var shade=new GameObject("AttackCooldownShade",typeof(RectTransform),typeof(Image));shade.transform.SetParent(anchor,false);
+            var rect=(RectTransform)shade.transform;rect.anchorMin=Vector2.zero;rect.anchorMax=Vector2.one;rect.offsetMin=Vector2.zero;rect.offsetMax=Vector2.zero;
+            attackCooldownShade=shade.GetComponent<Image>();attackCooldownShade.sprite=DarkFantasyTheme.CircleFrame;attackCooldownShade.type=Image.Type.Filled;
+            attackCooldownShade.fillMethod=Image.FillMethod.Radial360;attackCooldownShade.fillOrigin=2;attackCooldownShade.fillClockwise=false;
+            attackCooldownShade.color=new Color(.06f,.08f,.13f,.85f);attackCooldownShade.raycastTarget=false;shade.SetActive(false);
+            attackCooldownText=DarkVitalityBar.Label((RectTransform)anchor,"AttackCooldownText",string.Empty,Vector2.zero,new Vector2(122,46),30,DarkFantasyTheme.Ivory,bold:true);
+            attackCooldownText.gameObject.SetActive(false);
+            tacticalCooldownText=DarkVitalityBar.Label((RectTransform)anchor,"TacticalCooldownText",string.Empty,new Vector2(0,87),new Vector2(190,30),19,DarkFantasyTheme.Gold,bold:true);
+            tacticalCooldownText.gameObject.SetActive(false);
         }
 
         /// <summary>
@@ -127,6 +149,23 @@ namespace LightSouls.Combat.UI
 
         private void Update()
         {
+            if(attackCooldownShade==null)BuildAttackCooldownUI();
+            if(attackCooldownShade!=null&&player!=null&&player.Combat!=null)
+            {
+                float remaining=player.Combat.AttackCooldownRemaining;
+                bool cooling=remaining>.035f;
+                attackCooldownShade.gameObject.SetActive(cooling);attackCooldownShade.fillAmount=player.Combat.AttackCooldownRatio;
+                attackCooldownText.gameObject.SetActive(cooling);attackCooldownText.text=cooling?remaining.ToString("0.0"):string.Empty;
+                var w=player.Combat.CurrentWeaponData;
+                bool hasTactic=w!=null&&w.HasTacticalSkill;
+                if(tacticalCooldownText!=null)
+                {
+                    tacticalCooldownText.gameObject.SetActive(hasTactic);
+                    float special=player.Combat.TacticalCooldownRemaining;
+                    tacticalCooldownText.text=special>.05f?"KỸ NĂNG · "+special.ToString("0.0")+"s":"KỸ NĂNG SẴN SÀNG";
+                    tacticalCooldownText.color=special>.05f?DarkFantasyTheme.Muted:DarkFantasyTheme.Gold;
+                }
+            }
             // Cập nhật hiển thị thời gian hồi chiêu của nút Skill nếu có
             if (skillCooldownOverlay != null && player != null && player.Movement != null)
             {

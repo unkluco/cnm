@@ -74,6 +74,12 @@ namespace LightSouls.Combat.Weapons
         [Tooltip("Các hiệu ứng chạy mỗi khi trúng mục tiêu (đốt, làm chậm, choáng, hút máu...).")]
         [SerializeField] private List<WeaponHitEffectSO> hitEffects = new List<WeaponHitEffectSO>();
 
+        [Header("Kỹ năng chiến thuật khi đánh")]
+        [SerializeField] private WeaponCastKind tacticalCast;
+        [SerializeField, Min(1f)] private float tacticalCooldown = 8f;
+        [SerializeField, Min(.5f)] private float tacticalDistance = 3f;
+        [SerializeField, Min(.5f)] private float tacticalDuration = 4f;
+
         [Header("Hiệu ứng hình ảnh")]
         [SerializeField] private WeaponVfxProfile vfx = new WeaponVfxProfile();
 
@@ -111,6 +117,19 @@ namespace LightSouls.Combat.Weapons
         public float StrikeInterval => strikeInterval;
 
         public IReadOnlyList<WeaponHitEffectSO> HitEffects => hitEffects;
+        public WeaponCastKind TacticalCast => tacticalCast;
+        public float TacticalCooldown => Mathf.Max(1f,tacticalCooldown);
+        public float TacticalDistance => tacticalDistance;
+        public float TacticalDuration => tacticalDuration;
+        public bool HasTacticalSkill
+        {
+            get
+            {
+                if(tacticalCast!=WeaponCastKind.None)return true;
+                foreach(var effect in hitEffects)if(effect is TacticalHitEffectSO)return true;
+                return false;
+            }
+        }
         public WeaponVfxProfile Vfx => vfx ?? (vfx = new WeaponVfxProfile());
 
         public override string GetStatsText()
@@ -135,6 +154,9 @@ namespace LightSouls.Combat.Weapons
             {
                 if (effect != null) sb.Append("\n• ").Append(effect.Describe());
             }
+
+            if(tacticalCast != WeaponCastKind.None)
+                sb.Append("\n• ").Append(WeaponTactics.Describe(this));
 
             return sb.ToString();
         }

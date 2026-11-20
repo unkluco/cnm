@@ -25,6 +25,7 @@ namespace LightSouls.Combat.Stats
         SpikeDamage,
         /// <summary>Sát thương nổ (thùng nổ, bom, lựu đạn).</summary>
         ExplosionDamage,
+        AttackCooldown,
     }
 
     [Serializable]
@@ -79,6 +80,7 @@ namespace LightSouls.Combat.Stats
                 case StatType.WaterSlow: return "Mức chậm khi lội nước";
                 case StatType.SpikeDamage: return "Sát thương bẫy gai";
                 case StatType.ExplosionDamage: return "Sát thương vụ nổ";
+                case StatType.AttackCooldown: return "Thời gian hồi đòn";
                 default: return stat.ToString();
             }
         }

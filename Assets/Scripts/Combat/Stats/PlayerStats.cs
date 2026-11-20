@@ -145,7 +145,18 @@ namespace LightSouls.Combat.Stats
                 }
             }
 
-            return value;
+            // Keep stacking multiple potions/gear from making the knight invulnerable,
+            // destroying cooldowns, or multiplying burst damage without a meaningful limit.
+            return stat switch
+            {
+                StatType.DamageDealt => Mathf.Clamp(value,.55f,1.65f),
+                StatType.DamageTaken => Mathf.Clamp(value,.48f,2.25f),
+                StatType.AttackCooldown => Mathf.Clamp(value,.72f,1.65f),
+                StatType.DashCooldown => Mathf.Clamp(value,.65f,1.8f),
+                StatType.MoveSpeed => Mathf.Clamp(value,.35f,1.55f),
+                StatType.DashDistance => Mathf.Clamp(value,.65f,1.5f),
+                _ => value
+            };
         }
 
         public float GetHazardMultiplier(HazardKind kind)

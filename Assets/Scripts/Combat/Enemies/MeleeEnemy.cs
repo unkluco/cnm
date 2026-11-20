@@ -19,12 +19,13 @@ namespace LightSouls.Combat.Enemies
         private bool _isAttacking = false;
         private static readonly Color WarningColor = new Color(1f, .44f, .13f, .9f);
         private ArcaneTelegraph warning;
+        private Coroutine attackRoutine;
+        private Quaternion armRest;
 
         protected override void HandleBehavior(float distanceToPlayer)
         {
             if (_isAttacking)
             {
-                LookAtPlayer();
                 return;
             }
 
@@ -57,7 +58,7 @@ namespace LightSouls.Combat.Enemies
         protected override void ExecuteAttack()
         {
             _lastAttackTime = Time.time;
-            StartCoroutine(AttackRoutine());
+            attackRoutine=StartCoroutine(AttackRoutine());
         }
 
         private IEnumerator AttackRoutine()
@@ -67,23 +68,23 @@ namespace LightSouls.Combat.Enemies
 
             // Nhấc cánh tay / lùi nhẹ chuẩn bị chém (Wind-up 0.2s)
             Quaternion initialArmRot = visualArm != null ? visualArm.localRotation : Quaternion.identity;
+            armRest=initialArmRot;
             if (visualArm != null)
             {
                 visualArm.localRotation = initialArmRot * Quaternion.Euler(-45f, 0f, 0f);
             }
 
-            float resolveAt = Time.time + .2f;
-            Vector3 ground = AttackCenter(); ground.y = transform.position.y;
-            warning = ArcaneTelegraph.Circle("EnemyWarning_Melee", ground, hitRadius, WarningColor, .2f,
+            const float windup=.36f;
+            float resolveAt = Time.time + windup;
+            Vector3 center = AttackCenter(); Vector3 ground=center; ground.y = transform.position.y;
+            warning = ArcaneTelegraph.Circle("EnemyWarning_Melee", ground, hitRadius, WarningColor, windup,
                 CombatVfxElement.Steel, TelegraphStyle.Danger, transform);
-            while (Time.time < resolveAt && !IsDead && isActiveAndEnabled)
+            while (Time.time < resolveAt && !IsDead && !IsStunned && !IsCharmed && isActiveAndEnabled)
             {
-                ground = AttackCenter(); ground.y = transform.position.y;
-                if (warning != null) warning.SetCircle(ground, hitRadius);
                 yield return null;
             }
             ClearWarning();
-            if (IsDead || !isActiveAndEnabled) { _isAttacking = _isAttackingLimbAnim = false; yield break; }
+            if (IsDead || IsStunned || IsCharmed || !isActiveAndEnabled) { ResetPose(); yield break; }
 
             // Bổ mạnh cánh tay về phía trước (Strike)
             if (visualArm != null)
@@ -92,7 +93,6 @@ namespace LightSouls.Combat.Enemies
             }
 
             // Điểm kiểm tra sát thương (Attack Point)
-            Vector3 center = AttackCenter();
             SwordSlashWave.Spawn(transform.position + Vector3.up * .85f, transform.forward,
                 Mathf.Max(1f, attackRange * .82f), 85f, WarningColor, CombatVfxElement.Steel);
 
@@ -108,7 +108,7 @@ namespace LightSouls.Combat.Enemies
                     damageable = col.GetComponentInParent<IDamageable>();
                 }
 
-                if (damageable != null && !damageable.IsDead)
+                if (damageable != null && !damageable.IsDead && !Physics.Linecast(transform.position+Vector3.up*.85f,col.ClosestPoint(center),1<<8,QueryTriggerInteraction.Ignore))
                 {
                     DamageInfo info = new DamageInfo
                     {
@@ -134,7 +134,11 @@ namespace LightSouls.Combat.Enemies
 
             _isAttacking = false;
             _isAttackingLimbAnim = false;
+            attackRoutine=null;
         }
+
+        private void ResetPose(){if(visualArm!=null&&_isAttacking)visualArm.localRotation=armRest;_isAttacking=false;_isAttackingLimbAnim=false;attackRoutine=null;}
+        protected override void CancelPendingAttack(){if(attackRoutine!=null)StopCoroutine(attackRoutine);ClearWarning();ResetPose();}
 
         private Vector3 AttackCenter() => attackPoint != null ? attackPoint.position :
             transform.position + transform.forward * (attackRange * .7f) + Vector3.up * .9f;
@@ -146,6 +150,7 @@ namespace LightSouls.Combat.Enemies
 
         protected override void HandleDied(IDamageable damageable) { ClearWarning(); base.HandleDied(damageable); }
         protected override void OnDestroy() { ClearWarning(); base.OnDestroy(); }
+        private void OnDisable()=>CancelPendingAttack();
 
         private void OnDrawGizmosSelected()
         {

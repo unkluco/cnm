@@ -166,12 +166,14 @@ namespace LightSouls.Combat.Enemies
             while (elapsed < windup && CanResolve())
             {
                 elapsed += Time.deltaTime;
+                CastPose(Mathf.Clamp01(elapsed/windup),false);
                 yield return null;
             }
             ClearWarnings();
 
             if (CanResolve())
             {
+                CastPose(1f,true);
                 switch (kind)
                 {
                     case SpecialEnemyKind.Charger:
@@ -237,12 +239,29 @@ namespace LightSouls.Combat.Enemies
             }
 
             // Guard is vulnerable during recovery too.
-            yield return new WaitForSeconds(kind == SpecialEnemyKind.ShieldGuard ? 0.65f : 0.2f);
+            float recovery=kind==SpecialEnemyKind.ShieldGuard?.65f:.26f;
+            float recovered=0f;
+            while(recovered<recovery&&!IsDead){recovered+=Time.deltaTime;CastPose(1-Mathf.Clamp01(recovered/recovery),true);yield return null;}
+            RestoreCastPose();
             if (kind == SpecialEnemyKind.ShieldGuard && !IsDead) SetGuard(true);
             casting = false;
             _isAttackingLimbAnim = false;
             nextAttack = Time.time + attackCooldown;
             attack = null;
+        }
+
+        private void CastPose(float amount,bool release)
+        {
+            bool heavy=kind==SpecialEnemyKind.StoneGolem||kind==SpecialEnemyKind.ShieldGuard||kind==SpecialEnemyKind.Charger;
+            float a=Mathf.SmoothStep(0,1,amount);float lift=release?50f:(heavy?-74f:-54f);
+            if(rightArm!=null)rightArm.localRotation=_defaultRightArmRot*Quaternion.Euler(lift*a,heavy?18f*a:0f,heavy?14f*a:21f*a);
+            if(leftArm!=null)leftArm.localRotation=_defaultLeftArmRot*Quaternion.Euler((release?26f:-42f)*a,0,-16f*a);
+            if(torso!=null)torso.localRotation=_defaultTorsoRot*Quaternion.Euler((release?15f:heavy?-9f:-3f)*a,0,0);
+        }
+        private void RestoreCastPose()
+        {
+            if(rightArm!=null)rightArm.localRotation=_defaultRightArmRot;if(leftArm!=null)leftArm.localRotation=_defaultLeftArmRot;
+            if(torso!=null)torso.localRotation=_defaultTorsoRot;
         }
 
         private IEnumerator ChargeTo(Vector3 destination)
@@ -273,7 +292,7 @@ namespace LightSouls.Combat.Enemies
             return sampled.position;
         }
 
-        private bool CanResolve() => !IsDead && !IsStunned && _playerTransform != null &&
+        private bool CanResolve() => !IsDead && !IsStunned && !IsCharmed && _playerTransform != null &&
             _playerController != null && !_playerController.IsDead;
 
         private bool ClearLine(Vector3 from, Vector3 to)
@@ -308,7 +327,7 @@ namespace LightSouls.Combat.Enemies
             float bestRatio = 0.8f;
             foreach (var enemy in FindObjectsByType<EnemyBase>(FindObjectsSortMode.None))
             {
-                if (enemy == this || enemy.IsDead || Vector3.Distance(transform.position, enemy.transform.position) > 8f) continue;
+                if (enemy == this || enemy.IsDead || enemy.IsCharmed || Vector3.Distance(transform.position, enemy.transform.position) > 8f) continue;
                 var health = enemy.GetComponent<HealthComponent>();
                 if (health == null || health.MaxHealth <= 0f || !ClearLine(transform.position, enemy.transform.position)) continue;
                 float ratio = health.CurrentHealth / health.MaxHealth;
@@ -369,6 +388,16 @@ namespace LightSouls.Combat.Enemies
             ClearWarnings();
             VfxFactory.ReleaseTrail(gameObject);
             base.HandleDied(damageable);
+        }
+
+        protected override void CancelPendingAttack()
+        {
+            if(attack!=null)StopCoroutine(attack);
+            attack=null;casting=false;_isAttackingLimbAnim=false;ClearWarnings();
+            RestoreCastPose();
+            nextAttack=Mathf.Max(nextAttack,Time.time+.45f);
+            if(kind==SpecialEnemyKind.ShieldGuard&&!IsDead)SetGuard(true);
+            VfxFactory.ReleaseTrail(gameObject);
         }
 
         protected override void OnDestroy()

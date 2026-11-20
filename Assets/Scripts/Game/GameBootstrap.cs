@@ -187,6 +187,7 @@ namespace LightSouls.Game
             }
 
             levelExitPoint = context.LevelExitPoint;
+            RunState.RecordDungeonEntry();
             SpawnPlayer(context.PlayerSpawnPoint);
 
             foreach (var room in context.SpawnedRooms)
@@ -309,6 +310,7 @@ namespace LightSouls.Game
             }
 
             RunState.SelectedDungeonId = destination.dungeonId;
+            RunState.CarryHealthToNextDungeon(player.CurrentHealth/Mathf.Max(1f,player.MaxHealth));
             RunState.SetPortalArrivalMessage("Cổng bí ẩn đưa bạn đến: " + destination.displayName);
             SceneLoader.LoadGame();
         }
@@ -319,6 +321,7 @@ namespace LightSouls.Game
             isFinished = true;
             Debug.LogError($"[GameBootstrap] Không thể tạo ngục: {error}", this);
             RunState.DungeonGenerationFailed = true;
+            RunState.ConsumeDungeonHealth();
             SceneLoader.LoadLobby();
         }
 
@@ -387,6 +390,7 @@ namespace LightSouls.Game
         {
             var spawnRotation = Quaternion.Euler(0f, spawnPoint.eulerAngles.y, 0f);
             player = Instantiate(playerPrefab, spawnPoint.position, spawnRotation);
+            player.GetComponent<HealthComponent>()?.RestoreFraction(RunState.ConsumeDungeonHealth());
             player.OnDied += HandlePlayerDied;
             // Cuộn Dịch Chuyển đưa người chơi về đây.
             player.SetSafePoint(spawnPoint.position);
@@ -444,6 +448,7 @@ namespace LightSouls.Game
             // Gán trước khi sinh quái: phòng không có điểm sinh quái sẽ phát AllEnemiesDefeated ngay trong SpawnWave.
             roomInCombat = room;
             currentBossKind=null;
+            enemySpawner.ConfigureChallenge(RunState.SelectedDungeonId,room.GraphDepth,RunState.DungeonsEntered,RunState.CombatRoomsCleared);
             if (player != null)
             {
                 player.InLockedCombat = true;
@@ -496,6 +501,7 @@ namespace LightSouls.Game
             else if(materialDrops>0)CombatToast.Show("Nguyên liệu chế tạo đã rơi ra!");
 
             RunState.AddCoins(coinsPerClearedRoom);
+            RunState.RecordCombatClear();
         }
 
         private void HandlePlayerDied(IDamageable _)

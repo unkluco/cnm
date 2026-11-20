@@ -49,7 +49,7 @@ namespace LightSouls.Stability.Tests
             var station=Object.FindAnyObjectByType<CraftingStation>();Assert.NotNull(station);
             var wood=catalog.FindMaterial("material.wood");var iron=catalog.FindMaterial("material.iron");var fireStone=catalog.FindMaterial("material.fire_stone");
             var sword=catalog.FindRecipe("forge.iron_sword");var fire=catalog.FindRecipe("upgrade.fire_sword");
-            Assert.AreEqual(2,bag.GetCount(wood));Assert.AreEqual(3,bag.GetCount(iron));Assert.AreEqual(20,bag.MaterialSlots.Count);
+            Assert.AreEqual(2,bag.GetCount(wood));Assert.AreEqual(3,bag.GetCount(iron));Assert.AreEqual(catalog.Materials.Count,bag.MaterialSlots.Count);
             Assert.IsFalse(bag.HotbarSlots.Concat(bag.BackpackSlots).Any(s=>!s.IsEmpty&&s.Item.Category==ItemCategory.Material));
 
             Vector3 approach=station.transform.position+Vector3.back*2.05f;approach.y=player.transform.position.y;player.Teleport(approach);

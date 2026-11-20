@@ -17,12 +17,12 @@ MonoBehaviour:
   description: "B\u1EAFn \u0111\u1EA1n n\u1ED5 bay v\xF2ng cung, n\u1ED5 lan r\u1ED9ng.
     C\u1EA9n th\u1EADn: \u0111\u1EE9ng g\u1EA7n c\u0169ng b\u1ECB th\u01B0\u01A1ng!"
   icon: {fileID: 21300000, guid: 6adea07ef9c40ff468cb168084239ae9, type: 3}
-  price: 350
+  price: 410
   maxStack: 1
   rarity: 3
   weaponType: 1
-  damage: 55
-  attackRate: 1.4
+  damage: 37
+  attackRate: 1.82
   attackRange: 10
   weaponPrefab: {fileID: 6599902579162342858, guid: aa2e7ae2f18edaf4b916fb9fcab56eb5, type: 3}
   weaponColor: {r: 0.36, g: 0.44, b: 0.24, a: 1}
@@ -43,6 +43,10 @@ MonoBehaviour:
   strikeCount: 1
   strikeInterval: 0.12
   hitEffects: []
+  tacticalCast: 0
+  tacticalCooldown: 8
+  tacticalDistance: 3
+  tacticalDuration: 4
   vfx:
     element: 1
     slashColor: {r: 1, g: 1, b: 1, a: 0.9}

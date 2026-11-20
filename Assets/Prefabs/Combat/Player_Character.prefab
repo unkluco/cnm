@@ -2608,8 +2608,8 @@ MonoBehaviour:
   maxHealth: 100
   currentHealth: 100
   damageReduction: 0
-  invincibleAfterHit: 0
-  invincibilityDuration: 0.2
+  invincibleAfterHit: 1
+  invincibilityDuration: 0.25
 --- !u!114 &7607671530615191967
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2622,12 +2622,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 353f070b78a3422ba59dab5febd1e8d5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LightSouls.Combat::LightSouls.Combat.PlayerMovement
-  moveSpeed: 5.5
+  moveSpeed: 5
   rotationSpeed: 14
   gravity: 20
   dashSpeed: 18
   dashDuration: 0.22
-  dashCooldown: 1
+  dashCooldown: 1.85
   dashTrailEffect: {fileID: 1248873148548566978}
   moveAction: {fileID: -1680190386980627800, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   dashAction: {fileID: 1427324012910665400, guid: 052faaac586de48259a63d0c4782560b, type: 3}

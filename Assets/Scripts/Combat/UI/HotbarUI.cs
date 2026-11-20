@@ -4,6 +4,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using LightSouls.Common;
 using LightSouls.Combat.Inventory;
+using LightSouls.Combat.Items;
+using LightSouls.Combat.Weapons;
 
 namespace LightSouls.Combat.UI
 {
@@ -15,6 +17,7 @@ namespace LightSouls.Combat.UI
         public Text countText;
         public GameObject highlightObject;
         public Image backgroundImage;
+        [NonSerialized] public Text cooldownText;
     }
 
     /// <summary>
@@ -78,6 +81,23 @@ namespace LightSouls.Combat.UI
                 inventory.OnToggleBackpackRequested += OnBackpackButtonClicked;
                 Refresh();
                 HandleSelectionChanged(inventory.SelectedHotbarIndex, inventory.SelectedItem);
+            }
+        }
+
+        private void LateUpdate()
+        {
+            if(inventory==null)return;
+            for(int i=0;i<slotViews.Count&&i<inventory.HotbarSlots.Count;i++)
+            {
+                var view=slotViews[i];if(view.button==null)continue;
+                if(view.cooldownText==null)
+                {
+                    view.cooldownText=DarkVitalityBar.Label(view.button.transform as RectTransform,"SlotCooldown",string.Empty,Vector2.zero,new Vector2(78,36),21,DarkFantasyTheme.Ivory,bold:true);
+                }
+                var item=inventory.HotbarSlots[i].Item;
+                float remaining=item is WeaponDataSO w?PlayerCombat.CooldownFor(w):item is ConsumableDataSO c&&!c.TriggersOnDeath?ConsumableDataSO.CooldownRemaining:0f;
+                view.cooldownText.gameObject.SetActive(remaining>.05f);
+                if(remaining>.05f)view.cooldownText.text=remaining.ToString("0.0");
             }
         }
 

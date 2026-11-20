@@ -24,6 +24,7 @@ namespace LightSouls.Combat.Bosses
         private ParticleSystem presence;
         private readonly List<(Transform part,Vector3 position,Quaternion rotation)> ornaments=new();
         private float nextReady, approachDeadline, pose, releasePose;
+        private float encounterDamage=1f, encounterRecovery=1f;
         private int phase=1, nextSkill, activeSkill=-1, activeStage;
         private bool casting, arenaConfigured;
 
@@ -80,6 +81,18 @@ namespace LightSouls.Combat.Bosses
         {
             arena=new BossArena(roomBounds,floorY);arenaConfigured=true;
             if(player!=null){_playerController=player;_playerTransform=player.transform;}
+        }
+
+        public override void ApplyChallenge(float hpScale,float damageScale,float recoveryScale)
+        {
+            base.ApplyChallenge(hpScale,damageScale,recoveryScale);
+            encounterDamage=damageScale;encounterRecovery=Mathf.Max(.84f,recoveryScale);
+        }
+
+        protected override void CancelPendingAttack()
+        {
+            if(casting) CancelCast();
+            base.CancelPendingAttack();
         }
 
         public void SetArtRig(Transform root,Transform body,Transform armL,Transform armR,Transform legL,Transform legR)
@@ -171,7 +184,7 @@ namespace LightSouls.Combat.Bosses
                 elapsed=0;
                 while(elapsed<gap && CanResolve()){elapsed+=Time.deltaTime;releasePose=1f-Mathf.Clamp01(elapsed/gap);yield return null;}
             }
-            FinishCast(skill.RestTime(castPhase));
+            FinishCast(skill.RestTime(castPhase)*encounterRecovery);
         }
 
         private void ConstrainMotion(BossCastPlan plan)
@@ -213,7 +226,7 @@ namespace LightSouls.Combat.Bosses
                 var health=_playerTransform.GetComponent<HealthComponent>();
                 if(health==null || health.IsDead)return false;
                 float before=health.CurrentHealth;
-                health.TakeDamage(new DamageInfo(skill.Damage,gameObject,position));
+                health.TakeDamage(new DamageInfo(skill.Damage*encounterDamage,gameObject,position));
                 // Overlapping zones of the same stage can only damage the player once.
                 if(health.CurrentHealth>=before-.001f)return false;
                 if(!health.IsDead && skill.Status!=BossStatus.None)

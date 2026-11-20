@@ -20,11 +20,11 @@ namespace LightSouls.MapGeneration.Tests
             var database=AssetDatabase.LoadAssetAtPath<ItemDatabaseSO>("Assets/ScriptableObjects/Combat/Items/ItemDatabase.asset");
             var loot=AssetDatabase.LoadAssetAtPath<LootTableSO>("Assets/ScriptableObjects/Combat/Items/LootTable.asset");
             var shop=AssetDatabase.LoadAssetAtPath<ShopCatalogSO>("Assets/ScriptableObjects/Lobby/ShopCatalog_Main.asset");
-            Assert.AreEqual(20,catalog.Materials.Count);
-            Assert.AreEqual(20,catalog.Materials.Select(m=>m.ItemId).Distinct().Count());
-            Assert.AreEqual(20,catalog.Materials.Select(m=>m.Icon).Distinct().Count());
-            Assert.AreEqual(31,catalog.Recipes.Count);
-            Assert.AreEqual(31,catalog.Recipes.Select(r=>r.Id).Distinct().Count());
+            Assert.AreEqual(32,catalog.Materials.Count);
+            Assert.AreEqual(32,catalog.Materials.Select(m=>m.ItemId).Distinct().Count());
+            Assert.AreEqual(32,catalog.Materials.Select(m=>m.Icon).Distinct().Count());
+            Assert.AreEqual(79,catalog.Recipes.Count);
+            Assert.AreEqual(79,catalog.Recipes.Select(r=>r.Id).Distinct().Count());
             foreach(var m in catalog.Materials)
             {
                 Assert.NotNull(m.Icon,m.name);Assert.AreEqual(ItemCategory.Material,m.Category);Assert.AreEqual(999,m.MaxStack);
