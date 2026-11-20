@@ -405,7 +405,16 @@ namespace LightSouls.Game
                 player.InLockedCombat = true;
             }
 
-            enemySpawner.SpawnWave(room.EnemySpawnPoints);
+            if(room.RoomType==RoomType.Exit)
+            {
+                if(!enemySpawner.SpawnBoss(room.GetCurrentWorldBounds(),room.transform.position.y,player))
+                {
+                    Debug.LogError("[GameBootstrap] Boss roster is missing. Falling back to a normal encounter to keep the dungeon playable.");
+                    enemySpawner.SpawnWave(room.EnemySpawnPoints);
+                }
+                else if(cameraFollow!=null)cameraFollow.SetBossFocus(enemySpawner.ActiveBoss);
+            }
+            else enemySpawner.SpawnWave(room.EnemySpawnPoints);
         }
 
         private void HandleWaveDefeated()
@@ -417,6 +426,7 @@ namespace LightSouls.Game
 
             var room = roomInCombat;
             roomInCombat = null;
+            if(room.RoomType==RoomType.Exit && cameraFollow!=null)cameraFollow.SetBossFocus(null);
             if (player != null)
             {
                 player.InLockedCombat = false;

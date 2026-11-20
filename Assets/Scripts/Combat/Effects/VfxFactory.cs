@@ -199,6 +199,23 @@ namespace LightSouls.Combat.Effects
             ps.Play(); return ps;
         }
 
+        public static ParticleSystem BossPresence(Transform parent,Vector3 offset,Color color,CombatVfxElement element,float radius,bool bladeAura=false)
+        {
+            ArcaneParticlePattern pattern=element switch
+            {
+                CombatVfxElement.Ember=>ArcaneParticlePattern.Flame,
+                CombatVfxElement.Frost=>ArcaneParticlePattern.Crystal,
+                CombatVfxElement.Storm=>ArcaneParticlePattern.Spark,
+                _=>ArcaneParticlePattern.Glow
+            };
+            var ps=Persistent("VFX_BossPresence",parent,offset,color,bladeAura?21f:12f,
+                bladeAura?.47f:element==CombatVfxElement.Frost?.25f:.24f,.78f,.08f,.42f,pattern,22,radius,ParticleSystemSimulationSpace.Local);
+            var shape=ps.shape;
+            if(bladeAura){shape.shapeType=ParticleSystemShapeType.Box;shape.scale=new Vector3(.52f,2.55f,.25f);var main=ps.main;main.gravityModifier=-.25f;}
+            if(element==CombatVfxElement.Storm)SetStretch(ps);
+            ps.Play();return ps;
+        }
+
         public static ParticleSystem ProjectileAccent(Transform projectile, Color color, CombatVfxElement element)
         {
             if (color.a <= 0f || (element != CombatVfxElement.Frost && element != CombatVfxElement.Void)) return null;

@@ -32,7 +32,6 @@ namespace LightSouls.Combat.Enemies
         private float nextAttack;
 
         public SpecialEnemyKind Kind => kind;
-        public string DisplayName => enemyName;
         public bool IsCasting => casting;
         private CombatVfxElement Element => kind switch
         {

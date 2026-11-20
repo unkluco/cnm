@@ -8,6 +8,10 @@ Shader "LightSouls/VFX/Arcane Glyph"
         _Shape("Shape (circle / lane)", Float) = 0
         _Style("Style (danger / blessing / aim / pulse)", Float) = 0
         _Element("Element pattern", Float) = 0
+        _InnerRatio("Safe inner radius", Range(0,1)) = 0
+        _SectorRadians("Sector half angle", Float) = 3.14159
+        _ClipArena("Clip to arena", Float) = 0
+        _ClipBounds("Arena XZ min/max", Vector) = (0,0,0,0)
     }
     SubShader
     {
@@ -27,13 +31,14 @@ Shader "LightSouls/VFX/Arcane Glyph"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             CBUFFER_START(UnityPerMaterial)
                 float4 _Accent;
-                float _Progress, _Opacity, _Shape, _Style, _Element;
+                float _Progress, _Opacity, _Shape, _Style, _Element, _InnerRatio, _SectorRadians, _ClipArena;
+                float4 _ClipBounds;
             CBUFFER_END
             struct Attributes { float4 positionOS:POSITION; float2 uv:TEXCOORD0; };
-            struct Varyings { float4 positionCS:SV_POSITION; float2 uv:TEXCOORD0; };
+            struct Varyings { float4 positionCS:SV_POSITION; float2 uv:TEXCOORD0; float2 worldXZ:TEXCOORD1; };
             Varyings vert(Attributes i)
             {
-                Varyings o; o.positionCS=TransformObjectToHClip(i.positionOS.xyz); o.uv=i.uv; return o;
+                Varyings o; float3 ws=TransformObjectToWorld(i.positionOS.xyz);o.positionCS=TransformWorldToHClip(ws);o.worldXZ=ws.xz;o.uv=i.uv;return o;
             }
             float band(float value, float center, float width)
             {
@@ -41,6 +46,11 @@ Shader "LightSouls/VFX/Arcane Glyph"
             }
             half4 frag(Varyings i):SV_Target
             {
+                if(_ClipArena>0.5)
+                {
+                    float2 lower=i.worldXZ-_ClipBounds.xy, upper=_ClipBounds.zw-i.worldXZ;
+                    clip(min(min(lower.x,lower.y),min(upper.x,upper.y)));
+                }
                 float p=saturate(_Progress);
                 float2 xy=i.uv*2.0-1.0;
                 float r=length(xy);
@@ -52,9 +62,15 @@ Shader "LightSouls/VFX/Arcane Glyph"
                 float3 hot=blessing?_Accent.rgb:lerp(danger,_Accent.rgb,0.28);
                 if(aim||impact)hot=_Accent.rgb;
                 float edge=0, ornament=0, charge=0, fill=0;
-                if(_Shape<0.5)
+                if(_Shape<0.5 || _Shape>1.5)
                 {
                     clip(1.0-r);
+                    bool annulus=_Shape>1.5&&_Shape<2.5;
+                    bool sector=_Shape>2.5;
+                    float halfInner=annulus?_InnerRatio:0.0;
+                    float sectorAngle=sector?abs(atan2(xy.x,xy.y+0.00001)):0.0;
+                    if(annulus)clip(r-halfInner);
+                    if(sector)clip(_SectorRadians-sectorAngle);
                     float polar=(atan2(xy.y,xy.x)+PI)/(2.0*PI);
                     float tick=1.0-smoothstep(0.045,0.14,abs(frac(polar*12.0+0.5)-0.5));
                     float major=1.0-smoothstep(0.06,0.15,abs(frac(polar*6.0+0.5)-0.5));
@@ -99,6 +115,22 @@ Shader "LightSouls/VFX/Arcane Glyph"
                         fill=0;edge=band(r,0.90,0.085);charge=band(r,0.66,0.058)*0.55;
                         ornament=(band(r,0.80,0.025)*arcDash+major*band(r,0.81,0.07))*0.62;
                     }
+                    if(annulus)
+                    {
+                        // The unfilled inner disk is the safe space, not a hinted hit zone.
+                        float rr=saturate((r-halfInner)/max(.02,1.0-halfInner));
+                        edge=band(rr,.976,.037)+band(rr,.025,.038);
+                        ornament=band(rr,.22,.028)*arcDash+major*band(rr,.72,.07)+tick*band(rr,.82,.08)*.62;
+                        charge=band(rr,lerp(.08,.96,p),.038)*.89;
+                        fill=impact?.07:(.10+.16*p);
+                    }
+                    if(sector)
+                    {
+                        float boundary=abs(_SectorRadians-sectorAngle)*r;
+                        edge=max(edge,1.0-smoothstep(.008,.026,boundary));
+                        ornament+=band(r,.49,.023)*arcDash;
+                        fill=impact?.12:(.10+.15*p);
+                    }
                 }
                 else
                 {
@@ -112,6 +144,7 @@ Shader "LightSouls/VFX/Arcane Glyph"
                     ornament=chevron*0.68+band(x,0.69,0.045)*smoothstep(0.25,0.46,frac(y*9.0))*0.45;
                     charge=band(y,lerp(0.04,0.96,p),0.05)*(1.0-smoothstep(0.86,1.0,x));
                     fill=(0.09+0.12*p)*(0.72+0.28*x);
+                    if(impact){edge=band(x,.79,.20);ornament=band(x,0,.42)*.95;charge=0;fill=.15;}
                 }
                 float3 body=lerp(hot,_Accent.rgb,0.42)*0.86;
                 float marks=saturate(ornament+charge);

@@ -1,5 +1,6 @@
 using UnityEngine;
 using LightSouls.Combat.Effects;
+using LightSouls.Combat.Bosses;
 
 namespace LightSouls.Game
 {
@@ -26,6 +27,7 @@ namespace LightSouls.Game
         private Vector3 velocity;
         private Vector3 followPosition;
         private float impulse, impulseTime;
+        private BossEnemy bossFocus;
 
         private void Awake()
         {
@@ -58,6 +60,8 @@ namespace LightSouls.Game
             }
         }
 
+        public void SetBossFocus(BossEnemy boss) => bossFocus=boss;
+
         private void LateUpdate()
         {
             if (target == null)
@@ -81,7 +85,15 @@ namespace LightSouls.Game
         private Vector3 DesiredPosition()
         {
             var lookAt = target.position + Vector3.up * lookAtHeight;
-            return lookAt - Quaternion.Euler(pitch, 0f, 0f) * Vector3.forward * distance;
+            float framingDistance=distance;
+            if(bossFocus!=null && !bossFocus.IsDead)
+            {
+                Vector3 toBoss=bossFocus.transform.position-target.position;toBoss.y=0;
+                // Keep both fighter and giant readable, and reveal enough floor to dodge the large seals.
+                lookAt+=Vector3.ClampMagnitude(toBoss*.52f,4.3f)+Vector3.up*.72f;
+                framingDistance+=3.7f+Mathf.Clamp(toBoss.magnitude*.12f,0,1.4f);
+            }
+            return lookAt - Quaternion.Euler(pitch, 0f, 0f) * Vector3.forward * framingDistance;
         }
     }
 }

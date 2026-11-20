@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
+using LightSouls.Combat.Bosses;
+using LightSouls.Combat.Enemies;
 using LightSouls.Common;
 
 namespace LightSouls.Combat.UI
@@ -23,6 +25,9 @@ namespace LightSouls.Combat.UI
         private Camera _mainCamera;
         private Canvas _worldCanvas;
         private float _lastHealth = -1f;
+        private DarkVitalityBar view;
+        private BossEnemy boss;
+        public float HealthRatio=>view!=null?view.Ratio:0f;
 
         private void Awake()
         {
@@ -32,6 +37,20 @@ namespace LightSouls.Combat.UI
             }
 
             _worldCanvas = GetComponentInChildren<Canvas>();
+            if(_worldCanvas==null || healthComponent==null)return;
+            var owner=healthComponent.GetComponent<EnemyBase>();
+            boss=owner as BossEnemy;
+            // The large encounter HUD replaces the small floating boss bar, but damage popups still work.
+            if(boss!=null){_worldCanvas.enabled=false;return;}
+            var previousLabel=GetComponentInChildren<Text>(true);
+            string caption=owner!=null?owner.DisplayName:previousLabel!=null?previousLabel.text:"Bù nhìn tập luyện";
+            var root=_worldCanvas.GetComponent<RectTransform>();
+            foreach(Transform old in root)old.gameObject.SetActive(false);
+            root.sizeDelta=new Vector2(190,44);root.localScale=Vector3.one*.0105f;
+            var capsule=healthComponent.GetComponent<CapsuleCollider>();
+            if(capsule!=null)root.localPosition=Vector3.up*(capsule.height+.38f);
+            DarkVitalityBar.Label(root,"EnemyName_Styled",caption,new Vector2(0,11),new Vector2(190,25),17,DarkFantasyTheme.Ivory,bold:true);
+            view=DarkVitalityBar.Create(root,new Vector2(0,-9),new Vector2(174,13),new Color(.9f,.34f,.20f),false);
         }
 
         private void Start()
@@ -44,6 +63,7 @@ namespace LightSouls.Combat.UI
                 healthComponent.OnHealthChanged += HandleHealthChanged;
                 healthComponent.Died += HandleDied;
                 UpdateHealthBar(healthComponent.CurrentHealth, healthComponent.MaxHealth);
+                view?.SetHealth(healthComponent.CurrentHealth,healthComponent.MaxHealth,true);
             }
         }
 
@@ -60,7 +80,8 @@ namespace LightSouls.Combat.UI
         {
             if (_mainCamera == null) _mainCamera = Camera.main;
 
-            if (_mainCamera != null && transform != null)
+            view?.Tick(Time.deltaTime);
+            if (_mainCamera != null && transform != null && boss==null)
             {
                 // Luôn quay mặt về Camera
                 transform.rotation = _mainCamera.transform.rotation;
@@ -72,7 +93,7 @@ namespace LightSouls.Combat.UI
             if (_lastHealth > current)
             {
                 float damageTaken = _lastHealth - current;
-                Vector3 spawnPos = transform.position + Vector3.up * 0.3f;
+                Vector3 spawnPos = boss!=null?boss.transform.position+Vector3.up*(boss.Definition.Height*.78f):transform.position + Vector3.up * 0.3f;
                 DamagePopup.Create(popupPrefab, spawnPos, damageTaken);
             }
 
@@ -82,22 +103,8 @@ namespace LightSouls.Combat.UI
 
         private void UpdateHealthBar(float current, float max)
         {
-            if (healthSlider != null && max > 0f)
-            {
-                healthSlider.value = current / max;
-            }
-
-            if (fillImage != null && max > 0f)
-            {
-                float ratio = current / max;
-                // Chuyển màu từ xanh lá sang cam sang đỏ khi máu giảm
-                fillImage.color = Color.Lerp(new Color32(200, 65, 61, 255), new Color32(123, 193, 125, 255), ratio);
-            }
-
-            if (_worldCanvas != null && hideWhenFull)
-            {
-                _worldCanvas.enabled = current < max && current > 0;
-            }
+            view?.SetHealth(current,max);
+            if(_worldCanvas!=null)_worldCanvas.enabled=boss==null && current>0 && (!hideWhenFull || current<max);
         }
 
         private void HandleDied(IDamageable damageable)

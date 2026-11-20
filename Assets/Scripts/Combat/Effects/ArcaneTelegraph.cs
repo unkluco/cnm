@@ -3,7 +3,7 @@ using UnityEngine;
 namespace LightSouls.Combat.Effects
 {
     public enum TelegraphStyle { Danger, Blessing, Aim, Impact }
-    public enum TelegraphShape { Circle, Lane }
+    public enum TelegraphShape { Circle, Lane, Annulus, Sector }
 
     /// <summary>
     /// Animated, non-blocking warning surface. The thin outline is the exact gameplay radius/width;
@@ -13,12 +13,14 @@ namespace LightSouls.Combat.Effects
     {
         private const float SurfaceHeight = .08f;
         private static readonly Color DangerEdge = new Color(1f, .28f, .13f, 1f);
-        private LineRenderer outline;
+        private LineRenderer outline, innerOutline;
         private MeshRenderer surface;
         private MaterialPropertyBlock properties;
         private Transform owner;
         private bool followsOwnerLife;
         private bool timed;
+        private bool clipArena, suppressOutline, suppressInnerOutline;
+        private Vector4 clipBounds;
         private float startTime, duration, opacity = 1f;
         private Color accent;
         private CombatVfxElement element;
@@ -28,6 +30,8 @@ namespace LightSouls.Combat.Effects
         public float Radius { get; private set; }
         public float HalfWidth { get; private set; }
         public float Length { get; private set; }
+        public float InnerRadius { get; private set; }
+        public float SectorAngle { get; private set; }
         public float Progress { get; private set; }
         public bool IsVisible => surface != null && surface.enabled;
 
@@ -43,11 +47,50 @@ namespace LightSouls.Combat.Effects
         }
 
         public static ArcaneTelegraph Lane(string name, Vector3 start, Vector3 end, float halfWidth, Color color,
-            float windup, CombatVfxElement element = CombatVfxElement.Steel, Transform owner = null)
+            float windup, CombatVfxElement element = CombatVfxElement.Steel, Transform owner = null, TelegraphStyle style = TelegraphStyle.Danger)
         {
-            var marker = Create(name, color, windup, element, TelegraphStyle.Danger, owner, null);
+            var marker = Create(name, color, windup, element, style, owner, null);
             marker.Shape = TelegraphShape.Lane;
             marker.SetLane(start, end, halfWidth);
+            marker.Render();
+            return marker;
+        }
+
+        public static ArcaneTelegraph Annulus(string name, Vector3 center, float innerRadius, float outerRadius, Color color,
+            float windup, CombatVfxElement element, Transform owner = null, TelegraphStyle style = TelegraphStyle.Danger)
+        {
+            var marker = Create(name,color,windup,element,style,owner,null);
+            marker.SetCircle(center,outerRadius);
+            marker.Shape = TelegraphShape.Annulus;
+            marker.InnerRadius = Mathf.Clamp(innerRadius,.01f,marker.Radius-.01f);
+            marker.innerOutline = GroundCombatMarker.Create("SafeInnerEdge",marker.transform);
+            marker.innerOutline.transform.localPosition = Vector3.zero;
+            GroundCombatMarker.Circle(marker.innerOutline,marker.InnerRadius,.055f,marker.OutlineColor());
+            marker.Render();
+            return marker;
+        }
+
+        public static ArcaneTelegraph Sector(string name, Vector3 center, Vector3 direction, float radius, float angle, Color color,
+            float windup, CombatVfxElement element, Transform owner = null, TelegraphStyle style = TelegraphStyle.Danger)
+        {
+            var marker = Create(name,color,windup,element,style,owner,null);
+            marker.Shape = TelegraphShape.Sector;
+            marker.Radius = Mathf.Max(.01f,radius);
+            marker.SectorAngle = Mathf.Clamp(angle,1f,359f);
+            direction.y=0;
+            if(direction.sqrMagnitude<.001f)direction=Vector3.forward;
+            marker.transform.SetPositionAndRotation(center+Vector3.up*SurfaceHeight,Quaternion.LookRotation(direction,Vector3.up));
+            marker.surface.transform.localScale=new Vector3(marker.Radius*2,1,marker.Radius*2);
+            const int segments=44;
+            marker.outline.loop=true;
+            marker.outline.widthMultiplier=.055f;
+            marker.outline.positionCount=segments+2;
+            marker.outline.SetPosition(0,Vector3.zero);
+            for(int i=0;i<=segments;i++)
+            {
+                float a=Mathf.Lerp(-marker.SectorAngle*.5f,marker.SectorAngle*.5f,i/(float)segments)*Mathf.Deg2Rad;
+                marker.outline.SetPosition(i+1,new Vector3(Mathf.Sin(a)*marker.Radius,0,Mathf.Cos(a)*marker.Radius));
+            }
             marker.Render();
             return marker;
         }
@@ -122,8 +165,28 @@ namespace LightSouls.Combat.Effects
 
         public void SetVisible(bool visible)
         {
-            if (outline != null) outline.enabled = visible;
+            if (outline != null) outline.enabled = visible && !suppressOutline;
+            if (innerOutline != null) innerOutline.enabled = visible && !suppressInnerOutline;
             if (surface != null) surface.enabled = visible;
+        }
+
+        /// <summary>Boss domains end at the room itself. Clip the shader and hide only line loops that cross the boundary.</summary>
+        public void ClipToArena(Bounds arena)
+        {
+            clipArena=true;clipBounds=new Vector4(arena.min.x,arena.min.z,arena.max.x,arena.max.z);
+            suppressOutline=CrossesBounds(outline);suppressInnerOutline=CrossesBounds(innerOutline);
+            SetVisible(IsVisible);Render();
+        }
+
+        private bool CrossesBounds(LineRenderer line)
+        {
+            if(line==null)return false;
+            for(int i=0;i<line.positionCount;i++)
+            {
+                Vector3 p=line.transform.TransformPoint(line.GetPosition(i));
+                if(p.x<clipBounds.x || p.z<clipBounds.y || p.x>clipBounds.z || p.z>clipBounds.w)return true;
+            }
+            return false;
         }
 
         public void Remove()
@@ -159,8 +222,13 @@ namespace LightSouls.Combat.Effects
             properties.SetFloat("_Style", (float)Style);
             properties.SetFloat("_Shape", (float)Shape);
             properties.SetFloat("_Element", (float)element);
+            properties.SetFloat("_InnerRatio", Radius>0f? InnerRadius/Radius:0f);
+            properties.SetFloat("_SectorRadians", SectorAngle*.5f*Mathf.Deg2Rad);
+            properties.SetFloat("_ClipArena",clipArena?1f:0f);
+            properties.SetVector("_ClipBounds",clipBounds);
             surface.SetPropertyBlock(properties);
             GroundCombatMarker.Tint(outline, OutlineColor());
+            if(innerOutline!=null)GroundCombatMarker.Tint(innerOutline,OutlineColor());
         }
     }
 }

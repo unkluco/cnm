@@ -57,6 +57,9 @@ namespace LightSouls.Combat.Enemies
         protected Quaternion _defaultLeftArmRot = Quaternion.identity;
 
         // Triển khai IDamageable ủy quyền cho HealthComponent
+        public virtual string DisplayName => enemyName;
+        protected virtual float MaximumColliderHeight => 2f;
+        protected virtual float MaximumColliderRadius => .5f;
         public bool IsDead => _health != null ? _health.IsDead : _isDead;
         public float CurrentHealth => _health != null ? _health.CurrentHealth : 0f;
         public float MaxHealth => _health != null ? _health.MaxHealth : 0f;
@@ -113,9 +116,9 @@ namespace LightSouls.Combat.Enemies
             gameObject.tag = "Enemy";
             gameObject.layer = 7;
 
-            // Quy chuẩn kích thước: cao ≤ 2m, bán kính ≤ 0.5m
-            _collider.height = Mathf.Min(2.0f, _collider.height);
-            _collider.radius = Mathf.Min(0.5f, _collider.radius);
+            // Quái thường giữ kích cỡ humanoid. Boss khai báo kích thước collider riêng.
+            _collider.height = Mathf.Min(MaximumColliderHeight, _collider.height);
+            _collider.radius = Mathf.Min(MaximumColliderRadius, _collider.radius);
 
             // Cấu hình NavMeshAgent chuẩn Humanoid
             if (_agent != null)

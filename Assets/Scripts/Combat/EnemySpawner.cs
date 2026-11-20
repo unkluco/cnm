@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using LightSouls.Combat.Bosses;
 using UnityEngine;
+using UnityEngine.AI;
 using LightSouls.Common;
 
 namespace LightSouls.Combat
@@ -27,8 +30,53 @@ namespace LightSouls.Combat
         private readonly List<GameObject> _spawnedEnemyObjects = new List<GameObject>();
         private readonly List<GameObject> _specialBag = new List<GameObject>();
         private GameObject _lastSpecial;
+        private GameObject[] _bossPrefabs;
 
         public IReadOnlyList<GameObject> SpecialEnemyPrefabs => specialEnemyPrefabs ?? Array.Empty<GameObject>();
+
+        public IReadOnlyList<GameObject> BossPrefabs
+        {
+            get
+            {
+                if(_bossPrefabs==null)_bossPrefabs=Resources.LoadAll<GameObject>("Combat/Bosses")
+                    .Where(p=>p!=null&&p.GetComponent<BossEnemy>()!=null).OrderBy(p=>p.GetComponent<BossEnemy>().Kind).ToArray();
+                return _bossPrefabs;
+            }
+        }
+
+        public BossEnemy ActiveBoss { get; private set; }
+
+        /// <summary>The exit encounter is exactly one giant boss, never a regular wave.</summary>
+        public bool SpawnBoss(Bounds roomBounds,float floorY,PlayerController player)
+        {
+            var pool=BossPrefabs;
+            if(pool.Count==0)return false;
+            ClearEnemies();
+            var prefab=pool[RunState.TakeNextBossIndex(pool.Count)];
+            var definition=prefab.GetComponent<BossEnemy>().Definition;
+            var arena=new BossArena(roomBounds,floorY);
+            Vector3 position=arena.Center;
+            // Prefer the open arena centre; try neighbouring points if a generated layout contains cover.
+            Vector3[] offsets={Vector3.zero,Vector3.forward*3.5f,Vector3.right*3.5f,Vector3.back*3.5f,Vector3.left*3.5f};
+            bool found=false;
+            foreach(var offset in offsets)
+            {
+                if(!NavMesh.SamplePosition(arena.Clamp(arena.Center+offset,3.6f),out var nav,2.5f,NavMesh.AllAreas))continue;
+                Vector3 p=nav.position;
+                float r=definition.Radius;
+                if(Physics.CheckCapsule(p+Vector3.up*(r+.12f),p+Vector3.up*(definition.Height-r+.12f),r,1<<8,QueryTriggerInteraction.Ignore))continue;
+                if(player!=null && Vector3.Distance(p,player.transform.position)<r+.65f)continue;
+                position=p;found=true;break;
+            }
+            if(!found && NavMesh.SamplePosition(position,out var fallback,5f,NavMesh.AllAreas))position=fallback.position;
+            Quaternion rotation=player!=null?Quaternion.LookRotation(BossZone.FlatDirection(player.transform.position-position)):Quaternion.identity;
+            var obj=Instantiate(prefab,position,rotation);
+            ActiveBoss=obj.GetComponent<BossEnemy>();
+            ActiveBoss.ConfigureEncounter(roomBounds,floorY,player);
+            var health=obj.GetComponent<HealthComponent>();
+            _spawnedEnemyObjects.Add(obj);_aliveEnemies.Add(health);health.Died+=HandleEnemyDied;
+            return true;
+        }
 
         public void SetSpecialEnemyPrefabs(GameObject[] prefabs)
         {
@@ -179,6 +227,7 @@ namespace LightSouls.Combat
                 deadEnemy.Died -= HandleEnemyDied;
                 _aliveEnemies.Remove(deadEnemy);
             }
+            if(ActiveBoss!=null && ActiveBoss.IsDead)ActiveBoss=null;
 
             Debug.Log($"[EnemySpawner] Quái bị tiêu diệt! Còn lại: {_aliveEnemies.Count}");
 
@@ -194,6 +243,7 @@ namespace LightSouls.Combat
         /// </summary>
         public void ClearEnemies()
         {
+            ActiveBoss=null;
             foreach (var d in _aliveEnemies)
             {
                 if (d != null)
