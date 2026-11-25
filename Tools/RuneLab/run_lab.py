@@ -10,6 +10,7 @@ import threading
 import uuid
 import webbrowser
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -37,7 +38,14 @@ class LabState:
         self.catalog = catalog_payload()
         self.attempts = OrderedDict()
         self.lock = threading.Lock()
+        # Reuse one inference thread across HTTP connections. On Windows the
+        # OpenMP runtime can otherwise exhaust resources after many distinct
+        # request threads each initialize their own CPU worker team.
+        self.inference = ThreadPoolExecutor(max_workers=1, thread_name_prefix="rune-inference")
         data_dir.mkdir(parents=True, exist_ok=True)
+
+    def close(self):
+        self.inference.shutdown(wait=True, cancel_futures=True)
 
     def sample_count(self) -> int:
         if not self.samples_path.exists():
@@ -53,7 +61,7 @@ class LabState:
         input_method = payload.get("input_method", "unknown")
         if input_method not in ("mouse", "touch", "pen"):
             input_method = "unknown"
-        result = self.recognizer.recognize(points, threshold, margin)
+        result = self.inference.submit(self.recognizer.recognize, points, threshold, margin).result()
         image = result.pop("image")
         attempt_id = uuid.uuid4().hex
         with self.lock:
@@ -130,7 +138,7 @@ class LabHandler(BaseHTTPRequestHandler):
         self.end_headers()
         try:
             self.wfile.write(data)
-        except (BrokenPipeError, ConnectionResetError):
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             # A newer drawing may cancel an outstanding browser request.
             pass
 
@@ -239,6 +247,12 @@ class LabHandler(BaseHTTPRequestHandler):
 class LabServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
+
+    def server_close(self):
+        super().server_close()
+        state = getattr(self, "state", None)
+        if state is not None:
+            state.close()
 
 
 def main():

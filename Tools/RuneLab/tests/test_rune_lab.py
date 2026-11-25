@@ -4,6 +4,7 @@ import json
 import tempfile
 import threading
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -86,6 +87,30 @@ class FrozenModelTests(unittest.TestCase):
         self.assertEqual(result["model_ms"], 0.0)
         self.assertEqual(result["decision"]["reason"], "too_short")
         self.assertIsNone(result["image"])
+
+    def test_many_request_threads_reuse_one_inference_worker(self):
+        class ObservedRecognizer:
+            def __init__(self, delegate):
+                self.delegate = delegate
+                self.thread_ids = set()
+
+            def recognize(self, *args):
+                self.thread_ids.add(threading.get_ident())
+                return self.delegate.recognize(*args)
+
+        observer = ObservedRecognizer(self.recognizer)
+        LOCAL.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=LOCAL) as directory:
+            state = LabState(observer, Path(directory))
+            try:
+                payload = {"points": RUNES[4].points.tolist()}
+                with ThreadPoolExecutor(max_workers=8) as clients:
+                    results = list(clients.map(lambda _: state.analyze(payload), range(24)))
+                self.assertEqual(len(observer.thread_ids), 1)
+                self.assertTrue(all(result["scores"][0]["id"] == "lightning" for result in results))
+                self.assertEqual(state.sample_count(), 0)
+            finally:
+                state.close()
 
     def test_http_routes_analyze_save_export_and_validate(self):
         LOCAL.mkdir(parents=True, exist_ok=True)

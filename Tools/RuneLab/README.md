@@ -52,3 +52,7 @@ python tests/browser_smoke.py --browser-path "C:\Program Files\Google\Chrome\App
 ```
 
 Mục tiêu nghiên cứu sau khi có dữ liệu thật: ≥95% chấp nhận đúng nét hợp lệ; <2% kích hoạt nhầm và <2% nét lạ bị nhận nhầm; đo p95 latency trên thiết bị mục tiêu. Chưa xuất ONNX, chưa thêm Sentis, chưa thay đổi scene, chiêu thức hoặc cooldown. Chỉ tiến sang Unity khi phù hợp với các tiêu chí đã thống nhất.
+
+### Fine-tune tùy chọn
+
+Khi đã có đủ nét vẽ có nhãn, dùng [thử nghiệm LoRA + Triplet Loss](TRAINING.md) để so sánh các cấu hình với ViT-Tiny frozen. Đây là công cụ train riêng, không đổi trọng số đang chạy trong Rune Lab.
