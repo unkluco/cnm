@@ -10,7 +10,7 @@ Nhánh `feature/rune-casting` tích hợp model ViT-Tiny đã fine-tune LoRA ran
 - Ô vẽ tăng từ 310×310 lên **420×420** đơn vị UI tham chiếu (+84% diện tích). Joystick, tương tác, balo và thao tác sử dụng vật phẩm tiêu hao vẫn hoạt động. Khi chọn bình máu/vật phẩm tiêu hao, chỉ mẫu Lướt Né còn hiện trong ô vẽ, nút **DÙNG** vẫn xuất hiện bên cạnh.
 - Nét quá ngắn, không đủ giống, mơ hồ giữa hai ký hiệu, không thuộc bộ chiêu hiện tại hoặc chiêu đang hồi đều không kích hoạt hành động.
 - Nét đang vẽ/kết quả đang chờ bị hủy nếu đổi vũ khí, khóa input, chuyển scene hoặc nhân vật không còn có thể chiến đấu.
-- Chế độ **CHẶT** (`0.90` cosine, chênh `0.05`) là mặc định. Có thể chọn **THOÁNG** (`0.80`, `0.05`) nếu khó vẽ trên cảm ứng. Điểm tương đồng không phải xác suất đúng.
+- Chế độ **THOÁNG** (`0.80` cosine, chênh `0.05`) là mặc định, giống cấu hình Rune Lab đã thử. Có thể chọn **CHẶT** (`0.90`, `0.05`) nếu muốn giảm nhận nhầm. Game lưu lựa chọn cho những lần sau; bản nâng cấp này đặt lại lựa chọn thử nghiệm một lần sang mặc định mới. Điểm tương đồng không phải xác suất đúng.
 
 ## Vũ khí
 

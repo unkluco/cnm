@@ -66,13 +66,18 @@ namespace LightSouls.MapGeneration.Tests
         {
             using var classifier=new RuneClassifier(RuneBackend.Cpu);
             Assert.AreEqual(120,classifier.Info.referenceCount);
+            Assert.IsTrue(RuneRecognitionDefaults.DefaultFlexible);
+            Assert.AreEqual(.80f,RuneRecognitionDefaults.GameplayThreshold);
+            Assert.AreEqual(RuneRecognitionDefaults.GameplayThreshold,classifier.Info.gameplayThreshold);
+            Assert.AreEqual(RuneRecognitionDefaults.Margin,classifier.Info.gameplayMargin);
             Assert.AreEqual(10,classifier.References.PerGlyph);
             Assert.AreEqual(22_180_842,classifier.Info.modelBytes);
             int accepted=0;
             for(int i=0;i<RuneGlyphs.Count;i++)
             {
                 RuneGlyph glyph=(RuneGlyph)i;
-                var match=classifier.RecognizeSync(RuneGlyphs.Example(glyph));
+                var match=classifier.RecognizeSync(RuneGlyphs.Example(glyph),RuneReferenceBank.AllMask,
+                    RuneRecognitionDefaults.StrictThreshold,RuneRecognitionDefaults.Margin);
                 Debug.Log($"Rune canonical {glyph}: {match.Status} {match.Glyph} similarity={match.Score:F4} gap={match.Gap:F4} inference={match.Milliseconds:F1}ms");
                 Assert.AreEqual(glyph,match.Glyph,RuneGlyphs.Name(glyph));
                 Assert.GreaterOrEqual(match.Score,.80f,glyph.ToString());

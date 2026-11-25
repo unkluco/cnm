@@ -11,6 +11,13 @@ namespace LightSouls.Combat.Runes
     public enum RuneRecognitionStatus { Accepted, TooShort, BelowThreshold, Ambiguous, Unsupported, Busy, Unavailable }
     public enum RuneBackend { Auto, Cpu, Gpu }
 
+    public static class RuneRecognitionDefaults
+    {
+        public const float FlexibleThreshold=.80f,StrictThreshold=.90f,Margin=.05f;
+        public const bool DefaultFlexible=true;
+        public const float GameplayThreshold=FlexibleThreshold;
+    }
+
     public readonly struct RuneMatch
     {
         public readonly RuneRecognitionStatus Status;
@@ -27,7 +34,8 @@ namespace LightSouls.Combat.Runes
         public int formatVersion,inputSize,embeddingSize,referenceCount,modelBytes;
         public string modelName,mergedSha256,onnxSha256,referenceSha256;
         public string[] labels;
-        public float gameplayThreshold=.90f,gameplayMargin=.05f,calibratedThreshold=.80f,calibratedMargin=.05f;
+        public float gameplayThreshold=RuneRecognitionDefaults.GameplayThreshold,gameplayMargin=RuneRecognitionDefaults.Margin,
+            calibratedThreshold=RuneRecognitionDefaults.FlexibleThreshold,calibratedMargin=RuneRecognitionDefaults.Margin;
     }
 
     /// <summary>Bank contains only normalized reference vectors, no player drawing coordinates.</summary>
@@ -128,7 +136,8 @@ namespace LightSouls.Combat.Runes
             worker=new Worker(model,Backend==RuneBackend.Gpu?BackendType.GPUCompute:BackendType.CPU);
         }
 
-        public RuneMatch RecognizeSync(IReadOnlyList<Vector2> points,int mask=RuneReferenceBank.AllMask,float threshold=.90f,float margin=.05f)
+        public RuneMatch RecognizeSync(IReadOnlyList<Vector2> points,int mask=RuneReferenceBank.AllMask,
+            float threshold=RuneRecognitionDefaults.GameplayThreshold,float margin=RuneRecognitionDefaults.Margin)
         {
             if(busy||disposeRequested||worker==null)return new RuneMatch(RuneRecognitionStatus.Busy);
             if(!raster.TryRender(points,out var input))return new RuneMatch(RuneRecognitionStatus.TooShort);

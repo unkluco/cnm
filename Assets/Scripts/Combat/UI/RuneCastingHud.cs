@@ -32,7 +32,8 @@ namespace LightSouls.Combat.UI
             warmingStarted=true;
             try
             {
-                await Get().RecognizeAsync(RuneGlyphs.Example(RuneGlyph.Slash),RuneReferenceBank.AllMask,.90f,.05f);
+                await Get().RecognizeAsync(RuneGlyphs.Example(RuneGlyph.Slash),RuneReferenceBank.AllMask,
+                    RuneRecognitionDefaults.GameplayThreshold,RuneRecognitionDefaults.Margin);
             }
             catch(Exception ex){Debug.LogWarning("Rune warm-up: "+ex.Message);}
         }
@@ -44,7 +45,9 @@ namespace LightSouls.Combat.UI
         private static readonly Color Teal=new Color32(117,232,217,255);
         private static readonly Color Reject=new Color32(248,133,117,255);
         private static readonly Color Accept=new Color32(176,249,185,255);
-        private const string SensitivityKey="lightsouls.rune.flexible";
+        // New default matches the tested Rune Lab configuration. Reset the
+        // previous experimental preference once, then persist player choices.
+        private const string SensitivityKey="lightsouls.rune.flexible.v2";
         private PlayerController player;
         private WeaponDataSO shownWeapon;
         private IReadOnlyList<RuneSkill> shownKit=Array.Empty<RuneSkill>();
@@ -77,7 +80,7 @@ namespace LightSouls.Combat.UI
         public bool IsProcessing=>processing;
         public RuneMatch LastMatch{get;private set;}
         public bool LastCastSucceeded{get;private set;}
-        public float Threshold=>flexible?.80f:.90f;
+        public float Threshold=>flexible?RuneRecognitionDefaults.FlexibleThreshold:RuneRecognitionDefaults.StrictThreshold;
         public bool CanBeginStroke=>Combat!=null&&Combat.RuneInputReady&&!processing&&!RuneInferenceRuntime.Busy;
 
         public static RuneCastingHud Create(Transform safeArea,GameObject attack,Text attackLabel,RectTransform dash,RectTransform interact)
@@ -96,7 +99,7 @@ namespace LightSouls.Combat.UI
             useIcon=attack!=null?attack.transform.Find("Icon")?.GetComponent<Image>():null;
             if(dashButton!=null)dashButton.gameObject.SetActive(false);
             if(interact!=null)interactOriginal=interact.anchoredPosition;
-            flexible=PlayerPrefs.GetInt(SensitivityKey,0)==1;
+            flexible=PlayerPrefs.GetInt(SensitivityKey,RuneRecognitionDefaults.DefaultFlexible?1:0)==1;
             // Keep this on the right thumb side, above and outside the central hotbar.
             root=DarkVitalityBar.Rect(transform,"RuneSurface",Vector2.zero,new Vector2(560,610));
             root.anchorMin=root.anchorMax=root.pivot=new Vector2(1,0);
@@ -256,7 +259,7 @@ namespace LightSouls.Combat.UI
         private async void Analyze(IReadOnlyList<Vector2> points,int revision,WeaponDataSO weapon,int token,float threshold,int allowedMask)
         {
             RuneMatch result;
-            try{result=await RuneInferenceRuntime.Get().RecognizeAsync(points,allowedMask,threshold,.05f);}
+            try{result=await RuneInferenceRuntime.Get().RecognizeAsync(points,allowedMask,threshold,RuneRecognitionDefaults.Margin);}
             catch(Exception ex){Debug.LogWarning("Rune recognition unavailable: "+ex.Message);result=new RuneMatch(RuneRecognitionStatus.Unavailable);}
             if(this==null)return;
             processing=false;

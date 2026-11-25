@@ -130,7 +130,7 @@ def main():
         "labels": labels,
         "calibratedThreshold": metadata["threshold"],
         "calibratedMargin": metadata["margin"],
-        "gameplayThreshold": 0.90,
+        "gameplayThreshold": 0.80,
         "gameplayMargin": 0.05,
         "onnxOpset": 17,
         "onnxOps": ops,
