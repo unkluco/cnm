@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0a1117">
+  <title>Rune Lab · Light Souls</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="/favicon.svg" alt="" width="42" height="42">
+      <div><span class="brand-name">LIGHT SOULS</span><span class="brand-sub">Phòng nghiên cứu cổ ngữ</span></div>
+    </div>
+    <div class="top-indicators">
+      <span class="phase-tag"><span class="tiny-diamond"></span> GIAI ĐOẠN I</span>
+      <span id="connection" class="connection loading"><i></i><span>Đang kết nối model</span></span>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="intro">
+      <div>
+        <div class="eyebrow">THÍ NGHIỆM 01 &nbsp;/&nbsp; NHẬN DẠNG NÉT VẼ</div>
+        <h1>Rune <em>Lab</em></h1>
+        <p>Vẽ cổ ngữ. So sánh với hình mẫu. Kiểm chứng khả năng nhận dạng trước khi đưa phép thuật vào hầm ngục.</p>
+      </div>
+      <div class="model-badge">
+        <span class="badge-label">BỘ TRÍCH XUẤT ĐẶC TRƯNG</span>
+        <strong>ViT-Tiny <span>•</span> DINOv2 distilled</strong>
+        <span id="model-meta" class="badge-desc">224 × 224 · 192 chiều · Không huấn luyện thêm</span>
+      </div>
+    </section>
+
+    <div class="workbench">
+      <section class="panel library" aria-label="Thư viện cổ ngữ">
+        <div class="panel-title"><span class="section-num">01</span><div><h2>Thư viện cổ ngữ</h2><p>12 ký hiệu · 5 mẫu / ký hiệu</p></div></div>
+        <div id="rune-grid" class="rune-grid"><p class="skeleton-text">Đang tải hình mẫu…</p></div>
+        <button id="choose-invalid" type="button" class="invalid-action"><span>×</span> Thử nét không hợp lệ</button>
+        <div class="library-note">Đây là bộ ký hiệu thử nghiệm toàn cục. Chúng sẽ được ánh xạ sang chiêu thức riêng của từng vũ khí sau này.</div>
+      </section>
+
+      <section class="panel composer" aria-label="Khung vẽ">
+        <div class="panel-title"><span class="section-num">02</span><div><h2>Khung vẽ phép</h2><p>Một nét liên tục · Nhấc tay để nhận dạng</p></div></div>
+        <div class="target-strip">
+          <div class="target-icon" id="target-icon"><span>◇</span></div>
+          <label class="target-label" for="expected"><span>MỤC TIÊU THỬ NGHIỆM</span>
+            <select id="expected"><option value="">Tự do — chọn một ký hiệu</option><option value="invalid">Nét không hợp lệ</option></select>
+          </label>
+          <span class="target-hint">Nhãn kiểm thử<br>không đưa vào model</span>
+        </div>
+        <div id="drawing-pad" class="drawing-pad">
+          <div class="outer-ring"></div><div class="inner-ring"></div><div class="guide-x"></div><div class="guide-y"></div>
+          <span class="corner top-left"></span><span class="corner top-right"></span><span class="corner bottom-left"></span><span class="corner bottom-right"></span>
+          <span class="pad-label">KÝ TỰ · ẤN PHÁP</span>
+          <div id="pad-placeholder" class="pad-placeholder">
+            <div class="pad-sigil">◇</div><strong>Vẽ cổ ngữ tại đây</strong><span>Dùng chuột, ngón tay hoặc bút cảm ứng</span>
+          </div>
+          <canvas id="ink" aria-label="Vùng vẽ cổ ngữ" tabindex="0"></canvas>
+          <span id="pad-state" class="pad-state" aria-live="polite">CHỜ NÉT VẼ</span>
+        </div>
+        <div class="drawing-footer">
+          <button id="clear" type="button" class="secondary-button"><span aria-hidden="true">↺</span> Vẽ lại</button>
+          <span id="stroke-stats" class="stroke-stats">0 điểm · Chưa vẽ</span>
+          <div class="preview-card"><div class="preview-image" id="preview-image"><span>—</span></div><div><strong>224 × 224</strong><small>Ảnh thực model nhận</small></div></div>
+        </div>
+        <div class="data-box">
+          <div class="data-head"><div><h3>Ghi mẫu thực tế</h3><p>Chỉ lưu khi người vẽ chủ động bấm nút.</p></div><span class="data-count"><b id="saved-count">0</b> mẫu đã lưu</span></div>
+          <div class="data-controls">
+            <label class="id-label" for="participant">Mã người vẽ<input id="participant" type="text" maxlength="40" placeholder="VD: Kiet-01" autocomplete="off" spellcheck="false"></label>
+            <button id="save" type="button" class="primary-button" disabled>Lưu mẫu kiểm thử</button>
+          </div>
+          <div class="data-foot"><span id="save-note" aria-live="polite">Chọn ký hiệu, vẽ và điền mã người vẽ.</span><a href="/api/samples.jsonl" id="download">Tải JSONL ↓</a></div>
+        </div>
+      </section>
+
+      <section class="panel results" aria-label="Kết quả nhận dạng">
+        <div class="panel-title"><span class="section-num">03</span><div><h2>Luận giải cổ ngữ</h2><p>Cosine Similarity · Từ chối nét mơ hồ</p></div></div>
+        <div id="verdict" class="verdict idle" aria-live="polite">
+          <div class="verdict-top"><span id="verdict-pill" class="verdict-pill"><i></i> CHỜ VẼ</span><span id="verdict-glyph" class="verdict-glyph">◇</span></div>
+          <h3 id="verdict-title">Chưa có kết quả</h3>
+          <p id="verdict-detail">Nét vẽ sẽ được so sánh với toàn bộ thư viện khi nhấc tay.</p>
+        </div>
+        <div class="metrics">
+          <div><span>SIMILARITY</span><strong id="best-score">—</strong></div>
+          <div><span>CHÊNH TOP 2</span><strong id="score-gap">—</strong></div>
+          <div><span>MODEL</span><strong id="infer-ms">—</strong></div>
+        </div>
+        <div class="scores-head"><strong>Điểm tương đồng</strong><span>Không phải xác suất</span></div>
+        <div id="score-list" class="score-list"><div class="empty-scores">Chưa có nét vẽ để phân tích.</div></div>
+        <div class="threshold-box">
+          <div class="threshold-head"><h3>Điều kiện chấp nhận</h3><button id="reset-limits" type="button" class="text-button">Mặc định</button></div>
+          <label class="slider-label" for="threshold"><span>Similarity tối thiểu</span><output id="threshold-value">0.92</output></label>
+          <input id="threshold" type="range" min="0" max="1" step="0.01" value="0.92">
+          <label class="slider-label" for="margin"><span>Chênh lệch với hạng 2</span><output id="margin-value">0.02</output></label>
+          <input id="margin" type="range" min="0" max="0.5" step="0.01" value="0.02">
+          <p>Ngưỡng khởi điểm; sẽ hiệu chỉnh bằng nét vẽ thật, không train lại model.</p>
+        </div>
+      </section>
+    </div>
+    <footer class="footer"><span>◆ &nbsp; LIGHT SOULS · RUNE CASTING RESEARCH</span><span id="runtime-note">Nhận dạng trực tiếp trên máy · Không gửi nét vẽ ra ngoài</span></footer>
+    <p id="global-error" class="global-error" hidden role="alert"></p>
+  </main>
+</body>
+</html>
