@@ -1,5 +1,6 @@
 using LightSouls.Combat.Effects;
 using LightSouls.Combat.Stats;
+using LightSouls.Combat.Runes;
 using UnityEngine;
 using System.Collections;
 
@@ -35,6 +36,12 @@ namespace LightSouls.Combat.Weapons
         }
 
         public override bool ExecuteAttack(Transform attackOrigin, Vector3 aimDirection, LayerMask targetLayer, GameObject attacker)
+            =>Execute(attackOrigin,aimDirection,targetLayer,attacker,null,null);
+
+        public override bool ExecuteRuneAttack(Transform attackOrigin,Vector3 aimDirection,LayerMask targetLayer,GameObject attacker,
+            RuneSkill skill,RuneImpact impact)=>Execute(attackOrigin,aimDirection,targetLayer,attacker,skill,impact);
+
+        private bool Execute(Transform attackOrigin, Vector3 aimDirection, LayerMask targetLayer, GameObject attacker,RuneSkill skill,RuneImpact impact)
         {
             if (!CanAttack || weaponData == null) return false;
 
@@ -50,9 +57,10 @@ namespace LightSouls.Combat.Weapons
                 VfxFactory.Muzzle(spawnPos, aim, vfx.muzzleColor, vfx.element, weaponData.ProjectileCount > 1 || weaponData.IsExplosive);
             }
 
-            int count = Mathf.Max(1, weaponData.ProjectileCount);
-            float startAngle = count > 1 ? -weaponData.SpreadAngle * 0.5f : 0f;
-            float stepAngle = count > 1 ? weaponData.SpreadAngle / (count - 1) : 0f;
+            int count = Mathf.Clamp(weaponData.ProjectileCount+(skill?.ExtraHits??0),1,12);
+            float spread=skill!=null&&skill.Spread>0?skill.Spread:weaponData.SpreadAngle;
+            float startAngle = count > 1 ? -spread * 0.5f : 0f;
+            float stepAngle = count > 1 ? spread / (count - 1) : 0f;
 
             for (int i = 0; i < count; i++)
             {
@@ -66,11 +74,11 @@ namespace LightSouls.Combat.Weapons
 
                 if (weaponData.IsExplosive)
                 {
-                    LaunchExplosive(attackOrigin, spawnPos, shootDirection, targetLayer, attacker);
+                    LaunchExplosive(attackOrigin, spawnPos, shootDirection, targetLayer, attacker,skill,impact);
                 }
                 else
                 {
-                    SpawnBullet(spawnPos, shootDirection, targetLayer, attacker);
+                    SpawnBullet(spawnPos, shootDirection, targetLayer, attacker,skill,impact);
                 }
             }
 
@@ -78,6 +86,15 @@ namespace LightSouls.Combat.Weapons
             recoil=StartCoroutine(RecoilRoutine(weaponData.IsExplosive||count>1));
 
             return true;
+        }
+
+        public override void PlayRuneVisual(Transform attackOrigin,Vector3 aimDirection,RuneSkill skill)
+        {
+            base.PlayRuneVisual(attackOrigin,aimDirection,skill);
+            Vector3 spawn=muzzlePoint!=null?muzzlePoint.position:attackOrigin.position+aimDirection*.65f;
+            VfxFactory.Muzzle(spawn,aimDirection,weaponData.Vfx.muzzleColor,weaponData.Vfx.element,true);
+            if(recoil!=null)StopCoroutine(recoil);
+            recoil=StartCoroutine(RecoilRoutine(true));
         }
 
         private IEnumerator RecoilRoutine(bool heavy)
@@ -90,7 +107,7 @@ namespace LightSouls.Combat.Weapons
             transform.localPosition=restPosition;transform.localRotation=restRotation;recoil=null;
         }
 
-        private void SpawnBullet(Vector3 spawnPos, Vector3 shootDirection, LayerMask targetLayer, GameObject attacker)
+        private void SpawnBullet(Vector3 spawnPos, Vector3 shootDirection, LayerMask targetLayer, GameObject attacker,RuneSkill skill,RuneImpact impact)
         {
             GameObject projObj;
             if (weaponData.ProjectilePrefab != null)
@@ -121,17 +138,18 @@ namespace LightSouls.Combat.Weapons
             Projectile projectile = projObj.GetComponent<Projectile>();
             if (projectile != null)
             {
-                float lifetime=Mathf.Min(weaponData.ProjectileLifetime,(weaponData.AttackRange+1f)/Mathf.Max(1f,weaponData.ProjectileSpeed));
-                projectile.Initialize(weaponData.Damage, weaponData.ProjectileSpeed, lifetime, targetLayer, attacker);
-                projectile.SetWeapon(weaponData, weaponData.PierceCount);
+                float range=skill?.RangeScale??1f;
+                float lifetime=Mathf.Min(weaponData.ProjectileLifetime*Mathf.Max(1f,range),(weaponData.AttackRange*range+1f)/Mathf.Max(1f,weaponData.ProjectileSpeed));
+                projectile.Initialize(weaponData.Damage*(skill?.DamageScale??1f), weaponData.ProjectileSpeed, lifetime, targetLayer, attacker);
+                projectile.SetWeapon(weaponData, Mathf.Clamp(weaponData.PierceCount+(skill?.PierceBonus??0),0,10),impact);
                 projectile.SetVisualStyle(trailColor, weaponData.Vfx.element,
                     weaponData.Vfx.element == CombatVfxElement.Frost ? .30f : .14f);
             }
         }
 
-        private void LaunchExplosive(Transform attackOrigin, Vector3 spawnPos, Vector3 shootDirection, LayerMask targetLayer, GameObject attacker)
+        private void LaunchExplosive(Transform attackOrigin, Vector3 spawnPos, Vector3 shootDirection, LayerMask targetLayer, GameObject attacker,RuneSkill skill,RuneImpact impact)
         {
-            float range = weaponData.AttackRange;
+            float range = weaponData.AttackRange*(skill?.RangeScale??1f);
             Vector3 groundOrigin = attackOrigin.position;
             groundOrigin.y = attacker != null ? attacker.transform.position.y : 0f;
 
@@ -153,9 +171,9 @@ namespace LightSouls.Combat.Weapons
 
             float distance = Vector3.Distance(spawnPos, target);
             float flightTime = Mathf.Clamp(distance / Mathf.Max(1f, weaponData.ProjectileSpeed), 0.25f, 1.5f);
-            float damage = weaponData.Damage * PlayerStats.DamageMultiplierOf(attacker);
+            float damage = weaponData.Damage * (skill?.DamageScale??1f) * PlayerStats.DamageMultiplierOf(attacker);
             ExplosiveProjectile.Launch(spawnPos, target, flightTime, weaponData.ArcHeight, damage, weaponData.ExplosionRadius,
-                attacker, weaponData.ExplosionDamagesOwner, weaponData.WeaponColor, weaponData);
+                attacker, weaponData.ExplosionDamagesOwner, weaponData.WeaponColor, weaponData,runeImpact:impact);
         }
     }
 }

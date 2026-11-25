@@ -53,7 +53,9 @@ namespace LightSouls.Combat.UI
         private PlayerController _subscribedPlayer;
         private Image attackCooldownShade;
         private Text attackCooldownText,tacticalCooldownText;
+        private RuneCastingHud runeHud;
         public Text AttackCooldownText=>attackCooldownText;
+        public RuneCastingHud RuneHud=>runeHud;
 
         private void Start()
         {
@@ -84,6 +86,17 @@ namespace LightSouls.Combat.UI
 
             Subscribe();
             BuildAttackCooldownUI();
+            BuildRuneUI();
+        }
+
+        private void BuildRuneUI()
+        {
+            if(runeHud!=null)return;
+            var attack=attackButtonIconImage!=null?attackButtonIconImage.transform.parent:attackButtonIconText!=null?attackButtonIconText.transform.parent:null;
+            if(attack==null||attack.parent==null||attack.parent.parent==null)return;
+            runeHud=RuneCastingHud.Create(attack.parent.parent,attack.gameObject,attackButtonIconText,
+                attack.parent.Find("Button_Skill_Dash") as RectTransform,attack.parent.Find("Button_Interact") as RectTransform);
+            runeHud.SetPlayer(player);
         }
 
         private void BuildAttackCooldownUI()
@@ -115,6 +128,7 @@ namespace LightSouls.Combat.UI
             Unsubscribe();
             player = newPlayer;
             Subscribe();
+            runeHud?.SetPlayer(player);
         }
 
         private void Subscribe()
@@ -157,7 +171,7 @@ namespace LightSouls.Combat.UI
                 attackCooldownShade.gameObject.SetActive(cooling);attackCooldownShade.fillAmount=player.Combat.AttackCooldownRatio;
                 attackCooldownText.gameObject.SetActive(cooling);attackCooldownText.text=cooling?remaining.ToString("0.0"):string.Empty;
                 var w=player.Combat.CurrentWeaponData;
-                bool hasTactic=w!=null&&w.HasTacticalSkill;
+                bool hasTactic=runeHud==null&&w!=null&&w.HasTacticalSkill;
                 if(tacticalCooldownText!=null)
                 {
                     tacticalCooldownText.gameObject.SetActive(hasTactic);

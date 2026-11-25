@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using LightSouls.Common;
 using LightSouls.Combat.Effects;
+using LightSouls.Combat.Runes;
 
 namespace LightSouls.Combat.Weapons
 {
@@ -22,6 +23,7 @@ namespace LightSouls.Combat.Weapons
         private float _spawnTime;
         private bool _finished;
         private WeaponDataSO _weapon;
+        private RuneImpact _runeImpact;
         private int _pierceRemaining;
         private Color _visualColor = Color.white;
         private CombatVfxElement _visualElement;
@@ -40,9 +42,10 @@ namespace LightSouls.Combat.Weapons
         }
 
         /// <summary>Gắn vũ khí bắn ra (để chạy hiệu ứng trúng đòn) và số mục tiêu được xuyên thêm.</summary>
-        public void SetWeapon(WeaponDataSO weapon, int pierceCount)
+        public void SetWeapon(WeaponDataSO weapon, int pierceCount,RuneImpact runeImpact=null)
         {
             _weapon = weapon;
+            _runeImpact=runeImpact;
             _pierceRemaining = Mathf.Max(0, pierceCount);
         }
 
@@ -134,7 +137,7 @@ namespace LightSouls.Combat.Weapons
                 if (damageable != null && !damageable.IsDead && !WeaponHitResolver.IsFriendly(_source,damageable) && _alreadyHit.Add(damageable))
                 {
                     WeaponHitResolver.Apply(_weapon, damage, _source, damageable, contactPoint,
-                        true, transform.forward, _visualElement, _visualColor);
+                        true, transform.forward, _visualElement, _visualColor,_runeImpact);
 
                     if (_pierceRemaining > 0)
                     {

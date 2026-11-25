@@ -65,6 +65,7 @@ namespace LightSouls.Combat.UI
         private InventorySlotUI _draggingSourceSlotUI = null;
         private bool _dropOccurred = false;
         private bool _isOpen = false;
+        private ScrollableItemDetails itemDetailScroll;
 
         public bool IsOpen => _isOpen;
 
@@ -77,6 +78,16 @@ namespace LightSouls.Combat.UI
         {
             RegisterViews();
             BuildMaterialTabs();
+
+            if(itemStatsText!=null&&itemDescriptionText!=null)
+            {
+                // The old stats field had room for only a few lines. Give the
+                // four skill descriptions and the item lore one scroll region.
+                var rt=itemStatsText.rectTransform;
+                rt.anchoredPosition=new Vector2(0,-82);rt.sizeDelta=new Vector2(320,300);
+                itemDetailScroll=ScrollableItemDetails.Wrap(itemStatsText,"ItemDetailScroll");
+                itemDescriptionText.gameObject.SetActive(false);
+            }
 
             if (closeButton != null)
             {
@@ -506,7 +517,9 @@ namespace LightSouls.Combat.UI
             if (itemStatsText != null)
             {
                 // Mỗi loại vật phẩm tự mô tả chỉ số (ItemDefinitionSO.GetStatsText), kể cả hiệu ứng đặc biệt.
-                itemStatsText.text = item.GetStatsText();
+                string stats=item.GetStatsText();
+                if(itemDetailScroll!=null)itemDetailScroll.SetText(string.IsNullOrEmpty(stats)?item.Description:stats+"\n\n"+item.Description);
+                else itemStatsText.text=stats;
             }
 
             if (itemIconImage != null)

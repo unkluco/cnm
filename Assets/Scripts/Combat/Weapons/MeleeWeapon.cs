@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using LightSouls.Common;
 using LightSouls.Combat.Effects;
+using LightSouls.Combat.Runes;
 
 namespace LightSouls.Combat.Weapons
 {
@@ -58,6 +59,12 @@ namespace LightSouls.Combat.Weapons
         }
 
         public override bool ExecuteAttack(Transform attackOrigin, Vector3 aimDirection, LayerMask targetLayer, GameObject attacker)
+            =>Execute(attackOrigin,aimDirection,targetLayer,attacker,null,null);
+
+        public override bool ExecuteRuneAttack(Transform attackOrigin,Vector3 aimDirection,LayerMask targetLayer,GameObject attacker,
+            RuneSkill skill,RuneImpact impact)=>Execute(attackOrigin,aimDirection,targetLayer,attacker,skill,impact);
+
+        private bool Execute(Transform attackOrigin, Vector3 aimDirection, LayerMask targetLayer, GameObject attacker,RuneSkill skill,RuneImpact impact)
         {
             if (!CanAttack || weaponData == null) return false;
 
@@ -65,37 +72,49 @@ namespace LightSouls.Combat.Weapons
             Vector3 direction = aimDirection.sqrMagnitude > 0.0001f ? aimDirection.normalized : attackOrigin.forward;
 
             // Nhát đầu đánh ngay; các nhát sau (Song Dao...) đánh tiếp theo nhịp strikeInterval.
-            PerformStrike(attackOrigin, direction, targetLayer, attacker, 0);
-            if (weaponData.StrikeCount > 1)
+            int strikes=Mathf.Clamp(weaponData.StrikeCount+(skill?.ExtraHits??0),1,5);
+            PerformStrike(attackOrigin, direction, targetLayer, attacker, 0,skill,impact);
+            if (strikes > 1)
             {
-                StartCoroutine(ExtraStrikesRoutine(attackOrigin, direction, targetLayer, attacker));
+                StartCoroutine(ExtraStrikesRoutine(attackOrigin, direction, targetLayer, attacker,strikes,skill,impact));
             }
 
             return true;
         }
 
-        private IEnumerator ExtraStrikesRoutine(Transform attackOrigin, Vector3 direction, LayerMask targetLayer, GameObject attacker)
+        private IEnumerator ExtraStrikesRoutine(Transform attackOrigin, Vector3 direction, LayerMask targetLayer, GameObject attacker,int strikes,RuneSkill skill,RuneImpact impact)
         {
-            for (int i = 1; i < weaponData.StrikeCount; i++)
+            for (int i = 1; i < strikes; i++)
             {
                 yield return new WaitForSeconds(weaponData.StrikeInterval);
                 if (attackOrigin == null || weaponData == null) yield break;
-                PerformStrike(attackOrigin, direction, targetLayer, attacker, i);
+                if(attacker==null||attacker.GetComponent<PlayerController>()?.IsDead==true)yield break;
+                PerformStrike(attackOrigin, direction, targetLayer, attacker, i,skill,impact);
             }
         }
 
-        private void PerformStrike(Transform attackOrigin, Vector3 aimDirection, LayerMask targetLayer, GameObject attacker, int strikeIndex)
+        public override void PlayRuneVisual(Transform attackOrigin,Vector3 aimDirection,RuneSkill skill)
         {
+            base.PlayRuneVisual(attackOrigin,aimDirection,skill);
+            SpawnSlashWave(attackOrigin,aimDirection,false,skill?.RangeScale??1f,skill?.Arc??0f);
+            if(_swingCoroutine!=null)StopCoroutine(_swingCoroutine);
+            _swingCoroutine=StartCoroutine(SwingRoutine(false));
+        }
+
+        private void PerformStrike(Transform attackOrigin, Vector3 aimDirection, LayerMask targetLayer, GameObject attacker, int strikeIndex,RuneSkill skill,RuneImpact impact)
+        {
+            float rangeScale=skill?.RangeScale??1f;
+            float arc=skill!=null&&skill.Arc>0?skill.Arc:weaponData.SwingArcAngle;
             // 1. Vệt chém (nhát lẻ lật ngược để hai nhát liên tiếp nhìn như chém chéo).
-            SpawnSlashWave(attackOrigin, aimDirection, strikeIndex % 2 == 1);
+            SpawnSlashWave(attackOrigin, aimDirection, strikeIndex % 2 == 1,rangeScale,arc);
 
             // 2. Diễn hoạt vung vũ khí
             if (_swingCoroutine != null) StopCoroutine(_swingCoroutine);
             _swingCoroutine = StartCoroutine(SwingRoutine(strikeIndex % 2 == 1));
 
             // 3. Quét sát thương hình quạt phía trước
-            Vector3 center = attackOrigin.position + aimDirection * (weaponData.AttackRange * 0.5f);
-            float radius = weaponData.HitRadius + (weaponData.AttackRange * 0.5f);
+            Vector3 center = attackOrigin.position + aimDirection * (weaponData.AttackRange * rangeScale * 0.5f);
+            float radius = (weaponData.HitRadius + (weaponData.AttackRange * 0.5f))*rangeScale;
 
             WeaponVfxProfile vfx = weaponData.Vfx;
             if (vfx.groundShockwave)
@@ -117,14 +136,14 @@ namespace LightSouls.Combat.Weapons
 
                 // Kiểm tra góc quét nhát chém (Swing Arc)
                 float angle = dirToTarget.sqrMagnitude < 0.01f ? 0f : Vector3.Angle(aimDirection, dirToTarget.normalized);
-                if (angle > weaponData.SwingArcAngle * 0.5f) continue;
+                if (angle > arc * 0.5f) continue;
 
                 IDamageable damageable = WeaponHitResolver.FindDamageable(col);
                 if (damageable == null || damageable.IsDead || WeaponHitResolver.IsFriendly(attacker,damageable) || !damagedEntities.Add(damageable)) continue;
                 Vector3 contact=col.ClosestPoint(attackOrigin.position);
                 if(Physics.Linecast(attackOrigin.position,contact,1<<8,QueryTriggerInteraction.Ignore))continue;
 
-                WeaponHitResolver.Apply(weaponData, weaponData.Damage, attacker, damageable, col.ClosestPoint(attackOrigin.position));
+                WeaponHitResolver.Apply(weaponData, weaponData.Damage*(skill?.DamageScale??1f), attacker, damageable, col.ClosestPoint(attackOrigin.position),runeImpact:impact);
 
                 // Đẩy lùi đối thủ nếu có Rigidbody
                 Rigidbody rb = col.attachedRigidbody;
@@ -135,7 +154,7 @@ namespace LightSouls.Combat.Weapons
             }
         }
 
-        private void SpawnSlashWave(Transform attackOrigin, Vector3 aimDirection, bool mirrored)
+        private void SpawnSlashWave(Transform attackOrigin, Vector3 aimDirection, bool mirrored,float rangeScale=1f,float arcOverride=0f)
         {
             Vector3 spawnPos = attackOrigin.position + Vector3.up * 0.08f;
             Quaternion spawnRot = Quaternion.LookRotation(aimDirection, Vector3.up);
@@ -147,8 +166,8 @@ namespace LightSouls.Combat.Weapons
 
             Color slashColor = weaponData != null ? weaponData.Vfx.slashColor : new Color(1f, 1f, 1f, 0.9f);
             CombatVfxElement element = weaponData != null ? weaponData.Vfx.element : CombatVfxElement.Steel;
-            float arc = weaponData != null ? weaponData.SwingArcAngle : 110f;
-            float outer = weaponData != null ? Mathf.Max(1.0f, weaponData.AttackRange * .89f) : 1.8f;
+            float arc = arcOverride>0?arcOverride:weaponData != null ? weaponData.SwingArcAngle : 110f;
+            float outer = weaponData != null ? Mathf.Max(1.0f, weaponData.AttackRange * .89f*rangeScale) : 1.8f;
 
             if (slashWavePrefab != null)
             {

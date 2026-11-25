@@ -61,6 +61,7 @@ namespace LightSouls.Lobby
         private Text detailName;
         private Text detailPrice;
         private Text detailDescription;
+        private ScrollableItemDetails descriptionScroll;
         private Button buyButton;
 
         public bool IsOpen => panelRoot != null && panelRoot.activeSelf;
@@ -262,7 +263,9 @@ namespace LightSouls.Lobby
                 detailPrice.supportRichText = true;
                 detailPrice.text = $"Giá: {item.Price} xu   •   {ItemRarityStyle.ColoredName(item.Rarity)}";
                 string stats = item.GetStatsText();
-                detailDescription.text = string.IsNullOrEmpty(stats) ? item.Description : item.Description + "\n\n" + stats;
+                string description=string.IsNullOrEmpty(stats)?item.Description:item.Description+"\n\n"+stats;
+                if(descriptionScroll!=null)descriptionScroll.SetText(description);
+                else detailDescription.text=description;
                 RarityFrame.Apply(detailIcon.rectTransform, item);
             }
 
@@ -447,6 +450,7 @@ namespace LightSouls.Lobby
             descRt.anchorMax = new Vector2(1f, 1f);
             descRt.offsetMin = new Vector2(24f, 130f);
             descRt.offsetMax = new Vector2(-24f, -310f);
+            descriptionScroll=ScrollableItemDetails.Wrap(detailDescription,"DescriptionScroll");
 
             Image buyImage = CreateImage("BuyButton", body.transform, DarkFantasyTheme.Success);
             buyButton = buyImage.gameObject.AddComponent<Button>();
