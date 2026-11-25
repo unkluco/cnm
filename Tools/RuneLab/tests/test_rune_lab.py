@@ -98,6 +98,9 @@ class FrozenModelTests(unittest.TestCase):
                 self.thread_ids.add(threading.get_ident())
                 return self.delegate.recognize(*args)
 
+            def info(self):
+                return self.delegate.info()
+
         observer = ObservedRecognizer(self.recognizer)
         LOCAL.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=LOCAL) as directory:

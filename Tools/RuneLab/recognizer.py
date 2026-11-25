@@ -7,6 +7,7 @@ The checkpoint is pinned and verified; only safetensors weights are loaded.
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import os
 import tempfile
@@ -110,9 +111,9 @@ def decide(scores: list[dict], threshold: float, margin: float, too_short=False)
 
 
 class RuneRecognizer:
-    """One frozen model; reference embeddings are computed just once at start."""
+    """Inference-only backbone; optionally load a separately trained candidate."""
 
-    def __init__(self, device="cpu", threads=4):
+    def __init__(self, device="cpu", threads=4, candidate_dir: Path | None = None):
         if device == "auto":
             device = "cuda" if torch.cuda.is_available() else "cpu"
         if device == "cuda" and not torch.cuda.is_available():
@@ -121,7 +122,52 @@ class RuneRecognizer:
         self.threads = max(1, min(threads, os.cpu_count() or 1))
         torch.set_num_threads(self.threads)
         self.lock = threading.Lock()
-        weights = ensure_weights()
+        self.default_threshold, self.default_margin = DEFAULT_THRESHOLD, DEFAULT_MARGIN
+        self.candidate_dir = Path(candidate_dir).resolve() if candidate_dir is not None else None
+        self.candidate_config = None
+        self.reference_sha256 = None
+        candidate_templates = None
+        if self.candidate_dir is None:
+            weights = ensure_weights()
+            self.model_name = "ViT-Tiny / DINOv2 distilled"
+            self.model_sha256 = MODEL_SHA256
+        else:
+            directory = self.candidate_dir
+            metadata = json.loads((directory / "candidate-metadata.json").read_text(encoding="utf-8"))
+            if (
+                metadata.get("base_repo") != MODEL_REPO
+                or metadata.get("base_revision") != MODEL_REVISION
+                or metadata.get("base_sha256") != MODEL_SHA256
+                or metadata.get("merged_parameters") != 5524416
+            ):
+                raise ValueError("Candidate must originate from the pinned Rune Lab ViT-Tiny backbone.")
+            weights = directory / "candidate-merged.safetensors"
+            bank_path = directory / "candidate-template-embeddings.npz"
+            if weights.stat().st_size != metadata.get("merged_bytes"):
+                raise ValueError("Candidate weight file size differs from the training metadata.")
+            self.model_sha256 = sha256_of(weights)
+            if self.model_sha256 == MODEL_SHA256:
+                raise ValueError("Candidate weights are identical to the original frozen model.")
+            self.reference_sha256 = sha256_of(bank_path)
+            self.candidate_config = metadata["config"]
+            self.model_name = f"ViT-Tiny + LoRA rank {self.candidate_config['rank']}"
+            self.default_threshold, self.default_margin = checked_limits(metadata["threshold"], metadata["margin"])
+            with np.load(bank_path, allow_pickle=False) as bank:
+                labels = bank["labels"].tolist()
+                candidate_templates = np.ascontiguousarray(bank["embeddings"], dtype=np.float32)
+            if labels != [rune.id for rune in RUNES]:
+                raise ValueError("Candidate template labels or order differ from the Rune Lab vocabulary.")
+            if (
+                candidate_templates.ndim != 3
+                or candidate_templates.shape[0] != len(RUNES)
+                or candidate_templates.shape[1] < TEMPLATE_COUNT
+                or candidate_templates.shape[2] != FEATURE_DIM
+                or candidate_templates.shape[0] * candidate_templates.shape[1] != metadata.get("reference_count")
+                or not np.isfinite(candidate_templates).all()
+                or not np.allclose(np.linalg.norm(candidate_templates, axis=-1), 1.0, atol=1e-3)
+            ):
+                raise ValueError("Candidate reference embeddings have invalid dimensions or normalization.")
+        self.weights_bytes = weights.stat().st_size
         self.model = timm.create_model("vit_tiny_patch16_224", pretrained=False, num_classes=0)
         self.model.load_state_dict(load_file(str(weights), device="cpu"), strict=True)
         self.model.eval().requires_grad_(False).to(self.device)
@@ -131,22 +177,39 @@ class RuneRecognizer:
         expected_shape = (len(RUNES) * TEMPLATE_COUNT, FEATURE_DIM)
         if embeddings.shape != expected_shape:
             raise RuntimeError(f"Unexpected feature shape {embeddings.shape}; expected {expected_shape}.")
-        self.templates = embeddings.reshape(len(RUNES), TEMPLATE_COUNT, FEATURE_DIM)
-        print(f"ViT-Tiny ready: {self.parameter_count:,} parameters, {len(embeddings)} frozen reference embeddings, {self.device}.", flush=True)
+        canonical_embeddings = embeddings.reshape(len(RUNES), TEMPLATE_COUNT, FEATURE_DIM)
+        if candidate_templates is None:
+            self.templates = canonical_embeddings
+        else:
+            # The first five vectors per rune were computed from this exact
+            # canonical bank during training. Verify the merged model and
+            # supplied reference bank are a matching pair before activation.
+            parity = float((canonical_embeddings * candidate_templates[:, :TEMPLATE_COUNT]).sum(axis=-1).min())
+            if parity < 0.9999:
+                raise ValueError(f"Candidate model and reference bank do not match (cosine={parity:.6f}).")
+            self.templates = candidate_templates
+            print(f"Candidate reference parity: {parity:.8f}", flush=True)
+        self.reference_count = int(self.templates.shape[0] * self.templates.shape[1])
+        print(f"{self.model_name} ready: {self.parameter_count:,} parameters, {self.reference_count} reference embeddings, {self.device}.", flush=True)
 
     def info(self) -> dict:
         return {
-            "model": "ViT-Tiny / DINOv2 distilled",
+            "model": self.model_name,
+            "variant": "lora" if self.candidate_dir is not None else "frozen",
             "repo": MODEL_REPO,
             "revision": MODEL_REVISION,
-            "sha256": MODEL_SHA256,
-            "weights_bytes": MODEL_BYTES,
+            "base_sha256": MODEL_SHA256,
+            "sha256": self.model_sha256,
+            "reference_sha256": self.reference_sha256,
+            "weights_bytes": self.weights_bytes,
             "parameters": self.parameter_count,
             "feature_dim": FEATURE_DIM,
             "image_size": 224,
             "device": str(self.device),
             "threads": self.threads,
-            "reference_count": len(RUNES) * TEMPLATE_COUNT,
+            "reference_count": self.reference_count,
+            "references_per_rune": int(self.templates.shape[1]),
+            "candidate_config": self.candidate_config,
             "trainable": False,
         }
 
@@ -182,7 +245,9 @@ class RuneRecognizer:
             for index in ids
         ]
 
-    def recognize(self, points: np.ndarray, threshold=DEFAULT_THRESHOLD, margin=DEFAULT_MARGIN) -> dict:
+    def recognize(self, points: np.ndarray, threshold=None, margin=None) -> dict:
+        threshold = self.default_threshold if threshold is None else threshold
+        margin = self.default_margin if margin is None else margin
         threshold, margin = checked_limits(threshold, margin)
         start = time.perf_counter()
         metrics = stroke_metrics(points)

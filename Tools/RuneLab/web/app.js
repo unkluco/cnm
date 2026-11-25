@@ -7,6 +7,7 @@ const pad = byId("drawing-pad");
 const RUNES = new Map();
 let catalogReady = false;
 let defaults = {threshold: 0.92, margin: 0.02};
+let presets = [];
 let points = [];
 let activePointer = null;
 let method = "unknown";
@@ -229,12 +230,41 @@ function renderCatalog(data) {
     select.append(option);
   }
   defaults = {threshold: data.threshold, margin: data.margin};
+  presets = data.presets || [];
   byId("threshold").value = defaults.threshold;
   byId("margin").value = defaults.margin;
+  const buttons = byId("preset-buttons");
+  buttons.replaceChildren();
+  buttons.hidden = !presets.length;
+  for (const preset of presets) {
+    const button = element("button", "preset-button");
+    button.type = "button";
+    button.dataset.preset = preset.id;
+    button.append(element("span", "", preset.name), document.createTextNode(preset.threshold.toFixed(2) + " · " + preset.margin.toFixed(2)));
+    button.addEventListener("click", () => {
+      byId("threshold").value = preset.threshold;
+      byId("margin").value = preset.margin;
+      updateLimits();
+    });
+    buttons.append(button);
+  }
   updateLimits();
   byId("saved-count").textContent = data.samples_saved;
+  const trained = data.model.variant === "lora";
+  byId("model-name").textContent = data.model.model;
   byId("model-meta").textContent = "224 × 224 · " + data.model.feature_dim + " chiều · " + (data.model.weights_bytes / 1e6).toFixed(1) + " MB";
-  byId("runtime-note").textContent = "Chạy local · " + data.model.device.toUpperCase() + " · " + data.model.reference_count + " vector mẫu · Không huấn luyện";
+  byId("library-count").textContent = data.runes.length + " ký hiệu · " + data.model.references_per_rune + " mẫu / ký hiệu";
+  byId("runtime-note").textContent = "Chạy local · " + data.model.device.toUpperCase() + " · " + data.model.reference_count + " vector mẫu · " + (trained ? "LoRA đã gộp" : "Không huấn luyện");
+  if (trained) {
+    const miningName = data.model.candidate_config?.mining === "semi-hard" ? "Semi-Hard Triplet" : "Batch-Hard Triplet";
+    byId("phase-name").textContent = "THỬ NGHIỆM LORA";
+    byId("trial-banner").hidden = false;
+    byId("trial-description").textContent = data.model.model + " · " + miningName + " · " + data.model.reference_count + " vector mẫu. Thử cả nét đúng và nét sai gần giống ký hiệu.";
+    byId("trial-data-count").textContent = data.baseline_samples_saved + " mẫu cũ giữ nguyên · mẫu mới lưu riêng";
+    byId("data-title").textContent = "Ghi mẫu thử bản LoRA";
+    byId("data-description").textContent = "Lưu riêng dữ liệu mới để kiểm tra model đã train.";
+    byId("threshold-description").textContent = "Đã hiệu chỉnh: dễ nhận nét đúng hơn; Chặt hơn: giảm nguy cơ nhận nhầm nét lạ. Chưa phải ngưỡng gameplay chính thức.";
+  }
   setConnection("ready", "MODEL ĐÃ SẴN SÀNG");
   catalogReady = true;
   renderSelection();
@@ -327,6 +357,13 @@ async function analyze() {
 function updateLimits() {
   byId("threshold-value").textContent = Number(byId("threshold").value).toFixed(2);
   byId("margin-value").textContent = Number(byId("margin").value).toFixed(2);
+  const current = limits();
+  for (const button of byId("preset-buttons").querySelectorAll("button")) {
+    const preset = presets.find(p => p.id === button.dataset.preset);
+    const selected = preset && Math.abs(current.threshold - preset.threshold) < 1e-6 && Math.abs(current.margin - preset.margin) < 1e-6;
+    button.classList.toggle("selected", Boolean(selected));
+    button.setAttribute("aria-pressed", String(Boolean(selected)));
+  }
   if (lastResult) renderResult();
 }
 byId("threshold").addEventListener("input", updateLimits);

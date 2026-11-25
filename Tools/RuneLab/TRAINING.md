@@ -52,4 +52,16 @@ Lệnh này kiểm tra tính tương đương các vector CPU/GPU, độ trễ m
 
 Không đưa dataset, adapter/candidate hoặc các vector cá nhân lên Git tự động. Các artifact là thử nghiệm; không thay checkpoint/model nhận dạng đang phục vụ Rune Lab hay game. Cần thêm người vẽ độc lập và nhiều unknowns trước khi triển khai mobile.
 
+## Thử model đã train trong Rune Lab
+
+Sau khi có candidate được xác minh:
+
+```powershell
+python run_lab.py --candidate .local/training/rune-experiment --port 8765 --open-browser
+```
+
+Rune Lab sẽ hiển thị rõ phiên bản LoRA, nạp **trọng số đã gộp** và 120 embedding tham chiếu của đúng phiên bản đó, kiểm tra tính tương đương của các vector mẫu chuẩn khi khởi động. Có hai mức: ngưỡng hiệu chỉnh từ development và mức chặt hơn 0,90 / 0,05 để tiếp tục thử nghiệm. Người dùng vẫn có thể thay đổi hai thanh ngưỡng. Không coi ngưỡng này là ngưỡng sản phẩm.
+
+Mẫu thu mới ghi riêng ở `.local/trials/lora-<hash-model>/samples.jsonl`, kèm hash đúng của trọng số và ngân hàng tham chiếu. Không ghi vào `.local/data/samples.jsonl` ban đầu. Chạy lại `python run_lab.py` (không có `--candidate`) để trở về phiên bản frozen.
+
 Tham khảo: [LoRA](https://arxiv.org/abs/2106.09685), [In Defense of the Triplet Loss](https://arxiv.org/abs/1703.07737).

@@ -17,7 +17,7 @@
       <div><span class="brand-name">LIGHT SOULS</span><span class="brand-sub">Phòng nghiên cứu cổ ngữ</span></div>
     </div>
     <div class="top-indicators">
-      <span class="phase-tag"><span class="tiny-diamond"></span> GIAI ĐOẠN I</span>
+      <span class="phase-tag"><span class="tiny-diamond"></span> <span id="phase-name">GIAI ĐOẠN I</span></span>
       <span id="connection" class="connection loading"><i></i><span>Đang kết nối model</span></span>
     </div>
   </header>
@@ -31,14 +31,20 @@
       </div>
       <div class="model-badge">
         <span class="badge-label">BỘ TRÍCH XUẤT ĐẶC TRƯNG</span>
-        <strong>ViT-Tiny <span>•</span> DINOv2 distilled</strong>
+        <strong id="model-name">ViT-Tiny <span>•</span> DINOv2 distilled</strong>
         <span id="model-meta" class="badge-desc">224 × 224 · 192 chiều · Không huấn luyện thêm</span>
       </div>
     </section>
 
+    <div id="trial-banner" class="trial-banner" hidden>
+      <span class="trial-mark">◆</span>
+      <div><strong>MODEL ĐÃ HUẤN LUYỆN · THỬ NGHIỆM RIÊNG</strong><p id="trial-description">LoRA rank 4 · Batch-Hard Triplet</p></div>
+      <span id="trial-data-count" class="trial-count">Mẫu thử lưu riêng</span>
+    </div>
+
     <div class="workbench">
       <section class="panel library" aria-label="Thư viện cổ ngữ">
-        <div class="panel-title"><span class="section-num">01</span><div><h2>Thư viện cổ ngữ</h2><p>12 ký hiệu · 5 mẫu / ký hiệu</p></div></div>
+        <div class="panel-title"><span class="section-num">01</span><div><h2>Thư viện cổ ngữ</h2><p id="library-count">12 ký hiệu · 5 mẫu / ký hiệu</p></div></div>
         <div id="rune-grid" class="rune-grid"><p class="skeleton-text">Đang tải hình mẫu…</p></div>
         <button id="choose-invalid" type="button" class="invalid-action"><span>×</span> Thử nét không hợp lệ</button>
         <div class="library-note">Đây là bộ ký hiệu thử nghiệm toàn cục. Chúng sẽ được ánh xạ sang chiêu thức riêng của từng vũ khí sau này.</div>
@@ -69,7 +75,7 @@
           <div class="preview-card"><div class="preview-image" id="preview-image"><span>—</span></div><div><strong>224 × 224</strong><small>Ảnh thực model nhận</small></div></div>
         </div>
         <div class="data-box">
-          <div class="data-head"><div><h3>Ghi mẫu thực tế</h3><p>Chỉ lưu khi người vẽ chủ động bấm nút.</p></div><span class="data-count"><b id="saved-count">0</b> mẫu đã lưu</span></div>
+          <div class="data-head"><div><h3 id="data-title">Ghi mẫu thực tế</h3><p id="data-description">Chỉ lưu khi người vẽ chủ động bấm nút.</p></div><span class="data-count"><b id="saved-count">0</b> mẫu đã lưu</span></div>
           <div class="data-controls">
             <label class="id-label" for="participant">Mã người vẽ<input id="participant" type="text" maxlength="40" placeholder="VD: Kiet-01" autocomplete="off" spellcheck="false"></label>
             <button id="save" type="button" class="primary-button" disabled>Lưu mẫu kiểm thử</button>
@@ -94,11 +100,12 @@
         <div id="score-list" class="score-list"><div class="empty-scores">Chưa có nét vẽ để phân tích.</div></div>
         <div class="threshold-box">
           <div class="threshold-head"><h3>Điều kiện chấp nhận</h3><button id="reset-limits" type="button" class="text-button">Mặc định</button></div>
+          <div id="preset-buttons" class="preset-buttons" hidden></div>
           <label class="slider-label" for="threshold"><span>Similarity tối thiểu</span><output id="threshold-value">0.92</output></label>
           <input id="threshold" type="range" min="0" max="1" step="0.01" value="0.92">
           <label class="slider-label" for="margin"><span>Chênh lệch với hạng 2</span><output id="margin-value">0.02</output></label>
           <input id="margin" type="range" min="0" max="0.5" step="0.01" value="0.02">
-          <p>Ngưỡng khởi điểm; sẽ hiệu chỉnh bằng nét vẽ thật, không train lại model.</p>
+          <p id="threshold-description">Ngưỡng khởi điểm; sẽ hiệu chỉnh bằng nét vẽ thật, không train lại model.</p>
         </div>
       </section>
     </div>

@@ -64,11 +64,12 @@ def assert_no_horizontal_overflow(page):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--browser-path", type=Path, required=True)
+    parser.add_argument("--candidate", type=Path, default=None)
     args = parser.parse_args()
-    screenshots = LOCAL / "qa"
+    screenshots = LOCAL / "qa" / "lora-candidate" if args.candidate else LOCAL / "qa"
     screenshots.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=LOCAL) as temp:
-        state = LabState(RuneRecognizer("cpu", 4), Path(temp))
+        state = LabState(RuneRecognizer("cpu", 4, args.candidate), Path(temp))
         server = LabServer(("127.0.0.1", 0), LabHandler)
         server.state = state
         thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -82,6 +83,16 @@ def main():
                 page.on("pageerror", lambda error: errors.append(str(error)))
                 page.goto(url)
                 expect(page.locator(".rune-card")).to_have_count(12)
+                if args.candidate:
+                    expect(page.locator("#trial-banner")).to_be_visible()
+                    expect(page.locator("#model-name")).to_contain_text("LoRA")
+                    expect(page.locator("#preset-buttons button")).to_have_count(2)
+                    page.locator('[data-preset="strict"]').click()
+                    expect(page.locator("#threshold")).to_have_value("0.9")
+                    page.locator('[data-preset="calibrated"]').click()
+                    expect(page.locator("#threshold")).to_have_value(str(state.threshold))
+                else:
+                    expect(page.locator("#trial-banner")).to_be_hidden()
                 assert_no_horizontal_overflow(page)
                 page.locator('[data-rune="lightning"]').click()
                 expect(page.locator("#expected")).to_have_value("lightning")
@@ -96,8 +107,13 @@ def main():
                 expect(page.locator("#saved-count")).to_have_text("1")
                 expect(page.locator("#save")).to_be_disabled()
                 assert state.sample_count() == 1
+                if args.candidate:
+                    import json
+                    sample = json.loads(state.samples_path.read_text(encoding="utf-8"))
+                    assert sample["model"]["variant"] == "lora"
+                    assert sample["model"]["sha256"] == state.recognizer.model_sha256
 
-                page.locator("#margin").evaluate("(slider) => {slider.value='0.5';slider.dispatchEvent(new Event('input',{bubbles:true}));}")
+                page.locator("#threshold").evaluate("(slider) => {slider.value='1';slider.dispatchEvent(new Event('input',{bubbles:true}));}")
                 expect(page.locator("#verdict")).to_have_class("verdict rejected")
                 page.locator("#reset-limits").click()
                 expect(page.locator("#verdict")).to_have_class("verdict accepted")

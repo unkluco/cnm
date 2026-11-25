@@ -36,6 +36,12 @@ class LabState:
         self.data_dir = data_dir
         self.samples_path = data_dir / "samples.jsonl"
         self.catalog = catalog_payload()
+        self.model_info = recognizer.info()
+        self.threshold = getattr(recognizer, "default_threshold", DEFAULT_THRESHOLD)
+        self.margin = getattr(recognizer, "default_margin", DEFAULT_MARGIN)
+        for rune in self.catalog:
+            rune["template_count"] = self.model_info["references_per_rune"]
+        self.is_candidate = self.model_info["variant"] == "lora"
         self.attempts = OrderedDict()
         self.lock = threading.Lock()
         # Reuse one inference thread across HTTP connections. On Windows the
@@ -47,16 +53,20 @@ class LabState:
     def close(self):
         self.inference.shutdown(wait=True, cancel_futures=True)
 
-    def sample_count(self) -> int:
-        if not self.samples_path.exists():
+    @staticmethod
+    def count_file(path: Path) -> int:
+        if not path.exists():
             return 0
-        with self.samples_path.open("r", encoding="utf-8") as reader:
+        with path.open("r", encoding="utf-8") as reader:
             return sum(1 for line in reader if line.strip())
+
+    def sample_count(self) -> int:
+        return self.count_file(self.samples_path)
 
     def analyze(self, payload: dict) -> dict:
         points = validate_points(payload.get("points"))
         threshold, margin = checked_limits(
-            payload.get("threshold", DEFAULT_THRESHOLD), payload.get("margin", DEFAULT_MARGIN)
+            payload.get("threshold", self.threshold), payload.get("margin", self.margin)
         )
         input_method = payload.get("input_method", "unknown")
         if input_method not in ("mouse", "touch", "pen"):
@@ -182,10 +192,15 @@ class LabHandler(BaseHTTPRequestHandler):
                 self.send_json(
                     {
                         "runes": self.state.catalog,
-                        "model": self.state.recognizer.info(),
-                        "threshold": DEFAULT_THRESHOLD,
-                        "margin": DEFAULT_MARGIN,
+                        "model": self.state.model_info,
+                        "threshold": self.state.threshold,
+                        "margin": self.state.margin,
                         "samples_saved": self.state.sample_count(),
+                        "baseline_samples_saved": self.state.count_file(LOCAL / "data" / "samples.jsonl") if self.state.is_candidate else None,
+                        "presets": [
+                            {"id": "calibrated", "name": "Đã hiệu chỉnh", "threshold": self.state.threshold, "margin": self.state.margin},
+                            {"id": "strict", "name": "Chặt hơn", "threshold": 0.90, "margin": 0.05},
+                        ] if self.state.is_candidate else [],
                     }
                 )
         elif path == "/api/samples.jsonl":
@@ -260,7 +275,8 @@ def main():
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--device", choices=("cpu", "cuda", "auto"), default="cpu")
     parser.add_argument("--threads", type=int, default=4)
-    parser.add_argument("--data-dir", type=Path, default=LOCAL / "data")
+    parser.add_argument("--data-dir", type=Path, default=None)
+    parser.add_argument("--candidate", type=Path, default=None, help="Load merged LoRA weights and their matching reference embeddings as an isolated trial.")
     parser.add_argument("--open-browser", action="store_true")
     parser.add_argument(
         "--lan", action="store_true",
@@ -273,7 +289,16 @@ def main():
     # Bind first so a port conflict is detected before loading the model.
     with LabServer((host, args.port), LabHandler) as server:
         server.lan = args.lan
-        server.state = LabState(RuneRecognizer(args.device, args.threads), args.data_dir.resolve())
+        recognizer = RuneRecognizer(args.device, args.threads, args.candidate)
+        data_dir = args.data_dir
+        if data_dir is None:
+            data_dir = (
+                LOCAL / "trials" / ("lora-" + recognizer.model_sha256[:12])
+                if args.candidate is not None else LOCAL / "data"
+            )
+        if args.candidate is not None and data_dir.resolve() == (LOCAL / "data").resolve():
+            parser.error("Candidate trials must use a separate data directory to preserve the original sample set.")
+        server.state = LabState(recognizer, data_dir.resolve())
         url = f"http://127.0.0.1:{args.port}"
         print(f"Rune Lab listening at {url}", flush=True)
         if args.lan:
