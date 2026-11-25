@@ -21,8 +21,9 @@ namespace LightSouls.Combat.Weapons
         internal static Vector3 Flat(Vector3 v) { v.y=0; return v.sqrMagnitude>.0001f?v.normalized:Vector3.forward; }
         private static string Family(WeaponCastKind kind) => kind==WeaponCastKind.StoneWall||kind==WeaponCastKind.IceWall?"Wall":kind.ToString();
         private static string Key(WeaponCastKind kind) => "combat.cast."+Family(kind);
-        public static float CastCooldownRemaining(WeaponDataSO weapon) => weapon==null||weapon.TacticalCast==WeaponCastKind.None ? 0f :
-            Mathf.Max(RunState.CooldownRemaining(Key(weapon.TacticalCast)),RunState.CooldownRemaining("combat.cast.global"));
+        public static float CastCooldownRemaining(WeaponDataSO weapon) => weapon==null?0f:CastCooldownRemaining(weapon.TacticalCast);
+        public static float CastCooldownRemaining(WeaponCastKind kind) => kind==WeaponCastKind.None?0f:
+            Mathf.Max(RunState.CooldownRemaining(Key(kind)),RunState.CooldownRemaining("combat.cast.global"));
 
         public static string Describe(WeaponDataSO weapon)
         {
@@ -39,35 +40,41 @@ namespace LightSouls.Combat.Weapons
 
         public static bool TryCast(WeaponDataSO weapon, GameObject owner, Vector3 aim)
         {
-            if(weapon==null||owner==null||!owner.CompareTag("Player")||weapon.TacticalCast==WeaponCastKind.None||CastCooldownRemaining(weapon)>0) return false;
+            return weapon!=null&&TryCast(weapon.TacticalCast,owner,aim,weapon.TacticalDistance,weapon.TacticalDuration,weapon.TacticalCooldown,weapon.WeaponColor);
+        }
+
+        // Explicit rune abilities use the same safe terrain/ward mechanics and shared cooldown families.
+        public static bool TryCast(WeaponCastKind kind,GameObject owner,Vector3 aim,float distance,float duration,float cooldown,Color color)
+        {
+            if(owner==null||!owner.CompareTag("Player")||kind==WeaponCastKind.None||CastCooldownRemaining(kind)>0) return false;
             var player=owner.GetComponent<PlayerController>();
             if(player==null||player.IsDead||!player.InLockedCombat||player.Movement.IsDashing)return false;
             Vector3 p=owner.transform.position,d=Flat(aim); bool success=false;
-            switch(weapon.TacticalCast)
+            switch(kind)
             {
                 case WeaponCastKind.Blink:
-                    if(TryFindTravel(p,d,Mathf.Min(4.5f,weapon.TacticalDistance),.46f,true,out var destination))
+                    if(TryFindTravel(p,d,Mathf.Min(4.5f,distance),.46f,true,out var destination))
                     {
-                        VfxFactory.SpellImpact(p,1.1f,weapon.WeaponColor,CombatVfxElement.Void);
+                        VfxFactory.SpellImpact(p,1.1f,color,CombatVfxElement.Void);
                         player.Teleport(destination+Vector3.up*.035f);
-                        VfxFactory.SpellImpact(destination,1.25f,weapon.WeaponColor,CombatVfxElement.Void);success=true;
+                        VfxFactory.SpellImpact(destination,1.25f,color,CombatVfxElement.Void);success=true;
                     }
                     break;
                 case WeaponCastKind.StoneWall: case WeaponCastKind.IceWall:
                     foreach(float angle in new[]{55f,-55f,0f})
                     {
-                        success=TemporaryRuneWall.TryCreate(owner,p,Quaternion.Euler(0,angle,0)*d,Mathf.Clamp(weapon.TacticalDistance,1.8f,3.3f),
-                            Mathf.Clamp(weapon.TacticalDuration,2f,6f),weapon.TacticalCast==WeaponCastKind.IceWall,weapon.WeaponColor);
+                        success=TemporaryRuneWall.TryCreate(owner,p,Quaternion.Euler(0,angle,0)*d,Mathf.Clamp(distance,1.8f,3.3f),
+                            Mathf.Clamp(duration,2f,6f),kind==WeaponCastKind.IceWall,color);
                         if(success)break;
                     }
                     break;
                 case WeaponCastKind.Ward:
                     var stats=PlayerStats.GetOrAdd(owner);
-                    stats.SetModifiers(WardSource,new[]{new StatModifier(StatType.DamageTaken,.72f)},Mathf.Min(4f,weapon.TacticalDuration));
-                    VfxFactory.TimedAura(owner.transform,"ArsenalWard",weapon.WeaponColor,weapon.TacticalDuration,22f,.54f);
-                    VfxFactory.Ring(p,weapon.WeaponColor,1.45f,.45f);success=true;break;
+                    stats.SetModifiers(WardSource,new[]{new StatModifier(StatType.DamageTaken,.72f)},Mathf.Clamp(duration,.5f,4f));
+                    VfxFactory.TimedAura(owner.transform,"ArsenalWard",color,Mathf.Clamp(duration,.5f,4f),22f,.54f);
+                    VfxFactory.Ring(p,color,1.45f,.45f);success=true;break;
             }
-            if(success){RunState.StartCooldown(Key(weapon.TacticalCast),weapon.TacticalCooldown);RunState.StartCooldown("combat.cast.global",1.1f);}
+            if(success){RunState.StartCooldown(Key(kind),Mathf.Max(1f,cooldown));RunState.StartCooldown("combat.cast.global",1.1f);}
             return success;
         }
 

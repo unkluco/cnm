@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using LightSouls.Combat.Effects;
+using LightSouls.Combat.Runes;
 using LightSouls.Common;
 using UnityEngine;
 
@@ -25,10 +26,11 @@ namespace LightSouls.Combat.Weapons
         private GameObject owner;
         private bool damagesOwner;
         private WeaponDataSO weapon;
+        private RuneImpact runeImpact;
         private bool exploded;
 
         public static ExplosiveProjectile Launch(Vector3 from, Vector3 to, float flightTime, float arcHeight, float damage,
-            float radius, GameObject owner, bool damagesOwner, Color color, WeaponDataSO weapon = null, float scale = 0.35f)
+            float radius, GameObject owner, bool damagesOwner, Color color, WeaponDataSO weapon = null, float scale = 0.35f,RuneImpact runeImpact=null)
         {
             GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.name = "ExplosiveProjectile";
@@ -56,6 +58,7 @@ namespace LightSouls.Combat.Weapons
             projectile.owner = owner;
             projectile.damagesOwner = damagesOwner;
             projectile.weapon = weapon;
+            projectile.runeImpact=runeImpact;
             return projectile;
         }
 
@@ -118,7 +121,7 @@ namespace LightSouls.Combat.Weapons
                 }
                 else
                 {
-                    WeaponHitResolver.Apply(weapon, amount, owner, target, hit.ClosestPoint(center), false);
+                    WeaponHitResolver.Apply(weapon, amount, owner, target, hit.ClosestPoint(center), false,runeImpact:runeImpact);
                 }
             }
 

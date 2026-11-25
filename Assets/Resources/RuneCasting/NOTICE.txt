@@ -1,0 +1,15 @@
+ViTTinyRune.onnx — Light Souls Rune Casting
+
+Derived from hasanfaesal/vit-tiny-patch16-224-dinov2-distill
+https://huggingface.co/hasanfaesal/vit-tiny-patch16-224-dinov2-distill
+Revision: 82c08b3370e0f10c3726352c0b75ae39da034d69
+License: Apache License, Version 2.0 (see APACHE-LICENSE-2.0.txt).
+
+Modified by the Light Souls project: fine-tuned with rank-4 LoRA and cosine
+triplet loss for single-stroke rune recognition, merged into the backbone,
+exported to ONNX with a static 224x224 input and 192-dimensional CLS output.
+The exported model is not an official Meta DINOv2 Tiny model.
+
+RuneModelInfo.json records the source and exported artifact SHA-256 checksums.
+RuneReferences.bytes contains normalized 192-dimensional reference vectors;
+the original drawing dataset is not distributed.

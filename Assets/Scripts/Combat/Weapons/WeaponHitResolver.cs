@@ -1,6 +1,7 @@
 using LightSouls.Combat.Effects;
 using LightSouls.Combat.Stats;
 using LightSouls.Combat.Enemies;
+using LightSouls.Combat.Runes;
 using LightSouls.Common;
 using UnityEngine;
 
@@ -38,7 +39,7 @@ namespace LightSouls.Combat.Weapons
         /// </summary>
         public static float Apply(WeaponDataSO weapon, float baseDamage, GameObject attacker, IDamageable target,
             Vector3 hitPoint, bool applyAttackerMultiplier = true, Vector3 impactDirection = default,
-            CombatVfxElement fallbackElement = CombatVfxElement.Steel, Color? fallbackColor = null)
+            CombatVfxElement fallbackElement = CombatVfxElement.Steel, Color? fallbackColor = null, RuneImpact runeImpact = null)
         {
             if (target == null || target.IsDead || IsFriendly(attacker,target))
             {
@@ -64,7 +65,7 @@ namespace LightSouls.Combat.Weapons
             if ((attacker != null && attacker.CompareTag("Player")) || (targetComponent != null && targetComponent.CompareTag("Player")))
                 CombatImpactFeedback.Emit(hitPoint, Mathf.Lerp(.21f, .7f, strength));
 
-            if (actual>0f && weapon != null && weapon.HitEffects != null && targetComponent != null)
+            if (actual>0f && weapon != null && targetComponent != null)
             {
                 var context = new WeaponHitContext
                 {
@@ -76,7 +77,11 @@ namespace LightSouls.Combat.Weapons
                     Weapon = weapon,
                 };
 
-                foreach (WeaponHitEffectSO effect in weapon.HitEffects)
+                if(runeImpact!=null)
+                {
+                    runeImpact.OnHit(context);
+                }
+                else if(weapon.HitEffects!=null) foreach (WeaponHitEffectSO effect in weapon.HitEffects)
                 {
                     if (effect != null)
                     {

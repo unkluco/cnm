@@ -8,6 +8,7 @@ using LightSouls.Combat.Inventory;
 using LightSouls.Combat.Items;
 using LightSouls.Combat.Effects;
 using LightSouls.Combat.Stats;
+using LightSouls.Combat.Runes;
 
 namespace LightSouls.Combat
 {
@@ -42,8 +43,25 @@ namespace LightSouls.Combat
         private PlayerInventory _inventory;
         private AimRangeIndicator _aimIndicator;
         private bool _isInputActive = true;
+        private bool _runeInputMode;
+        private int _runeContextVersion;
 
         public WeaponDataSO CurrentWeaponData => (_activeWeapon != null) ? _activeWeapon.Data : null;
+        public bool RuneInputMode=>_runeInputMode;
+        public int RuneContextVersion=>_runeContextVersion;
+        public bool ConsumableSelected=>_inventory!=null&&_inventory.SelectedItem is ConsumableDataSO;
+        public bool RuneInputReady=>_isInputActive&&isActiveAndEnabled&&Time.timeScale>0&&
+            (_movement==null||!_movement.IsDashing)&&GetComponent<PlayerController>()?.IsDead!=true&&CurrentRuneSkills.Count>0;
+        public IReadOnlyList<RuneSkill> CurrentRuneSkills
+        {
+            get
+            {
+                var kit=RuneSkillCatalog.For(CurrentWeaponData);
+                // Dodging remains available even when briefly using a potion
+                // or selecting an empty hotbar slot; other casts do not.
+                return ConsumableSelected||kit.Count==0?RuneSkillCatalog.DashOnly:kit;
+            }
+        }
         private const string GlobalAttackKey = "combat.global_attack";
         public static float CooldownFor(WeaponDataSO data) => data != null ? RunState.CooldownRemaining("weapon." + data.ItemId) : 0f;
         public float AttackCooldownRemaining => Mathf.Max(RunState.CooldownRemaining(GlobalAttackKey),
@@ -80,6 +98,7 @@ namespace LightSouls.Combat
 
         /// <summary>Phát sự kiện khi Player thực hiện một đòn tấn công.</summary>
         public event Action OnAttackExecuted;
+        public event Action<RuneSkill> OnRuneCast;
 
         private void Awake()
         {
@@ -160,7 +179,7 @@ namespace LightSouls.Combat
         private void Update()
         {
             // Vũ khí bắn tự động (Súng Tiểu Liên): giữ nút tấn công là bắn liên tục theo tốc bắn.
-            if (!_isInputActive || attackAction == null || attackAction.action == null) return;
+            if (_runeInputMode||!_isInputActive || attackAction == null || attackAction.action == null) return;
             WeaponDataSO current = CurrentWeaponData;
             bool holdingConsumable = _inventory != null && _inventory.SelectedItem is ConsumableDataSO;
             if (current != null && current.AutoFire && !holdingConsumable && attackAction.action.IsPressed())
@@ -172,6 +191,10 @@ namespace LightSouls.Combat
         private void OnAttackInput(InputAction.CallbackContext context)
         {
             if (!_isInputActive) return;
+            // In the actual rune HUD, the old Attack action is only the Use
+            // button for a selected consumable. No keyboard/gamepad auto-fire
+            // bypasses recognition for the equipped weapon.
+            if(_runeInputMode&&!ConsumableSelected)return;
             PerformAttack();
         }
 
@@ -280,6 +303,7 @@ namespace LightSouls.Combat
 
         public void UnequipCurrentWeapon()
         {
+            _runeContextVersion++;
             if (_aimIndicator != null) _aimIndicator.Hide();
             if (_activeWeaponInstance != null)
             {
@@ -297,6 +321,100 @@ namespace LightSouls.Combat
                     Destroy(weaponSocket.GetChild(i).gameObject);
                 }
             }
+        }
+
+        public void SetRuneInputMode(bool enabled)
+        {
+            if(_runeInputMode==enabled)return;
+            _runeInputMode=enabled;_runeContextVersion++;_movement?.SetRuneDashMode(enabled);
+        }
+
+        private static string RuneKey(WeaponDataSO data,RuneSkill skill)=>"combat.rune."+data.ItemId+"."+RuneGlyphs.Id(skill.Glyph);
+        public float RuneCooldownDuration(RuneSkill skill)
+        {
+            if(skill!=null&&skill.Form==RuneForm.Dash)return _movement!=null?_movement.EffectiveDashCooldown:skill.Cooldown;
+            if(skill==null||CurrentWeaponData==null||_activeWeapon==null)return 0;
+            float stat=GetComponent<PlayerStats>()?.Get(StatType.AttackCooldown)??1;
+            float adjusted=skill.BaseCooldown(CurrentWeaponData)*(skill.Basic?stat:Mathf.Clamp(stat,.85f,1.2f));
+            return Mathf.Max(.35f,adjusted,skill.Basic?_activeWeapon.EffectiveAttackInterval:0f);
+        }
+
+        public float RuneCooldownRemaining(RuneSkill skill)
+        {
+            if(skill!=null&&skill.Form==RuneForm.Dash)return _movement!=null?_movement.DashCooldownRemaining:0f;
+            if(skill==null||CurrentWeaponData==null)return 0;
+            return Mathf.Max(RunState.CooldownRemaining(GlobalAttackKey),CooldownFor(CurrentWeaponData),
+                RunState.CooldownRemaining(RuneKey(CurrentWeaponData,skill)),RunState.CooldownRemaining(RuneSkillExecutor.FamilyKey(skill)),
+                WeaponTactics.CastCooldownRemaining(RuneSkillExecutor.TacticalKind(skill.Form)));
+        }
+
+        private float RuneAimRadius(RuneSkill skill,WeaponDataSO data)
+        {
+            float reach=skill.Reach(data);
+            if(skill.Form==RuneForm.Weapon&&data.Type==WeaponType.Melee)reach*=1.8f;
+            if(skill.Form==RuneForm.Blink||skill.Form==RuneForm.StoneWall||skill.Form==RuneForm.IceWall)reach=Mathf.Max(reach,AutoAimRadius);
+            return Mathf.Clamp(reach,0f,autoAimMaxDistance);
+        }
+
+        /// <summary>
+        /// Only the active weapon's four authored glyphs and the shared dodge can dispatch. The HUD
+        /// calls this after a successful model result. Cooldowns persist in
+        /// RunState across item swaps and scene changes.
+        /// </summary>
+        public bool TryCastRune(RuneGlyph glyph,out string feedback)
+        {
+            feedback="Không thể thi triển";
+            if(!RuneInputReady)return false;
+            if(glyph==RuneSkillCatalog.DashSkill.Glyph)
+            {
+                var dodge=RuneSkillCatalog.DashSkill;
+                float remainingDash=RuneCooldownRemaining(dodge);
+                if(remainingDash>.025f){feedback=dodge.Name+" · Hồi "+remainingDash.ToString("0.0")+"s";return false;}
+                // Do not share the attack lock: a defensive dodge must remain
+                // usable immediately after an attack, and swapping cannot reset it.
+                if(_movement==null||!_movement.TryPerformDash())return false;
+                OnRuneCast?.Invoke(dodge);feedback=dodge.Name;return true;
+            }
+            if(ConsumableSelected){feedback="Chọn vũ khí để thi triển chiêu";return false;}
+            var data=CurrentWeaponData;var skill=RuneSkillCatalog.Find(data,glyph);
+            if(skill==null){feedback="Vũ khí không có cổ ngữ này";return false;}
+            float remaining=RuneCooldownRemaining(skill);
+            if(remaining>.025f)
+            {feedback=skill.Name+" · Hồi "+remaining.ToString("0.0")+"s";return false;}
+            if(!_activeWeapon.CanAttack){feedback="Đang hồi đòn";return false;}
+
+            float range=RuneAimRadius(skill,data);
+            Transform target=autoAimEnabled&&range>0?FindNearestEnemy(range):null;
+            Vector3 aim=transform.forward;
+            if(target!=null)
+            {
+                Vector3 delta=target.position-transform.position;delta.y=0;
+                if(delta.sqrMagnitude>.01f){aim=delta.normalized;_movement?.RotateTowards(aim);}
+            }
+            float cooldown=RuneCooldownDuration(skill);
+            float recovery=Mathf.Max(.50f,_activeWeapon.EffectiveAttackInterval);
+            if(skill.Basic)recovery=Mathf.Max(recovery,cooldown);
+            if(data.Type==WeaponType.Melee&&skill.Form==RuneForm.Weapon)
+                recovery=Mathf.Max(recovery,(data.StrikeCount+skill.ExtraHits-1)*data.StrikeInterval+.32f);
+            if(!RuneSkillExecutor.Execute(_activeWeapon,attackOrigin,aim,target,enemyLayer,gameObject,skill,cooldown,out feedback))
+            {
+                if(string.IsNullOrEmpty(feedback))feedback="Chưa thể thi triển "+skill.Name;
+                return false;
+            }
+            RunState.StartCooldown(RuneKey(data,skill),Mathf.Max(cooldown,recovery));
+            RunState.StartCooldown(GlobalAttackKey,recovery);
+            RunState.StartCooldown("weapon."+data.ItemId,recovery);
+            RunState.StartCooldown(RuneSkillExecutor.FamilyKey(skill),RuneSkillExecutor.FamilyDelay(skill));
+            if(range>.05f)_aimIndicator.Show(range);
+            OnAttackExecuted?.Invoke();OnRuneCast?.Invoke(skill);
+            feedback=skill.Name;
+            if(GameSettings.VibrationEnabled)
+            {
+                #if UNITY_ANDROID && !UNITY_EDITOR
+                Handheld.Vibrate();
+                #endif
+            }
+            return true;
         }
 
         public void PerformAttack()
@@ -366,9 +484,9 @@ namespace LightSouls.Combat
             }
         }
 
-        private Transform FindNearestEnemy()
+        private Transform FindNearestEnemy(float searchRadius=-1)
         {
-            float searchRadius = AutoAimRadius;
+            if(searchRadius<0)searchRadius=AutoAimRadius;
             if (searchRadius <= 0f) return null;
 
             Collider[] hits = Physics.OverlapCapsule(transform.position, transform.position + Vector3.up * 2f,
@@ -401,6 +519,7 @@ namespace LightSouls.Combat
 
         public void SetInputActive(bool active)
         {
+            if(_isInputActive!=active)_runeContextVersion++;
             _isInputActive = active;
             if (!active && _aimIndicator != null) _aimIndicator.Hide();
         }

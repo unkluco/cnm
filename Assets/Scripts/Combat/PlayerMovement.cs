@@ -72,6 +72,7 @@ namespace LightSouls.Combat
         private Vector2 _inputVector;
         private Vector3 _velocity;
         private bool _isInputActive = true;
+        private bool _runeDashMode;
 
         private bool _isDashing = false;
         private float _lastDashTime = -999f;
@@ -85,6 +86,7 @@ namespace LightSouls.Combat
         public Vector2 InputVector => _inputVector;
         public bool IsMoving => _inputVector.sqrMagnitude > 0.01f;
         public bool IsDashing => _isDashing;
+        public bool RuneDashMode => _runeDashMode;
         public Vector3 FacingDirection => transform.forward;
         public float DashCooldownRemaining => Mathf.Max(0f, (_lastDashTime + EffectiveDashCooldown) - Time.time);
         public float DashCooldownRatio => Mathf.Clamp01(DashCooldownRemaining / Mathf.Max(0.01f, EffectiveDashCooldown));
@@ -180,19 +182,23 @@ namespace LightSouls.Combat
 
         private void OnDashInput(InputAction.CallbackContext context)
         {
-            if (!_isInputActive) return;
+            if (!_isInputActive||_runeDashMode) return;
             PerformDash();
         }
+
+        public void SetRuneDashMode(bool enabled)=>_runeDashMode=enabled;
 
         /// <summary>
         /// Kích hoạt kỹ năng Lướt (Dash).
         /// Lướt nhân vật về hướng đang di chuyển (hoặc hướng đang nhìn nếu đứng yên),
         /// tạo vệt trắng phía sau.
         /// </summary>
-        public void PerformDash()
+        public void PerformDash()=>TryPerformDash();
+
+        public bool TryPerformDash()
         {
-            if (_isDashing || !_isInputActive) return;
-            if (Time.time < _lastDashTime + EffectiveDashCooldown) return;
+            if (_isDashing || !_isInputActive||Time.timeScale<=0||GetComponent<PlayerController>()?.IsDead==true) return false;
+            if (Time.time < _lastDashTime + EffectiveDashCooldown) return false;
 
             _lastDashTime = Time.time;
 
@@ -220,6 +226,7 @@ namespace LightSouls.Combat
                 Handheld.Vibrate();
                 #endif
             }
+            return true;
         }
 
         private IEnumerator DashRoutine()

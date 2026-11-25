@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using LightSouls.Common;
+using LightSouls.Combat.Runes;
 
 namespace LightSouls.Combat.Weapons
 {
@@ -150,6 +151,14 @@ namespace LightSouls.Combat.Weapons
                 if (explosionDamagesOwner) sb.Append(" (gây thương cả bản thân)");
             }
 
+            var skills=RuneSkillCatalog.For(this);
+            if(skills.Count>0)
+            {
+                sb.Append("\nCổ ngữ (4 chiêu + Lướt):");
+                foreach(var skill in skills)
+                    sb.Append("\n• ").Append(RuneGlyphs.Name(skill.Glyph)).Append(" — ").Append(skill.Name).Append(": ").Append(skill.Description(this));
+                return sb.ToString();
+            }
             foreach (WeaponHitEffectSO effect in hitEffects)
             {
                 if (effect != null) sb.Append("\n• ").Append(effect.Describe());

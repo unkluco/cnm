@@ -64,4 +64,6 @@ Rune Lab sẽ hiển thị rõ phiên bản LoRA, nạp **trọng số đã gộ
 
 Mẫu thu mới ghi riêng ở `.local/trials/lora-<hash-model>/samples.jsonl`, kèm hash đúng của trọng số và ngân hàng tham chiếu. Không ghi vào `.local/data/samples.jsonl` ban đầu. Chạy lại `python run_lab.py` (không có `--candidate`) để trở về phiên bản frozen.
 
+Sau khi chọn candidate để tích hợp, `export_unity.py` xuất ONNX và ngân hàng vector cho Unity; xem [Rune Casting](../../Docs/RuneCasting.md). Không đưa dữ liệu nét vẽ gốc vào Assets hoặc Git.
+
 Tham khảo: [LoRA](https://arxiv.org/abs/2106.09685), [In Defense of the Triplet Loss](https://arxiv.org/abs/1703.07737).

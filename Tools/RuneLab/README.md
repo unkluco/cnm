@@ -2,6 +2,8 @@
 
 Phòng thử nghiệm nhận dạng cổ ngữ của Light Souls, tách biệt khỏi Unity và gameplay. Đây **không phải** phiên bản thay nút đánh của game.
 
+Phiên bản gameplay sử dụng candidate LoRA đã xuất ONNX được mô tả riêng trong [Rune Casting](../../Docs/RuneCasting.md); Rune Lab vẫn có thể chạy để kiểm thử và thu mẫu độc lập.
+
 ## Chạy
 
 Cần Python 3.11 trở lên, trên máy có PyTorch tương thích. Từ thư mục `Tools/RuneLab`:
@@ -51,7 +53,7 @@ python -m pip install playwright
 python tests/browser_smoke.py --browser-path "C:\Program Files\Google\Chrome\Application\chrome.exe"
 ```
 
-Mục tiêu nghiên cứu sau khi có dữ liệu thật: ≥95% chấp nhận đúng nét hợp lệ; <2% kích hoạt nhầm và <2% nét lạ bị nhận nhầm; đo p95 latency trên thiết bị mục tiêu. Chưa xuất ONNX, chưa thêm Sentis, chưa thay đổi scene, chiêu thức hoặc cooldown. Chỉ tiến sang Unity khi phù hợp với các tiêu chí đã thống nhất.
+Mục tiêu nghiên cứu sau khi có dữ liệu thật: ≥95% chấp nhận đúng nét hợp lệ; <2% kích hoạt nhầm và <2% nét lạ bị nhận nhầm; đo p95 latency trên thiết bị mục tiêu. Các chỉ số bên trên là mốc thử nghiệm frozen trước khi tích hợp Unity; bản gameplay LoRA được kiểm tra riêng.
 
 ### Fine-tune tùy chọn
 
